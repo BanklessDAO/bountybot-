@@ -19,6 +19,9 @@ export interface Bounty {
 	customerId: string,
 	customer_id: string,
 	gate?: string[],
+	evergreen?: boolean,
+	isParent?: boolean,
+	parentId?: string,
 }
 
 export type UserObject = {

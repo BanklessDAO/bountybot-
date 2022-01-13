@@ -112,5 +112,10 @@ export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus
 			messageEmbedOptions.fields.push({ name: 'Gated to', value: role.name, inline: false })
     }
 
+	if (dbBounty.evergreen) {
+        messageEmbedOptions.fields.push({ name: 'Evergreen (infinitely claimable)', value: 'Yes', inline: false });
+    }
+
+
 	return messageEmbedOptions;
 };

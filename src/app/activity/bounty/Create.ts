@@ -134,6 +134,10 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
         bountyPreview.embeds[0].fields.push({ name: 'Gated to', value: role.name, inline: false });
     }
 
+    if (newBounty.evergreen) {
+        bountyPreview.embeds[0].fields.push({ name: 'Evergreen (infinitely claimable)', value: 'Yes', inline: false });
+    }
+
     await guildMember.send('Thank you! Does this look right?');
     const message: Message = await guildMember.send(bountyPreview);
 
@@ -151,6 +155,8 @@ const createDbHandler = async (
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbBounty = db.collection('bounties');
 
+    const isParent = createRequest.evergreen ? true : false;
+    
     // TODO: perform copies validation
     const rawCopies = createRequest.copies
     const copies = rawCopies && rawCopies > 0 ? rawCopies : 1;
@@ -219,6 +225,11 @@ export const generateBountyRecord = (
 
     if (createRequest.gate) {
         bountyRecord.gate = [createRequest.gate]
+    }
+
+    if (createRequest.evergreen) {
+        bountyRecord.evergreen = true;
+        bountyRecord.isParent = true;
     }
 
     return bountyRecord;

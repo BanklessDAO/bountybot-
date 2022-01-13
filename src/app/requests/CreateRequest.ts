@@ -8,6 +8,7 @@ export class CreateRequest extends Request {
     guildId: string;
     title: string;
     reward: string;
+    evergreen: boolean;
     copies: number;
     gate: string;
 
@@ -27,6 +28,7 @@ export class CreateRequest extends Request {
             this.userId = commandContext.user.id;
             this.title = commandContext.options.create['title'];
             this.reward = commandContext.options.create['reward'];
+            this.evergreen = commandContext.options.create['evergreen'];
             this.copies = commandContext.options.create['copies'];
             this.gate = commandContext.options.create['gate'];
 

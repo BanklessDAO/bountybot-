@@ -50,6 +50,12 @@ export default class Bounty extends SlashCommand {
                             required: true,
                         },
                         {
+                            name: 'evergreen',
+                            type: CommandOptionType.BOOLEAN,
+                            description: 'Make this bounty repeatedly claimable (true/false)',
+                            required: false,
+                        },
+                        {
                             name: 'copies',
                             type: CommandOptionType.INTEGER,
                             description: 'How many bounties should be published? (level 3+, max 100)',

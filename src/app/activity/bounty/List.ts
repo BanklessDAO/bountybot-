@@ -91,6 +91,11 @@ export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: 
 		timestamp: new Date(bountyRecord.createdAt).getTime(),
 	};
 
+    if (bountyRecord.evergreen && bountyRecord.isParent) {
+		messageEmbedOptions.fields.push(
+			{ name: 'Evergreen (infinitely claimable)', value: 'Yes', inline: false })
+	}
+	
 	let isUser = true;
 	let isRole = true;
 
