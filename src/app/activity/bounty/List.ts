@@ -95,7 +95,12 @@ export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: 
 		messageEmbedOptions.fields.push(
 			{ name: 'Evergreen (infinitely claimable)', value: 'Yes', inline: false })
 	}
-	
+
+	if (bountyRecord.claimedBy !== undefined) {
+		messageEmbedOptions.fields.push(
+			{ name: 'Claimed by', value: bountyRecord.claimedBy.discordHandle, inline: false })
+	}
+
 	let isUser = true;
 	let isRole = true;
 

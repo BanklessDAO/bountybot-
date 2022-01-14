@@ -21,6 +21,7 @@ export interface BountyCollection extends Collection {
 	evergreen: boolean,
 	isParent: boolean,
 	parentId: string,
+	childrenIds: string[]
 }
 
 export type UserObject = {
