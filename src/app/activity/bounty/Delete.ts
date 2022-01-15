@@ -4,7 +4,7 @@ import Log, { LogUtils } from '../../utils/Log';
 import { DMChannel, GuildMember, Message, TextChannel } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
-import { BountyCollection } from '../../types/bounty/BountyCollection';
+import { Bounty } from '../../types/bounty/Bounty';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import RuntimeError from '../../errors/RuntimeError';
 import { BountyStatus } from '../../constants/bountyStatus';
@@ -14,7 +14,7 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
     const deletedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
 	Log.info(`${request.bountyId} bounty deleted by ${deletedByUser.user.tag}`);
 	
-    const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
+    const getDbResult: {dbBountyResult: Bounty, bountyChannel: string} = await getDbHandler(request);
     await writeDbHandler(request, deletedByUser);
 
     let bountyEmbedMessage: Message;
@@ -31,8 +31,12 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
     await deleteBountyMessage(bountyEmbedMessage);
 	
 	const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
-	const creatorDeleteDM = 
+	let creatorDeleteDM = 
         `The following bounty has been deleted: ${bountyUrl}\n`;
+
+    if (getDbResult.dbBountyResult.evergreen && getDbResult.dbBountyResult.isParent) {
+        creatorDeleteDM += 'Children bounties created from this evergreen bounty will remain.\n';
+    }
 
     await deletedByUser.send({ content: creatorDeleteDM });
     return;
@@ -47,12 +51,12 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
  * @param request DeleteRequest, passed from activity initiator
  * @returns 
  */
-const getDbHandler = async (request: DeleteRequest): Promise<{dbBountyResult: BountyCollection, bountyChannel: string}> => {
+const getDbHandler = async (request: DeleteRequest): Promise<{dbBountyResult: Bounty, bountyChannel: string}> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
 	const bountyCollection = db.collection('bounties');
     const customerCollection = db.collection('customers');
 
-	const dbBountyResult: BountyCollection = await bountyCollection.findOne({
+	const dbBountyResult: Bounty = await bountyCollection.findOne({
 		_id: new mongo.ObjectId(request.bountyId),
 	});
 
@@ -78,7 +82,7 @@ const writeDbHandler = async (request: DeleteRequest, deletedByUser: GuildMember
     const db: Db = await MongoDbUtils.connect('bountyboard');
 	const bountyCollection = db.collection('bounties');
 
-	const dbBountyResult: BountyCollection = await bountyCollection.findOne({
+	const dbBountyResult: Bounty = await bountyCollection.findOne({
 		_id: new mongo.ObjectId(request.bountyId),
 	});
 
