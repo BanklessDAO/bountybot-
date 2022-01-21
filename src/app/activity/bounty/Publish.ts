@@ -81,9 +81,14 @@ export const addPublishReactions = (message: Message): void => {
 };
 
 export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
+	let title = dbBounty.title;
+    if (dbBounty.evergreen) {
+        title += `\n(Claimable by multiple people)`;
+    }
+
 	let messageEmbedOptions: MessageEmbedOptions = {
 		color: 1998388,
-		title: dbBounty.title,
+		title: title,
 		url: (process.env.BOUNTY_BOARD_URL + dbBounty._id.toHexString()),
 		author: {
 			iconURL: dbBounty.createdBy.iconUrl,
@@ -111,11 +116,6 @@ export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus
 			const role = await DiscordUtils.getRoleFromRoleId(dbBounty.gate[0], guildID);
 			messageEmbedOptions.fields.push({ name: 'Gated to', value: role.name, inline: false })
     }
-
-	if (dbBounty.evergreen) {
-        messageEmbedOptions.fields.push({ name: 'Evergreen (infinitely claimable)', value: 'Yes', inline: false });
-    }
-
 
 	return messageEmbedOptions;
 };

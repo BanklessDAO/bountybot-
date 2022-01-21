@@ -98,9 +98,13 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
     const listOfBountyIds = Object.values(dbInsertResult.insertedIds).map(String);
     const newBounty = listOfPrepBounties[0];
+    let title = newBounty.title;
+    if (newBounty.evergreen) {
+        title += `\n(Claimable by multiple people)`;
+    }
     let bountyPreview: MessageOptions = {
         embeds: [{
-            title: newBounty.title,
+            title: title,
             url: (process.env.BOUNTY_BOARD_URL + listOfBountyIds[0]),
             author: {
                 icon_url: guildMember.user.avatarURL(),
@@ -132,10 +136,6 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     if (newBounty.gate) {
         const role: Role = await DiscordUtils.getRoleFromRoleId(newBounty.gate[0], guildId);
         bountyPreview.embeds[0].fields.push({ name: 'Gated to', value: role.name, inline: false });
-    }
-
-    if (newBounty.evergreen) {
-        bountyPreview.embeds[0].fields.push({ name: 'Evergreen (infinitely claimable)', value: 'Yes', inline: false });
     }
 
     await guildMember.send('Thank you! Does this look right?');

@@ -15,7 +15,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
     
-    let getDbResult: {dbBountyResult: Bounty, bountyChannel: string, childrenBounties: Bounty[]} = await getDbHandler(request);
+    let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string, childrenBounties: BountyCollection[]} = await getDbHandler(request);
     const claimedBountyId = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
     
     let bountyEmbedMessage: Message;
@@ -39,8 +39,12 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     await claimBountyMessage(bountyEmbedMessage, claimedByUser, getDbResult.dbBountyResult, getDbResult.childrenBounties);
     
     const bountyUrl = process.env.BOUNTY_BOARD_URL + claimedBountyId;
+    const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
     const createdByUser: GuildMember = await claimedByUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
-    let creatorClaimDM = `Your bounty has been claimed by <@${claimedByUser.user.id}>.\n${bountyUrl}`
+    let creatorClaimDM = `Your bounty has been claimed by <@${claimedByUser.user.id}> ${bountyUrl}`;
+    if (getDbResult.dbBountyResult.evergreen) {
+        creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. ${origBountyUrl}`;
+    }
 
     await createdByUser.send({ content: creatorClaimDM });
 
@@ -48,17 +52,17 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     return;
 };
 
-const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: Bounty, bountyChannel: string, childrenBounties: Bounty[]}> => {
+const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: BountyCollection, bountyChannel: string, childrenBounties: BountyCollection[]}> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
     const customerCollection = db.collection('customers');
 
-    const dbBountyResult: Bounty = await bountyCollection.findOne({
+    const dbBountyResult: BountyCollection = await bountyCollection.findOne({
         _id: new mongo.ObjectId(request.bountyId),
         status: BountyStatus.open,
     });
 
-    const childrenBounties: Bounty[] = [];
+    const childrenBounties: BountyCollection[] = [];
     if (dbBountyResult.evergreen && dbBountyResult.childrenIds !== undefined && dbBountyResult.childrenIds.length > 0) {
         const childrenBountiesCursor: Cursor  = bountyCollection.find({ _id: { $in: dbBountyResult.childrenIds }});
         while (await childrenBountiesCursor.hasNext()) {
@@ -85,14 +89,14 @@ const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: Bou
     }
 }
 
-const writeDbHandler = async (request: ClaimRequest, dbBountyResult: Bounty, claimedByUser: GuildMember): Promise<{claimedBountyId: string}> => {
+const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyCollection, claimedByUser: GuildMember): Promise<{claimedBountyId: mongo.ObjectId}> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
-    let claimedBounty: Bounty;
+    let claimedBounty: BountyCollection;
 
     // If claiming an evergreen bounty, create a copy and use that
     if (dbBountyResult.evergreen) {
-        const bountyRec: Bounty = JSON.parse(JSON.stringify(dbBountyResult));
+        const bountyRec: BountyCollection = JSON.parse(JSON.stringify(dbBountyResult));
         bountyRec.parentId = bountyRec._id;
         delete bountyRec._id;
         delete bountyRec.isParent;
@@ -101,7 +105,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: Bounty, cla
             Log.error('failed to create claimed bounty from evergreen');
             throw new Error('Sorry something is not working, our devs are looking into it.');
         }
-        claimedBounty = await bountyCollection.find({_id: claimedInsertResult.insertedId}).next();
+        claimedBounty = await bountyCollection.findOne({_id: claimedInsertResult.insertedId});
         const updatedBountyResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, {
             $push: {
                 childrenIds: claimedBounty._id
@@ -142,7 +146,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: Bounty, cla
     return claimedBounty._id;
 }
 
-export const claimBountyMessage = async (message: Message, claimedByUser: GuildMember, originalBounty: Bounty, childrenBounties: Bounty[]): Promise<any> => {
+export const claimBountyMessage = async (message: Message, claimedByUser: GuildMember, originalBounty: BountyCollection, childrenBounties: BountyCollection[]): Promise<any> => {
     Log.debug(`fetching bounty message for claim`)
     
     const embedMessage: MessageEmbed = message.embeds[0];
@@ -151,10 +155,10 @@ export const claimBountyMessage = async (message: Message, claimedByUser: GuildM
     if (originalBounty.evergreen) {
         let claimedBy = claimedByUser.user.tag;
         if (childrenBounties.length > 1) {
-            claimedBy += ", and " + (childrenBounties.length - 1) + " more";
-            embedMessage.fields[BountyEmbedFields.createdBy + 2].value = claimedBy;
+            claimedBy += `, and ${childrenBounties.length - 1} more`;
+            embedMessage.fields[BountyEmbedFields.claimedBy].value = claimedBy;
         } else {
-            embedMessage.addField('Claimed by', claimedBy, true);
+        embedMessage.addField('Claimed by', claimedBy, true);
         }
     } else {
         embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.in_progress;

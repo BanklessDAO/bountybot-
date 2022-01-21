@@ -22,7 +22,7 @@ export interface Bounty {
 	evergreen?: boolean,
 	isParent?: boolean,
 	parentId?: string,
-	childrenIds?: string[]
+	childrenIds?: ObjectId[]
 }
 
 export type UserObject = {
