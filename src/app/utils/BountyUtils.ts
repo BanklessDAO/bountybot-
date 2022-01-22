@@ -189,7 +189,8 @@ const BountyUtils = {
         let title = bountyRecord.title;
         if (bountyRecord.evergreen && bountyRecord.isParent) {
             if (bountyRecord.claimLimit !== undefined) {
-                title += `\n(${bountyRecord.claimLimit - (bountyRecord.childrenIds !== undefined ? bountyRecord.childrenIds.length : 0)} claims available)`;
+                const claimsAvailable = bountyRecord.claimLimit - (bountyRecord.childrenIds !== undefined ? bountyRecord.childrenIds.length : 0);
+                title += `\n(${claimsAvailable} claim${claimsAvailable !== 1 ? "s" : ""} available)`;
             } else {
                 title += '\n(Infinite claims available)';
             }

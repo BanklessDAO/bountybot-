@@ -17,7 +17,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
     
     let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
-    const claimedBountyId = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
+    const claimedBounty = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
     
     let bountyEmbedMessage: Message;
     // TODO: consider changing claim, submit, complete, and delete requests to have a channel id instead of the complete Message
@@ -34,14 +34,18 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     // Need to refresh original bounty so the messages are correct
     getDbResult = await getDbHandler(request); 
 
-    await claimBountyMessage(bountyEmbedMessage, claimedBountyId.toString(), claimedByUser, getDbResult.dbBountyResult);
+    await claimBountyMessage(bountyEmbedMessage, claimedBounty, claimedByUser, getDbResult.dbBountyResult);
     
-    const bountyUrl = process.env.BOUNTY_BOARD_URL + claimedBountyId;
+    const bountyUrl = process.env.BOUNTY_BOARD_URL + claimedBounty._id;
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
     const createdByUser: GuildMember = await claimedByUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
     let creatorClaimDM = `Your bounty has been claimed by <@${claimedByUser.user.id}> ${bountyUrl}`;
     if (getDbResult.dbBountyResult.evergreen) {
-        creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. ${origBountyUrl}`;
+        if (getDbResult.dbBountyResult.status == BountyStatus.open) {
+            creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. ${origBountyUrl}`;
+        } else {
+            creatorClaimDM += `\nYour evergreen bounty has reached its claim limit and has been marked deleted. ${origBountyUrl}`;
+        }
     }
 
     await createdByUser.send({ content: creatorClaimDM });
@@ -76,7 +80,7 @@ const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: Bou
     }
 }
 
-const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyCollection, claimedByUser: GuildMember): Promise<{claimedBountyId: mongo.ObjectId}> => {
+const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyCollection, claimedByUser: GuildMember): Promise<BountyCollection> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
     let claimedBounty: BountyCollection;
@@ -88,6 +92,8 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
         bountyRec.parentId = bountyRec._id;
         delete bountyRec._id;
         delete bountyRec.isParent;
+        delete bountyRec.childrenIds;
+        delete bountyRec.claimLimit;
         const claimedInsertResult = await bountyCollection.insertOne(bountyRec);
         if (claimedInsertResult == null) {
             Log.error('failed to create claimed bounty from evergreen');
@@ -104,14 +110,22 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
             throw new Error('Sorry something is not working, our devs are looking into it.');
         }
 
+        // Pull it back for second update
+        dbBountyResult = await bountyCollection.findOne({
+            _id: new mongo.ObjectId(dbBountyResult._id)
+        });
+    
+        console.log(`dbBountyResult: ${JSON.stringify(dbBountyResult)}`);
 
-        // If we have hit the claim limit (current list + the one we just added), close this bounty
+        // If we have hit the claim limit, close this bounty
         if (dbBountyResult.claimLimit !== undefined) {
-            const claimedCount = (dbBountyResult.childrenIds !== undefined ? dbBountyResult.childrenIds.length : 0) + 1;
+            const claimedCount = (dbBountyResult.childrenIds !== undefined ? dbBountyResult.childrenIds.length : 0);
+            console.log(`claimlimit: ${dbBountyResult.claimLimit}`);
+            console.log(`claimedCount: ${claimedCount}`);
             if (claimedCount >= dbBountyResult.claimLimit) {
                 updatedBountyResult = await bountyCollection.updateOne(dbBountyResult, {
                     $set: {
-                        // TODO is leaving DeltedBy empty OK? Can assume deletion happened automatically in that case
+                        // TODO is leaving DeletedBy empty OK? Can assume deletion happened automatically in that case
                         deletedAt: currentDate,
                         status: BountyStatus.deleted,
                     },
@@ -123,6 +137,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
                     }
                 
                 });
+                console.log(`UpdatedBountyResult: ${JSON.stringify(updatedBountyResult)}`);
                 if (updatedBountyResult == null) {
                     Log.error('failed to update evergreen bounty with deleted status');
                     throw new Error('Sorry something is not working, our devs are looking into it.');
@@ -156,10 +171,10 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
         throw new Error(`Write to database for bounty ${request.bountyId} failed for ${request.activity} `);
     }
 
-    return claimedBounty._id;
+    return claimedBounty;
 }
 
-export const claimBountyMessage = async (message: Message, claimedBountyId: string, claimedByUser: GuildMember, originalBounty: BountyCollection): Promise<any> => {
+export const claimBountyMessage = async (message: Message, claimedBounty: BountyCollection, claimedByUser: GuildMember, originalBounty: BountyCollection): Promise<any> => {
     Log.debug(`fetching bounty message for claim`)
     
     const existingEmbeds = message.embeds[0];
@@ -167,16 +182,14 @@ export const claimBountyMessage = async (message: Message, claimedBountyId: stri
 
     // Send claimed bounty by DM
     embedNewMessage.fields[BountyEmbedFields.status].value = BountyStatus.in_progress;
-    console.log(`claimedBountyId: ${claimedBountyId}`);
-    embedNewMessage.fields[BountyEmbedFields.bountyId].value = claimedBountyId;
+    embedNewMessage.fields[BountyEmbedFields.bountyId].value = claimedBounty._id.toString();
+    embedNewMessage.setTitle(BountyUtils.createPublicTitle(<Bounty>claimedBounty));
+    embedNewMessage.setURL(process.env.BOUNTY_BOARD_URL + claimedBounty._id.toString());
     embedNewMessage.setColor('#d39e00');
     embedNewMessage.addField('Claimed by', claimedByUser.user.tag, true);
     embedNewMessage.setFooter('📮 - submit | 🆘 - help');
-    console.log(`embedNewMessage: ${JSON.stringify(embedNewMessage)}`);
     const claimantMessage: Message = await claimedByUser.send({ embeds: [embedNewMessage] });
-    console.log('After DM sent');
     await addClaimReactions(claimantMessage);
-    console.log('After reactions added');
 
     // If Bounty status is no longer open, delete the board message, otherwise update title
     if (originalBounty.status !== BountyStatus.open) {
@@ -184,7 +197,6 @@ export const claimBountyMessage = async (message: Message, claimedBountyId: stri
     } else {
         const embedOrigMessage: MessageEmbed = message.embeds[0];
         embedOrigMessage.setTitle(BountyUtils.createPublicTitle(<Bounty>originalBounty));
-        console.log(`embedsOrigMessage: ${JSON.stringify(embedOrigMessage)}`);
         await message.edit({ embeds: [embedOrigMessage] });
     }
 };
