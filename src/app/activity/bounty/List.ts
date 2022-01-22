@@ -7,6 +7,7 @@ import DiscordUtils from '../../utils/DiscordUtils';
 import { ListRequest } from '../../requests/ListRequest';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import { BountyStatus } from '../../constants/bountyStatus';
+import BountyUtils from '../../utils/BountyUtils';
 
 const DB_RECORD_LIMIT = 10;
 
@@ -71,7 +72,7 @@ const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, gu
 export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
 	let messageEmbedOptions: MessageEmbedOptions = {
 		color: 1998388,
-		title: bountyRecord.title,
+		title: BountyUtils.createPublicTitle(bountyRecord),
 		url: (process.env.BOUNTY_BOARD_URL + bountyRecord._id.toHexString()),
 		author: {
 			iconURL: bountyRecord.createdBy.iconUrl,

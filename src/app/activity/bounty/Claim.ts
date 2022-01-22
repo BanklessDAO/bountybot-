@@ -167,7 +167,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
     });
 
     if (writeResult.result.ok !== 1) {
-        Log.error('failed to updat claimed bounty with in progress status');
+        Log.error('failed to update claimed bounty with in progress status');
         throw new Error(`Write to database for bounty ${request.bountyId} failed for ${request.activity} `);
     }
 
@@ -199,10 +199,31 @@ export const claimBountyMessage = async (message: Message, claimedBounty: Bounty
         embedOrigMessage.setTitle(BountyUtils.createPublicTitle(<Bounty>originalBounty));
         await message.edit({ embeds: [embedOrigMessage] });
     }
+    await updateMessageStore(claimedBounty, claimantMessage);
 };
 
 export const addClaimReactions = async (message: Message): Promise<any> => {
     // await message.reactions.removeAll();
     await message.react('📮');
     await message.react('🆘');
+};
+
+// Save where we sent the Bounty message embeds for future updates
+export const updateMessageStore = async (bounty: BountyCollection, message: Message): Promise<any> => {
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+    const bountyCollection = db.collection('bounties');
+    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(bounty, {
+        $set: {
+            claimantMessage: {
+                messageId: message.id,
+                channelId: message.channelId,
+            },
+        },
+    });
+
+    if (writeResult.result.ok !== 1) {
+        Log.error('failed to update claimed bounty with message Id');
+        throw new Error(`Write to database for bounty ${bounty._id} failed. `);
+    }
+
 };

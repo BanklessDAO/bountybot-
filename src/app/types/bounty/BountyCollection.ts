@@ -16,6 +16,8 @@ export interface BountyCollection extends Collection {
 	status: string,
 	statusHistory: Status[],
 	discordMessageId: string,
+	creatorMessage: MessageInfo,
+	claimantMessage: MessageInfo,
 	customerId: string,
 	gate: string[],
 	evergreen: boolean,
@@ -29,6 +31,11 @@ export type UserObject = {
 	discordHandle: string,
 	discordId: string,
 	iconUrl: string,
+};
+
+export type MessageInfo = {
+	messageId: string,
+	channelId: string,
 };
 
 export type Reward = {

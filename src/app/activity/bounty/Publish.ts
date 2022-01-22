@@ -76,8 +76,6 @@ const writeDbHandler = async (dbBountyResult: BountyCollection, bountyMessageId:
 export const addPublishReactions = (message: Message): void => {
 	message.reactions.removeAll();
 	message.react('🏴');
-	//message.react('🔄');
-	//message.react('📝');
 	message.react('❌');
 };
 
