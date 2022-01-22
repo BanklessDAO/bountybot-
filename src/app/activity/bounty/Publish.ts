@@ -22,12 +22,12 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
 
 	const bountyChannel: TextChannel = await guildMember.guild.channels.fetch(dbCustomerResult.bountyChannel) as TextChannel;
 	const bountyMessage: Message = await bountyChannel.send({ embeds: [messageOptions] });
-	Log.info('bounty published to #bounty-board');
+	Log.info(`bounty published to ${bountyChannel.name}`);
 	addPublishReactions(bountyMessage);
 
     await writeDbHandler(dbBountyResult, bountyMessage.id);
 
-    await guildMember.send({ content: `Bounty published to #🧀-bounty-board and the website! ${process.env.BOUNTY_BOARD_URL}${bountyId}` });
+    await guildMember.send({ content: `Bounty published to ${bountyChannel.name} and the website! ${process.env.BOUNTY_BOARD_URL}${bountyId}` });
 	
 	return;
 }

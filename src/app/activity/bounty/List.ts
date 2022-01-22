@@ -66,7 +66,7 @@ const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, gu
 		listOfBounties.push(messageOptions);
 	}
 	await (listUser.send({ embeds: listOfBounties }));
-	return await listUser.send({ content: `Please go to ${bountyChannelName} to take action.` });
+	return await listUser.send({ content: `Please go to ${bountyChannelName} or your DMs to take action.` });
 };
 
 export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
@@ -95,11 +95,6 @@ export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: 
 		],
 		timestamp: new Date(bountyRecord.createdAt).getTime(),
 	};
-
-    if (bountyRecord.evergreen && bountyRecord.isParent) {
-		messageEmbedOptions.fields.push(
-			{ name: 'Evergreen (infinitely claimable)', value: 'Yes', inline: false })
-	}
 
 	if (bountyRecord.claimedBy !== undefined) {
 		messageEmbedOptions.fields.push(

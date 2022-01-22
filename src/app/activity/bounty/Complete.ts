@@ -26,7 +26,6 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
     let bountyEmbedMessage: Message;
 	let channelId = "";
 	let messageId = "";
-	let messageInDM = false;
 
 	if (!request.message) {
 		// If we put the bounty in a DM using the new flow, find it. If not, find it in the bounty board channel
@@ -34,7 +33,6 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 		if (getDbResult.dbBountyResult.claimantMessage !== undefined) {
 			channelId = getDbResult.dbBountyResult.claimantMessage.channelId;
 			messageId = getDbResult.dbBountyResult.claimantMessage.messageId;
-			messageInDM = true;
 		} else {
 			channelId = getDbResult.bountyChannel;
 			messageId = getDbResult.dbBountyResult.discordMessageId;
