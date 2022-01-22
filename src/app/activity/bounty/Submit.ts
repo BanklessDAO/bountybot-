@@ -12,7 +12,6 @@ import { BountyEmbedFields } from '../../constants/embeds';
 
 
 export const submitBounty = async (request: SubmitRequest): Promise<void> => {
-	console.log(`request: ${JSON.stringify(request)}`);
 	
     const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 	// Since we are in DMs with new flow, guild might not be populated in the request

@@ -10,10 +10,16 @@ import { BountyStatus } from '../../constants/bountyStatus';
 
 
 export const helpBounty = async (request: HelpRequest): Promise<void> => {
+
+    const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
+	// Since we are in DMs with new flow, guild might not be populated in the request
+	if (request.guildId === undefined || request.guildId === null) {
+		request.guildId = getDbResult.dbBountyResult.customerId;
+	}
+    
     const helpRequestedUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
 	Log.info(`${request.bountyId} bounty requested help by ${helpRequestedUser.user.tag}`);
 
-    const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
     const bountyCreator: GuildMember = await DiscordUtils.getGuildMemberFromUserId(getDbResult.dbBountyResult.createdBy.discordId, request.guildId)
     
     const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
