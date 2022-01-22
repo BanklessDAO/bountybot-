@@ -1,6 +1,7 @@
 import { GuildMember, Message, MessageEmbed, TextChannel } from 'discord.js';
 import { ClaimRequest } from '../../requests/ClaimRequest';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
+import { Bounty } from '../../types/bounty/Bounty';
 import DiscordUtils from '../../utils/DiscordUtils';
 import Log, { LogUtils } from '../../utils/Log';
 import mongo, { Cursor, Db, UpdateWriteOpResult } from 'mongodb';
@@ -9,12 +10,13 @@ import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import RuntimeError from '../../errors/RuntimeError';
 import { BountyEmbedFields } from '../../constants/embeds';
 import { BountyStatus } from '../../constants/bountyStatus';
+import BountyUtils from '../../utils/BountyUtils';
 
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
     
-    let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string, childrenBounties: BountyCollection[]} = await getDbHandler(request);
+    let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
     const claimedBountyId = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
     
     let bountyEmbedMessage: Message;
@@ -29,13 +31,10 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
         bountyEmbedMessage = request.message;
     }
 
-    // Need to refresh original bounty to get correct children list
-    if (getDbResult.dbBountyResult.evergreen) {
-        getDbResult = await getDbHandler(request); 
+    // Need to refresh original bounty so the messages are correct
+    getDbResult = await getDbHandler(request); 
 
-    }
-
-    await claimBountyMessage(bountyEmbedMessage, claimedByUser, getDbResult.dbBountyResult, getDbResult.childrenBounties);
+    await claimBountyMessage(bountyEmbedMessage, claimedBountyId.toString(), claimedByUser, getDbResult.dbBountyResult);
     
     const bountyUrl = process.env.BOUNTY_BOARD_URL + claimedBountyId;
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
@@ -47,33 +46,23 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
 
     await createdByUser.send({ content: creatorClaimDM });
 
-    await claimedByUser.send({ content: `You have claimed this bounty: ${bountyUrl}! Reach out to <@${createdByUser.id}> (${createdByUser.displayName}) with any questions` });
+    await claimedByUser.send({ content: `You have claimed this bounty! Reach out to <@${createdByUser.id}> (${createdByUser.displayName}) with any questions` });
     return;
 };
 
-const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: BountyCollection, bountyChannel: string, childrenBounties: BountyCollection[]}> => {
+const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: BountyCollection, bountyChannel: string}> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
     const customerCollection = db.collection('customers');
 
     const dbBountyResult: BountyCollection = await bountyCollection.findOne({
-        _id: new mongo.ObjectId(request.bountyId),
-        status: BountyStatus.open,
+        _id: new mongo.ObjectId(request.bountyId)
     });
-
-    const childrenBounties: BountyCollection[] = [];
-    if (dbBountyResult.evergreen && dbBountyResult.childrenIds !== undefined && dbBountyResult.childrenIds.length > 0) {
-        const childrenBountiesCursor: Cursor  = bountyCollection.find({ _id: { $in: dbBountyResult.childrenIds }});
-        while (await childrenBountiesCursor.hasNext()) {
-            childrenBounties.push(await childrenBountiesCursor.next());
-        }
-    }
 
     if (request.message) {
         return {
             dbBountyResult: dbBountyResult,
-            bountyChannel: null,
-            childrenBounties: childrenBounties
+            bountyChannel: null
         }
     }
 
@@ -83,8 +72,7 @@ const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: Bou
 
     return {
         dbBountyResult: dbBountyResult,
-        bountyChannel: dbCustomerResult.bountyChannel,
-        childrenBounties: childrenBounties
+        bountyChannel: dbCustomerResult.bountyChannel
     }
 }
 
@@ -92,6 +80,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
     let claimedBounty: BountyCollection;
+    const currentDate = (new Date()).toISOString();
 
     // If claiming an evergreen bounty, create a copy and use that
     if (dbBountyResult.evergreen) {
@@ -105,20 +94,45 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
             throw new Error('Sorry something is not working, our devs are looking into it.');
         }
         claimedBounty = await bountyCollection.findOne({_id: claimedInsertResult.insertedId});
-        const updatedBountyResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, {
+        let updatedBountyResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, {
             $push: {
                 childrenIds: claimedBounty._id
             }
         });
         if (updatedBountyResult == null) {
-            Log.error('failed to update evergreen bounty wth claimed Id');
+            Log.error('failed to update evergreen bounty with claimed Id');
             throw new Error('Sorry something is not working, our devs are looking into it.');
+        }
+
+
+        // If we have hit the claim limit (current list + the one we just added), close this bounty
+        if (dbBountyResult.claimLimit !== undefined) {
+            const claimedCount = (dbBountyResult.childrenIds !== undefined ? dbBountyResult.childrenIds.length : 0) + 1;
+            if (claimedCount >= dbBountyResult.claimLimit) {
+                updatedBountyResult = await bountyCollection.updateOne(dbBountyResult, {
+                    $set: {
+                        // TODO is leaving DeltedBy empty OK? Can assume deletion happened automatically in that case
+                        deletedAt: currentDate,
+                        status: BountyStatus.deleted,
+                    },
+                    $push: {
+                        statusHistory: {
+                            status: BountyStatus.deleted,
+                            setAt: currentDate,
+                        },
+                    }
+                
+                });
+                if (updatedBountyResult == null) {
+                    Log.error('failed to update evergreen bounty with deleted status');
+                    throw new Error('Sorry something is not working, our devs are looking into it.');
+                }
+            }
         }
     } else {
         claimedBounty = dbBountyResult;
     }
  
-    const currentDate = (new Date()).toISOString();
     const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(claimedBounty, {
         $set: {
             claimedBy: {
@@ -138,39 +152,45 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
     });
 
     if (writeResult.result.ok !== 1) {
-        Log.error('Write result did not execute correctly');
+        Log.error('failed to updat claimed bounty with in progress status');
         throw new Error(`Write to database for bounty ${request.bountyId} failed for ${request.activity} `);
     }
 
     return claimedBounty._id;
 }
 
-export const claimBountyMessage = async (message: Message, claimedByUser: GuildMember, originalBounty: BountyCollection, childrenBounties: BountyCollection[]): Promise<any> => {
+export const claimBountyMessage = async (message: Message, claimedBountyId: string, claimedByUser: GuildMember, originalBounty: BountyCollection): Promise<any> => {
     Log.debug(`fetching bounty message for claim`)
     
-    const embedMessage: MessageEmbed = message.embeds[0];
+    const existingEmbeds = message.embeds[0];
+    const embedNewMessage: MessageEmbed = new MessageEmbed(existingEmbeds);
 
+    // Send claimed bounty by DM
+    embedNewMessage.fields[BountyEmbedFields.status].value = BountyStatus.in_progress;
+    console.log(`claimedBountyId: ${claimedBountyId}`);
+    embedNewMessage.fields[BountyEmbedFields.bountyId].value = claimedBountyId;
+    embedNewMessage.setColor('#d39e00');
+    embedNewMessage.addField('Claimed by', claimedByUser.user.tag, true);
+    embedNewMessage.setFooter('📮 - submit | 🆘 - help');
+    console.log(`embedNewMessage: ${JSON.stringify(embedNewMessage)}`);
+    const claimantMessage: Message = await claimedByUser.send({ embeds: [embedNewMessage] });
+    console.log('After DM sent');
+    await addClaimReactions(claimantMessage);
+    console.log('After reactions added');
 
-    if (originalBounty.evergreen) {
-        let claimedBy = claimedByUser.user.tag;
-        if (childrenBounties.length > 1) {
-            claimedBy += `, and ${childrenBounties.length - 1} more`;
-            embedMessage.fields[BountyEmbedFields.claimedBy].value = claimedBy;
-        } else {
-        embedMessage.addField('Claimed by', claimedBy, true);
-        }
+    // If Bounty status is no longer open, delete the board message, otherwise update title
+    if (originalBounty.status !== BountyStatus.open) {
+        await message.delete();
     } else {
-        embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.in_progress;
-        embedMessage.setColor('#d39e00');
-        embedMessage.addField('Claimed by', claimedByUser.user.tag, true);
-        embedMessage.setFooter('📮 - submit | 🆘 - help');
-        await addClaimReactions(message);
+        const embedOrigMessage: MessageEmbed = message.embeds[0];
+        embedOrigMessage.setTitle(BountyUtils.createPublicTitle(<Bounty>originalBounty));
+        console.log(`embedsOrigMessage: ${JSON.stringify(embedOrigMessage)}`);
+        await message.edit({ embeds: [embedOrigMessage] });
     }
-    await message.edit({ embeds: [embedMessage] });
 };
 
 export const addClaimReactions = async (message: Message): Promise<any> => {
-    await message.reactions.removeAll();
+    // await message.reactions.removeAll();
     await message.react('📮');
     await message.react('🆘');
 };

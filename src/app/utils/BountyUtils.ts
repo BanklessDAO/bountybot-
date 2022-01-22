@@ -187,7 +187,7 @@ const BountyUtils = {
 
     createPublicTitle(bountyRecord: Bounty): string {
         let title = bountyRecord.title;
-        if (bountyRecord.evergreen) {
+        if (bountyRecord.evergreen && bountyRecord.isParent) {
             if (bountyRecord.claimLimit !== undefined) {
                 title += `\n(${bountyRecord.claimLimit - (bountyRecord.childrenIds !== undefined ? bountyRecord.childrenIds.length : 0)} claims available)`;
             } else {
@@ -197,7 +197,6 @@ const BountyUtils = {
         return title;
     
     }
-
 }
 
 export default BountyUtils;
