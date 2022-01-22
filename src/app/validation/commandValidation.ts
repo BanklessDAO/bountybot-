@@ -70,6 +70,8 @@ const create = async (request: CreateRequest): Promise<void> => {
         );
     }
 
+    BountyUtils.validateEvergreen(request.evergreen, request.claimLimit);
+
     if (request.gate) {
         await BountyUtils.validateGate(request.gate, request.guildId);
     }

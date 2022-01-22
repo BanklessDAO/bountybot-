@@ -9,7 +9,6 @@ import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import RuntimeError from '../../errors/RuntimeError';
 import { BountyEmbedFields } from '../../constants/embeds';
 import { BountyStatus } from '../../constants/bountyStatus';
-import { Bounty } from '../../types/bounty/Bounty';
 
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
@@ -139,7 +138,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
     });
 
     if (writeResult.result.ok !== 1) {
-        Log.error(`Write result did not execute correctly`);
+        Log.error('Write result did not execute correctly');
         throw new Error(`Write to database for bounty ${request.bountyId} failed for ${request.activity} `);
     }
 

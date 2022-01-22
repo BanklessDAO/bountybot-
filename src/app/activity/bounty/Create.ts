@@ -98,13 +98,9 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
     const listOfBountyIds = Object.values(dbInsertResult.insertedIds).map(String);
     const newBounty = listOfPrepBounties[0];
-    let title = newBounty.title;
-    if (newBounty.evergreen) {
-        title += `\n(Claimable by multiple people)`;
-    }
     let bountyPreview: MessageOptions = {
         embeds: [{
-            title: title,
+            title: BountyUtils.createPublicTitle(newBounty),
             url: (process.env.BOUNTY_BOARD_URL + listOfBountyIds[0]),
             author: {
                 icon_url: guildMember.user.avatarURL(),
@@ -155,8 +151,6 @@ const createDbHandler = async (
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbBounty = db.collection('bounties');
 
-    const isParent = createRequest.evergreen ? true : false;
-    
     // TODO: perform copies validation
     const rawCopies = createRequest.copies
     const copies = rawCopies && rawCopies > 0 ? rawCopies : 1;
@@ -196,8 +190,6 @@ export const generateBountyRecord = (
     const currentDate = (new Date()).toISOString();
     let bountyRecord: Bounty = {
         customerId: createRequest.guildId,
-        //TODO can we migrate from customer_id?
-        customer_id: createRequest.guildId,
         title: createRequest.title,
         description: description,
         criteria: criteria,
@@ -205,7 +197,6 @@ export const generateBountyRecord = (
             currency: symbol.toUpperCase(),
             amount: new Double(parseFloat(reward)),
             scale: new Int32(scale),
-            amountWithoutScale: new Int32(reward.replace('.', ''))
         },
         createdBy: {
             discordHandle: guildMember.user.tag,
@@ -230,6 +221,9 @@ export const generateBountyRecord = (
     if (createRequest.evergreen) {
         bountyRecord.evergreen = true;
         bountyRecord.isParent = true;
+        if (createRequest.claimLimit !== undefined) {
+            bountyRecord.claimLimit = createRequest.claimLimit;
+        }
     }
 
     return bountyRecord;

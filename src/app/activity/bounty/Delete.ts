@@ -34,7 +34,8 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
 	let creatorDeleteDM = 
         `The following bounty has been deleted: ${bountyUrl}\n`;
 
-    if (getDbResult.dbBountyResult.evergreen && getDbResult.dbBountyResult.isParent) {
+    if (getDbResult.dbBountyResult.evergreen && getDbResult.dbBountyResult.isParent &&
+        getDbResult.dbBountyResult.childrenIds !== undefined && getDbResult.dbBountyResult.childrenIds.length > 0) {
         creatorDeleteDM += 'Children bounties created from this evergreen bounty will remain.\n';
     }
 

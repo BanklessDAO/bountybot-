@@ -1,19 +1,17 @@
 import MongoDbUtils  from '../../utils/MongoDbUtils';
 import { Cursor, Db } from 'mongodb';
-import { Channel, GuildMember, MessageEmbedOptions, TextChannel } from 'discord.js';
-import Log from '../../utils/Log';
+import { GuildMember, MessageEmbedOptions, Role } from 'discord.js';
+import Log, { LogUtils } from '../../utils/Log';
 import { Bounty } from '../../types/bounty/Bounty';
 import DiscordUtils from '../../utils/DiscordUtils';
-import ValidationError from '../../errors/ValidationError';
 import { ListRequest } from '../../requests/ListRequest';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
+import { BountyStatus } from '../../constants/bountyStatus';
 
 const DB_RECORD_LIMIT = 10;
 
 export const listBounty = async (request: ListRequest): Promise<any> => {
-    const guildAndMember = await DiscordUtils.getGuildAndMember(request.commandContext.guildID, request.commandContext.user.id);
-    const guildMember: GuildMember = guildAndMember.guildMember;
-    const guildId: string = guildAndMember.guild.id;
+    const listUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId)
     const listType: string = request.listType;
 
     let dbRecords: Cursor;
@@ -26,7 +24,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
         customerId: request.guildId,
     });
 
-    const channel = await guildMember.guild.channels.fetch(dbCustomerResult.bountyChannel);
+    const channel = await listUser.guild.channels.fetch(dbCustomerResult.bountyChannel);
     const channelName = channel.name;
 
 
@@ -35,39 +33,39 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 
 	switch (listType) { 
 	case 'CREATED_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': guildMember.user.id, status: { $ne: 'Deleted' }, 'customerId': guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'CLAIMED_BY_ME':
-		dbRecords = bountyCollection.find({ 'claimedBy.discordId': guildMember.user.id, status: { $ne: 'Deleted' }, 'customerId': guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
     case 'CLAIMED_BY_ME_AND_COMPLETE':
-        dbRecords = bountyCollection.find({ 'claimedBy.discordId': guildMember.user.id, status: 'Completed', 'customerId': guildId }).limit(DB_RECORD_LIMIT);
+        dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: 'Completed', 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
         break;
 	case 'DRAFTED_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': guildMember.user.id, status: 'Draft', 'customerId': guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: 'Draft', 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'OPEN':
-		dbRecords = bountyCollection.find({ status: 'Open', 'customerId': guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ status: BountyStatus.open, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'IN_PROGRESS':
-		dbRecords = bountyCollection.find({ status: 'In-Progress', 'customerId': guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ status: BountyStatus.in_progress, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	}
 	if (!(await dbRecords.hasNext())) {
-		return await request.commandContext.send({ content: 'We couldn\'t find any bounties!' });
+		return await listUser.send({ content: 'We couldn\'t find any bounties!' });
 	}
-	return await sendMultipleMessages(guildMember, dbRecords, guildId, channelName);
+	return await sendMultipleMessages(listUser, dbRecords, request.guildId, channelName);
 };
 
-const sendMultipleMessages = async (guildMember: GuildMember, dbRecords: Cursor, guildId: string, bountyChannelName: string): Promise<any> => {
+const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, guildId: string, bountyChannelName: string): Promise<any> => {
 	const listOfBounties = [];
 	while (listOfBounties.length < 10 && await dbRecords.hasNext()) {
 		const record: Bounty = await dbRecords.next();
 		const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.status, guildId);
 		listOfBounties.push(messageOptions);
 	}
-	await (guildMember.send({ embeds: listOfBounties }));
-	return await guildMember.send({ content: `Please go to ${bountyChannelName} to take action.` });
+	await (listUser.send({ embeds: listOfBounties }));
+	return await listUser.send({ content: `Please go to ${bountyChannelName} to take action.` });
 };
 
 export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
@@ -80,6 +78,12 @@ export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: 
 			name: bountyRecord.createdBy.discordHandle,
 		},
 		description: bountyRecord.description,
+        // static bountyId = 0;
+        // static criteria = 1;
+        // static reward = 2;
+        // static status = 3;
+        // static deadline = 4;
+        // static createdBy = 5;
 		fields: [
 			{ name: 'Bounty Id', value: bountyRecord._id.toHexString(), inline: false },
 			{ name: 'Criteria', value: bountyRecord.criteria, inline: false },
@@ -101,39 +105,20 @@ export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: 
 			{ name: 'Claimed by', value: bountyRecord.claimedBy.discordHandle, inline: false })
 	}
 
-	let isUser = true;
-	let isRole = true;
-
+    let role: Role;
 	if(bountyRecord.gate) {
 		try {
-			const guildMember = await DiscordUtils.getGuildMemberFromUserId(bountyRecord.gate[0], guildID);
-			messageEmbedOptions.fields.push(
-				{ name: 'Gated to', value: guildMember.user.tag, inline: false })
+			role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], guildID);
+            messageEmbedOptions.fields.push({ name: 'Gated to', value: role.name, inline: false })
 		}
 		catch (error) {
-			isUser = false;
-			Log.info(`Publishing: Gate ${bountyRecord.gate} is not a User`);
-		}
-
-		try {
-			const role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], guildID);
-			messageEmbedOptions.fields.push({ name: 'Gated to', value: role.name, inline: false })
-		}
-		catch (error) {
-			isRole = false;
-			Log.info(`Publishing: Gate ${bountyRecord.gate} is not a Role`);
-		}
-
-		if(! (isUser || isRole) ) {
-			Log.info(`Publishing bounty failed. Not gated to user or role`)
-			throw new ValidationError('Please gate this bounty to a user or role.');
+			LogUtils.logError(`Failed to fetch role for roleId ${bountyRecord.gate[0]}`, error, bountyRecord.customerId)
 		}
 	}
-
+    
 	return messageEmbedOptions;
 };
 
-// TODO: shared function
 export const formatDisplayDate = (dateIso: string): string => {
     const options: Intl.DateTimeFormatOptions = {
         weekday: 'long',

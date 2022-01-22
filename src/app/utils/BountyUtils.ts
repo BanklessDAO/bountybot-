@@ -3,6 +3,7 @@ import Log, { LogUtils } from './Log';
 import DiscordUtils from '../utils/DiscordUtils';
 import { URL } from 'url';
 import { BountyCollection } from '../types/bounty/BountyCollection';
+import { Bounty } from '../types/bounty/Bounty';
 import { BountyStatus } from '../constants/bountyStatus';
 const BountyUtils = {
     TWENTYFOUR_HOURS_IN_SECONDS: 24*60*60,
@@ -80,6 +81,15 @@ const BountyUtils = {
                 '- 0 minimum, 100 million maximum \n ' +
                 'Please reach out to your favorite Bounty Board representative to expand this range!',
             );
+        }
+    },
+
+    validateEvergreen(evergreen: boolean, claimLimit: number) {
+        if (!evergreen && claimLimit !== undefined) {
+            throw new ValidationError('claim-limit is only used for evergreen bounties.');
+        }
+        if (claimLimit !== undefined && (claimLimit < 1 || claimLimit > 100)) {
+            throw new ValidationError('claim-limit should be from 1 to 100');
         }
     },
 
@@ -173,6 +183,19 @@ const BountyUtils = {
         const dateTwo: Date = new Date(two);
         let elapsedSeconds = Math.abs( ( dateOne.getTime() - dateTwo.getTime() ) / 1000 );
         return elapsedSeconds < BountyUtils.TWENTYFOUR_HOURS_IN_SECONDS;
+    },
+
+    createPublicTitle(bountyRecord: Bounty): string {
+        let title = bountyRecord.title;
+        if (bountyRecord.evergreen) {
+            if (bountyRecord.claimLimit !== undefined) {
+                title += `\n(${bountyRecord.claimLimit - (bountyRecord.childrenIds !== undefined ? bountyRecord.childrenIds.length : 0)} claims available)`;
+            } else {
+                title += '\n(Infinite claims available)';
+            }
+        }
+        return title;
+    
     }
 
 }

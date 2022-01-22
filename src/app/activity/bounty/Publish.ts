@@ -4,6 +4,7 @@ import Log from '../../utils/Log';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
+import { Bounty } from '../../types/bounty/Bounty';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import DiscordUtils from '../../utils/DiscordUtils';
 import BountyUtils from '../../utils/BountyUtils';
@@ -81,14 +82,10 @@ export const addPublishReactions = (message: Message): void => {
 };
 
 export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
-	let title = dbBounty.title;
-    if (dbBounty.evergreen) {
-        title += `\n(Claimable by multiple people)`;
-    }
 
 	let messageEmbedOptions: MessageEmbedOptions = {
 		color: 1998388,
-		title: title,
+		title: BountyUtils.createPublicTitle(<Bounty>dbBounty),
 		url: (process.env.BOUNTY_BOARD_URL + dbBounty._id.toHexString()),
 		author: {
 			iconURL: dbBounty.createdBy.iconUrl,
@@ -104,9 +101,6 @@ export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus
 			{ name: 'Created by', value: dbBounty.createdBy.discordHandle, inline: true },
 		],
 		timestamp: new Date().getTime(),
-		// footer: {
-		// 	text: '🏴 - claim | 🔄 - refresh | 📝 - edit | ❌ - delete',
-		// },
 		footer: {
 			text: '🏴 - claim | ❌ - delete',
 		},

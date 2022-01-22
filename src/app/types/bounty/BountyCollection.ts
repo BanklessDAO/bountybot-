@@ -19,9 +19,10 @@ export interface BountyCollection extends Collection {
 	customerId: string,
 	gate: string[],
 	evergreen: boolean,
+	claimLimit: Int32,
 	isParent: boolean,
-	parentId: string,
-	childrenIds: string[]
+	parentId: ObjectId,
+	childrenIds: ObjectId[]
 }
 
 export type UserObject = {
