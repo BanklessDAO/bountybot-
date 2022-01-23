@@ -4,7 +4,7 @@ import { Role, Message, MessageOptions, GuildMember, DMChannel, AwaitMessagesOpt
 import DiscordUtils from '../../utils/DiscordUtils';
 import BountyUtils from '../../utils/BountyUtils';
 import MongoDbUtils from '../../utils/MongoDbUtils';
-import { Db, InsertWriteOpResult, Double, Int32 } from 'mongodb'
+import { Db, UpdateWriteOpResult, Double, Int32 } from 'mongodb'
 import ValidationError from '../../errors/ValidationError';
 import { CreateRequest } from '../../requests/CreateRequest';
 import { publishBounty } from './Publish';
@@ -46,20 +46,6 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
             guildMember.send({ content: `<@${guildMember.user.id}>\n` + e.message })
         }
     }
-    if (createRequest.copies > 1) {
-        const totalReward = Number(createRequest.reward.split(' ')[0]) * createRequest.copies;
-        await guildMember.send({ content: 
-            `Are you sure you want to publish bounties with a \`total\` reward of \`${totalReward} ${createRequest.reward.split(' ')[1]}\`?\n` +
-            `('yes' to proceed, 'no' or 'n' to cancel.)` });
-        const amountConfirmation: string = await DiscordUtils.awaitUserDM(dmChannel, replyOptions);
-        if (amountConfirmation.toLowerCase() == 'no'  || amountConfirmation.toLowerCase() == 'n') {
-            throw new ValidationError(
-                `Thank you for using Bounty Board!\n` +
-                `As requested, this bounty has been canceled.\n` +
-                `To create a new bounty, please type '/bounty create' in the bounties channel.`
-                );
-        }
-    }
 
     let convertedDueDateFromMessage: Date;
     do {
@@ -75,7 +61,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                 Log.warn('user entered invalid date for bounty');
                 await guildMember.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
             }
-        } else if (dueAtMessageText === 'no' || dueAtMessageText === 'skip') {
+        } else if (dueAtMessageText.toLowerCase() === 'no' || dueAtMessageText.toLowerCase() === 'skip') {
             convertedDueDateFromMessage = null;
             break;
         }
@@ -87,7 +73,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     } while (convertedDueDateFromMessage.toString() === 'Invalid Date');
     const dueAt = convertedDueDateFromMessage ? convertedDueDateFromMessage : BountyUtils.threeMonthsFromNow();
 
-    const [listOfPrepBounties, dbInsertResult] = await createDbHandler(
+    const newBounty = await createDbHandler(
         createRequest,
         description,
         criteria,
@@ -96,15 +82,13 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
 
 
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
-    const listOfBountyIds = Object.values(dbInsertResult.insertedIds).map(String);
-    const newBounty = listOfPrepBounties[0];
     let bountyPreview: MessageOptions = {
         embeds: [{
             title: BountyUtils.createPublicTitle(newBounty),
-            url: (process.env.BOUNTY_BOARD_URL + listOfBountyIds[0]),
+            url: (process.env.BOUNTY_BOARD_URL + newBounty._id),
             author: {
                 icon_url: guildMember.user.avatarURL(),
-                name: `${newBounty.createdBy.discordHandle}`,
+                name: `${newBounty.createdBy.discordHandle}: ${guildId}`,
             },
             description: newBounty.description,
             fields: [
@@ -115,7 +99,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                 // static status = 3;
                 // static deadline = 4;
                 // static createdBy = 5;
-                { name: 'Bounty Id', value: listOfBountyIds[0], inline: false },
+                { name: 'Bounty Id', value: newBounty._id.toString(), inline: false },
                 { name: 'Criteria', value: newBounty.criteria.toString() },
                 { name: 'Reward', value: newBounty.reward.amount + ' ' + newBounty.reward.currency, inline: true },
                 { name: 'Status', value: BountyStatus.open, inline: true },
@@ -135,7 +119,11 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     }
 
     await guildMember.send('Thank you! Does this look right?');
+    console.log(`bountyPreview: ${JSON.stringify(bountyPreview)}`)
     const message: Message = await guildMember.send(bountyPreview);
+    console.log(`message: ${JSON.stringify(message)}`);
+
+    await updateMessageStore(newBounty, message);
 
     await message.react('👍');
     return await message.react('❌');
@@ -147,31 +135,25 @@ const createDbHandler = async (
     criteria: string,
     dueAt: Date,
     guildMember: GuildMember
-): Promise<[Bounty[], InsertWriteOpResult<any>]> => {
+): Promise<Bounty> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbBounty = db.collection('bounties');
 
-    // TODO: perform copies validation
-    const rawCopies = createRequest.copies
-    const copies = rawCopies && rawCopies > 0 ? rawCopies : 1;
-
-    const listOfPrepBounties: Bounty[] = [];
-    for (let i = 0; i < copies; i++) {
-        listOfPrepBounties.push(generateBountyRecord(
+    const createdBounty: Bounty = generateBountyRecord(
             createRequest,
             description,
             criteria,
             dueAt,
-            guildMember));
-    }
+            guildMember);
+    
 
-    const dbInsertResult = await dbBounty.insertMany(listOfPrepBounties, { ordered: false });
+    const dbInsertResult = await dbBounty.insertOne(createdBounty);
     if (dbInsertResult == null) {
-        Log.error('failed to insert bounties into DB');
+        Log.error('failed to insert bounty into DB');
         throw new Error('Sorry something is not working, our devs are looking into it.');
     }
 
-    return [listOfPrepBounties, dbInsertResult];
+    return createdBounty;
 
 }
 
@@ -227,4 +209,24 @@ export const generateBountyRecord = (
     }
 
     return bountyRecord;
+};
+
+// Save where we sent the Bounty message embeds for future updates
+export const updateMessageStore = async (bounty: Bounty, message: Message): Promise<any> => {
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+    const bountyCollection = db.collection('bounties');
+    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(bounty, {
+        $set: {
+            creatorMessage: {
+                messageId: message.id,
+                channelId: message.channel.id,
+            },
+        },
+    });
+
+    if (writeResult.result.ok !== 1) {
+        Log.error('failed to update created bounty with message Id');
+        throw new Error(`Write to database for bounty ${bounty._id} failed. `);
+    }
+
 };

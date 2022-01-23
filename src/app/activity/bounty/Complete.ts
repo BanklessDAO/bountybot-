@@ -23,34 +23,42 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 	
     await writeDbHandler(request, completedByUser);
 
-    let bountyEmbedMessage: Message;
+    let submitterMessage: Message;
+	let completorMessage: Message;
 	let channelId = "";
 	let messageId = "";
 
 	if (!request.message) {
 		// If we put the bounty in a DM using the new flow, find it. If not, find it in the bounty board channel
 
-		if (getDbResult.dbBountyResult.claimantMessage !== undefined) {
+		if (getDbResult.dbBountyResult.creatorMessage !== undefined) {
 			channelId = getDbResult.dbBountyResult.claimantMessage.channelId;
 			messageId = getDbResult.dbBountyResult.claimantMessage.messageId;
 		} else {
 			channelId = getDbResult.bountyChannel;
 			messageId = getDbResult.dbBountyResult.discordMessageId;
 		}
-		const bountyChannel = await completedByUser.guild.channels.fetch(channelId) as TextChannel;
-		bountyEmbedMessage = await bountyChannel.messages.fetch(messageId).catch(e => {
+		const bountyChannel = await completedByUser.client.channels.fetch(channelId) as TextChannel;
+		completorMessage = await bountyChannel.messages.fetch(messageId).catch(e => {
 			LogUtils.logError(`could not find bounty ${request.bountyId} in channel ${channelId} in guild ${request.guildId}`, e);
 			throw new RuntimeError(e);
 		});
     } else {
-        bountyEmbedMessage = request.message;
-		messageId = request.message.id;
-		channelId = request.message.channelId;
+        completorMessage = request.message;
     }
+
+	if (getDbResult.dbBountyResult.claimantMessage !== undefined) {
+		const bountyChannel: TextChannel = await completedByUser.client.channels.fetch(getDbResult.dbBountyResult.claimantMessage.channelId) as TextChannel;
+		submitterMessage = await bountyChannel.messages.fetch(getDbResult.dbBountyResult.claimantMessage.messageId).catch(e => {
+			LogUtils.logError(`could not find bounty ${request.bountyId} in DM channel ${bountyChannel.id} in guild ${request.guildId}`, e);
+			throw new RuntimeError(e);
+		});
+	}
+
 	const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
 	const submittedByUser: GuildMember = await completedByUser.guild.members.fetch(getDbResult.dbBountyResult.submittedBy.discordId);
     
-    await completeBountyMessage(getDbResult.dbBountyResult, bountyEmbedMessage, channelId, messageId, completedByUser, submittedByUser);
+    await completeBountyMessage(getDbResult.dbBountyResult, completorMessage, submitterMessage, completedByUser, submittedByUser);
 	
 	const creatorCompleteDM = 
         `Thank you for reviewing ${bountyUrl}\n` +
@@ -140,11 +148,15 @@ const writeDbHandler = async (request: CompleteRequest, completedByUser: GuildMe
     }
 }
 
-export const completeBountyMessage = async (completedBounty: BountyCollection, message: Message, channelId: string, messageId: string, completedByUser: GuildMember, submittedByUser: GuildMember): Promise<any> => {
+export const completeBountyMessage = async (completedBounty: BountyCollection, completorMessage: Message, submitterMessage: Message, completedByUser: GuildMember, submittedByUser: GuildMember): Promise<any> => {
 	Log.debug('fetching bounty message for complete')
 
-	let embedMessage: MessageEmbed = new MessageEmbed(message.embeds[0]);
-	await message.delete();
+	let embedMessage: MessageEmbed = new MessageEmbed(submitterMessage.embeds[0]);
+	console.log(`completorMessage: ${JSON.stringify(completorMessage)}`);
+	console.log(`submitterMessage: ${JSON.stringify(submitterMessage)}`);
+	
+	await completorMessage.delete();
+	if (submitterMessage) await submitterMessage.delete();
 	embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.complete;
 	embedMessage.setColor('#01d212');
 	embedMessage.addField('Completed by', completedByUser.user.tag, true);
@@ -165,7 +177,7 @@ export const addCompleteReactions = async (message: Message): Promise<any> => {
 export const updateMessageStore = async (bounty: BountyCollection, submittedMessage: Message, completedMessage: Message): Promise<any> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
-    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(bounty, {
+    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: bounty._id }, {
         $set: {
             claimantMessage: {
                 messageId: submittedMessage.id,
@@ -176,6 +188,7 @@ export const updateMessageStore = async (bounty: BountyCollection, submittedMess
                 channelId: completedMessage.channelId,
             },
         },
+        $unset: { discordMessageId: "" },
     });
 
     if (writeResult.result.ok !== 1) {

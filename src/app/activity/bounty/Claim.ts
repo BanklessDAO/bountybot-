@@ -210,17 +210,21 @@ export const addClaimReactions = async (message: Message): Promise<any> => {
 
 // Save where we sent the Bounty message embeds for future updates
 export const updateMessageStore = async (bounty: BountyCollection, message: Message): Promise<any> => {
+    console.log(`In updateMessage bounty: ${JSON.stringify(bounty)}`);
+    console.log(`In updateMessage message: ${JSON.stringify(message)}`);
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
-    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(bounty, {
+    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: bounty._id }, {
         $set: {
             claimantMessage: {
                 messageId: message.id,
                 channelId: message.channelId,
             },
         },
+        $unset: { discordMessageId: "" },
     });
-
+    console.log(`In updateMessage writeResult: ${JSON.stringify(writeResult)}`);
+  
     if (writeResult.result.ok !== 1) {
         Log.error('failed to update claimed bounty with message Id');
         throw new Error(`Write to database for bounty ${bounty._id} failed. `);

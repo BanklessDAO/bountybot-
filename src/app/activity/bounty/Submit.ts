@@ -44,14 +44,12 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
 		});
     } else {
         bountyEmbedMessage = request.message;
-		messageId = request.message.id;
-		channelId = request.message.channelId;
     }
 
 	const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
 	const createdByUser: GuildMember = await submittedByUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
     
-    await submitBountyMessage(getDbResult.dbBountyResult, bountyEmbedMessage, channelId, messageId, submittedByUser, createdByUser);
+    await submitBountyMessage(getDbResult.dbBountyResult, bountyEmbedMessage, submittedByUser, createdByUser);
 	
 	let creatorSubmitDM = `Please reach out to <@${submittedByUser.user.id}>. They are ready for bounty review ${bountyUrl}`
 
@@ -141,7 +139,7 @@ const writeDbHandler = async (request: SubmitRequest, submittedByUser: GuildMemb
 }
 
 // Remove message from location found. Replace with new message with correct actions in correct location
-export const submitBountyMessage = async (submittedBounty: BountyCollection, message: Message, channelId: string, messageId: string, submittedByUser: GuildMember, createdByUser: GuildMember): Promise<any> => {
+export const submitBountyMessage = async (submittedBounty: BountyCollection, message: Message, submittedByUser: GuildMember, createdByUser: GuildMember): Promise<any> => {
 	Log.debug('fetching bounty message for submit');
 
 	let embedMessage: MessageEmbed = new MessageEmbed(message.embeds[0]);
@@ -168,7 +166,7 @@ export const addSubmitReactions = async (message: Message): Promise<any> => {
 export const updateMessageStore = async (bounty: BountyCollection, claimantMessage: Message, creatorMessage: Message): Promise<any> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
-    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(bounty, {
+    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: bounty._id }, {
         $set: {
             claimantMessage: {
                 messageId: claimantMessage.id,
@@ -179,6 +177,7 @@ export const updateMessageStore = async (bounty: BountyCollection, claimantMessa
                 channelId: creatorMessage.channelId,
             },
         },
+        $unset: { discordMessageId: "" },
     });
 
     if (writeResult.result.ok !== 1) {
