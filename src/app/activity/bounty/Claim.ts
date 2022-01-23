@@ -88,7 +88,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
 
     // If claiming an evergreen bounty, create a copy and use that
     if (dbBountyResult.evergreen) {
-        const bountyRec: BountyCollection = JSON.parse(JSON.stringify(dbBountyResult));
+        const bountyRec: BountyCollection = Object.assign({}, dbBountyResult);
         bountyRec.parentId = bountyRec._id;
         delete bountyRec._id;
         delete bountyRec.isParent;
@@ -100,7 +100,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
             throw new Error('Sorry something is not working, our devs are looking into it.');
         }
         claimedBounty = await bountyCollection.findOne({_id: claimedInsertResult.insertedId});
-        let updatedBountyResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, {
+        let updatedBountyResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(dbBountyResult._id) }, {
             $push: {
                 childrenIds: claimedBounty._id
             }
@@ -115,13 +115,10 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
             _id: new mongo.ObjectId(dbBountyResult._id)
         });
     
-        console.log(`dbBountyResult: ${JSON.stringify(dbBountyResult)}`);
 
         // If we have hit the claim limit, close this bounty
         if (dbBountyResult.claimLimit !== undefined) {
             const claimedCount = (dbBountyResult.childrenIds !== undefined ? dbBountyResult.childrenIds.length : 0);
-            console.log(`claimlimit: ${dbBountyResult.claimLimit}`);
-            console.log(`claimedCount: ${claimedCount}`);
             if (claimedCount >= dbBountyResult.claimLimit) {
                 updatedBountyResult = await bountyCollection.updateOne(dbBountyResult, {
                     $set: {
@@ -137,7 +134,6 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
                     }
                 
                 });
-                console.log(`UpdatedBountyResult: ${JSON.stringify(updatedBountyResult)}`);
                 if (updatedBountyResult == null) {
                     Log.error('failed to update evergreen bounty with deleted status');
                     throw new Error('Sorry something is not working, our devs are looking into it.');
@@ -187,7 +183,7 @@ export const claimBountyMessage = async (message: Message, claimedBounty: Bounty
     embedNewMessage.setURL(process.env.BOUNTY_BOARD_URL + claimedBounty._id.toString());
     embedNewMessage.setColor('#d39e00');
     embedNewMessage.addField('Claimed by', claimedByUser.user.tag, true);
-    embedNewMessage.setFooter('📮 - submit | 🆘 - help');
+    embedNewMessage.setFooter({text: '📮 - submit | 🆘 - help'});
     const claimantMessage: Message = await claimedByUser.send({ embeds: [embedNewMessage] });
     await addClaimReactions(claimantMessage);
 
@@ -210,11 +206,9 @@ export const addClaimReactions = async (message: Message): Promise<any> => {
 
 // Save where we sent the Bounty message embeds for future updates
 export const updateMessageStore = async (bounty: BountyCollection, message: Message): Promise<any> => {
-    console.log(`In updateMessage bounty: ${JSON.stringify(bounty)}`);
-    console.log(`In updateMessage message: ${JSON.stringify(message)}`);
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
-    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: bounty._id }, {
+    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(bounty._id) }, {
         $set: {
             claimantMessage: {
                 messageId: message.id,
@@ -223,7 +217,6 @@ export const updateMessageStore = async (bounty: BountyCollection, message: Mess
         },
         $unset: { discordMessageId: "" },
     });
-    console.log(`In updateMessage writeResult: ${JSON.stringify(writeResult)}`);
   
     if (writeResult.result.ok !== 1) {
         Log.error('failed to update claimed bounty with message Id');

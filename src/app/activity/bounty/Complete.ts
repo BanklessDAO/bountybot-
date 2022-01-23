@@ -32,8 +32,8 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 		// If we put the bounty in a DM using the new flow, find it. If not, find it in the bounty board channel
 
 		if (getDbResult.dbBountyResult.creatorMessage !== undefined) {
-			channelId = getDbResult.dbBountyResult.claimantMessage.channelId;
-			messageId = getDbResult.dbBountyResult.claimantMessage.messageId;
+			channelId = getDbResult.dbBountyResult.creatorMessage.channelId;
+			messageId = getDbResult.dbBountyResult.creatorMessage.messageId;
 		} else {
 			channelId = getDbResult.bountyChannel;
 			messageId = getDbResult.dbBountyResult.discordMessageId;
@@ -152,15 +152,13 @@ export const completeBountyMessage = async (completedBounty: BountyCollection, c
 	Log.debug('fetching bounty message for complete')
 
 	let embedMessage: MessageEmbed = new MessageEmbed(submitterMessage.embeds[0]);
-	console.log(`completorMessage: ${JSON.stringify(completorMessage)}`);
-	console.log(`submitterMessage: ${JSON.stringify(submitterMessage)}`);
 	
 	await completorMessage.delete();
 	if (submitterMessage) await submitterMessage.delete();
 	embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.complete;
 	embedMessage.setColor('#01d212');
 	embedMessage.addField('Completed by', completedByUser.user.tag, true);
-	embedMessage.setFooter('');
+	embedMessage.setFooter({text: ''});
 	const submittedMessage: Message = await submittedByUser.send({ embeds: [embedMessage] });
 	await addCompleteReactions(submittedMessage);
 	const completedMessage: Message = await completedByUser.send({ embeds: [embedMessage] });

@@ -18,7 +18,6 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
     await writeDbHandler(request, deletedByUser);
 
     let bountyEmbedMessage: Message;
-    console.log(`request ${JSON.stringify(request)}`);
     if (!request.message) {
         if (getDbResult.dbBountyResult.discordMessageId !== undefined) {
             const bountyChannel: TextChannel = await deletedByUser.guild.channels.fetch(getDbResult.bountyChannel) as TextChannel;
@@ -36,7 +35,6 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
     } else {
         bountyEmbedMessage = request.message;
     }
-    console.log(`bountyEmbedMessage ${JSON.stringify(bountyEmbedMessage)}`);
    
     await deleteBountyMessage(bountyEmbedMessage);
 	

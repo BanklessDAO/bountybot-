@@ -119,9 +119,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     }
 
     await guildMember.send('Thank you! Does this look right?');
-    console.log(`bountyPreview: ${JSON.stringify(bountyPreview)}`)
     const message: Message = await guildMember.send(bountyPreview);
-    console.log(`message: ${JSON.stringify(message)}`);
 
     await updateMessageStore(newBounty, message);
 

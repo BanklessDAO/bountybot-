@@ -37,7 +37,7 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
 			channelId = getDbResult.bountyChannel;
 			messageId = getDbResult.dbBountyResult.discordMessageId;
 		}
-		const bountyChannel = await submittedByUser.guild.channels.fetch(channelId) as TextChannel;
+		const bountyChannel = await submittedByUser.client.channels.fetch(channelId) as TextChannel;
 		bountyEmbedMessage = await bountyChannel.messages.fetch(messageId).catch(e => {
 			LogUtils.logError(`could not find bounty ${request.bountyId} in channel ${channelId} in guild ${request.guildId}`, e);
 			throw new RuntimeError(e);
@@ -147,7 +147,7 @@ export const submitBountyMessage = async (submittedBounty: BountyCollection, mes
 	embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.in_review;
 	embedMessage.setColor('#d39e00');
 	embedMessage.addField('Submitted by', submittedByUser.user.tag, true);
-	embedMessage.setFooter('✅ - complete |  🆘 - help');
+	embedMessage.setFooter({text: '✅ - complete |  🆘 - help'});
 	const claimantMessage: Message = await submittedByUser.send({ embeds: [embedMessage] });
 	await addSubmitReactions(claimantMessage);
 	const creatorMessage: Message = await createdByUser.send({ embeds: [embedMessage] });
