@@ -18,25 +18,6 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     
     let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 
-    // If this is evergreen, see if this user already claimed an instance
-    if (getDbResult.dbBountyResult.evergreen && getDbResult.dbBountyResult.childrenIds) {
-        const db: Db = await MongoDbUtils.connect('bountyboard');
-        const bountyCollection = db.collection('bounties');
-        const childBounties: Cursor = bountyCollection.find({ _id: { $in: getDbResult.dbBountyResult.childrenIds } });
-        let claimedBefore = false;
-        let childBounty: BountyCollection;
-        while (!claimedBefore && await childBounties.hasNext()) {
-            childBounty = await childBounties.next();
-            if (childBounty.claimedBy.discordId == claimedByUser.user.id) {
-                claimedBefore = true;
-            }
-        }
-        if (claimedBefore) {
-            await claimedByUser.send({ content: `You have already claimed this bounty: ${process.env.BOUNTY_BOARD_URL + childBounty._id}` });
-            return;
-        }
-    }
-
     const claimedBounty = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
     
     let bountyEmbedMessage: Message;
@@ -108,39 +89,39 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
 
     // If claiming an evergreen bounty, create a copy and use that
     if (dbBountyResult.evergreen) {
-        const bountyRec: BountyCollection = Object.assign({}, dbBountyResult);
-        bountyRec.parentId = bountyRec._id;
-        delete bountyRec._id;
-        delete bountyRec.isParent;
-        delete bountyRec.childrenIds;
-        delete bountyRec.claimLimit;
-        const claimedInsertResult = await bountyCollection.insertOne(bountyRec);
+        const childBounty: BountyCollection = Object.assign({}, dbBountyResult);
+        childBounty.parentId = childBounty._id;
+        delete childBounty._id;
+        delete childBounty.isParent;
+        delete childBounty.childrenIds;
+        delete childBounty.claimLimit;
+        const claimedInsertResult = await bountyCollection.insertOne(childBounty);
         if (claimedInsertResult == null) {
             Log.error('failed to create claimed bounty from evergreen');
             throw new Error('Sorry something is not working, our devs are looking into it.');
         }
         claimedBounty = await bountyCollection.findOne({_id: claimedInsertResult.insertedId});
-        let updatedBountyResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(dbBountyResult._id) }, {
+        let updatedParentBountyResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(dbBountyResult._id) }, {
             $push: {
                 childrenIds: claimedBounty._id
             }
         });
-        if (updatedBountyResult == null) {
+        if (updatedParentBountyResult == null) {
             Log.error('failed to update evergreen bounty with claimed Id');
             throw new Error('Sorry something is not working, our devs are looking into it.');
         }
 
         // Pull it back for second update
-        dbBountyResult = await bountyCollection.findOne({
-            _id: new mongo.ObjectId(dbBountyResult._id)
-        });
+        // dbBountyResult = await bountyCollection.findOne({
+        //    _id: new mongo.ObjectId(dbBountyResult._id)
+        // });
     
 
         // If we have hit the claim limit, close this bounty
         if (dbBountyResult.claimLimit !== undefined) {
             const claimedCount = (dbBountyResult.childrenIds !== undefined ? dbBountyResult.childrenIds.length : 0);
-            if (claimedCount >= dbBountyResult.claimLimit) {
-                updatedBountyResult = await bountyCollection.updateOne(dbBountyResult, {
+            if (claimedCount >= dbBountyResult.claimLimit - 1) {  // Added a child, so -1
+                updatedParentBountyResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(dbBountyResult._id) }, {
                     $set: {
                         // TODO is leaving DeletedBy empty OK? Can assume deletion happened automatically in that case
                         deletedAt: currentDate,
@@ -154,7 +135,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
                     }
                 
                 });
-                if (updatedBountyResult == null) {
+                if (updatedParentBountyResult == null) {
                     Log.error('failed to update evergreen bounty with deleted status');
                     throw new Error('Sorry something is not working, our devs are looking into it.');
                 }

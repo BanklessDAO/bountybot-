@@ -1,4 +1,4 @@
-import mongo, { Db } from 'mongodb';
+import mongo, { Cursor, Db } from 'mongodb';
 import MongoDbUtils from '../utils/MongoDbUtils';
 import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import { BountyCollection } from '../types/bounty/BountyCollection';
@@ -99,6 +99,26 @@ const publish = async (request: PublishRequest): Promise<void> => {
             `The creator of this bounty gated it to specific role holders. Check the "gated to" value of the bounty to see which role you would need to claim it.`
         );
     }
+
+    // If this is evergreen, see if this user already claimed an instance
+    if (dbBountyResult.evergreen && dbBountyResult.childrenIds) {
+        const childBounties: Cursor = bountyCollection.find({ _id: { $in: dbBountyResult.childrenIds } });
+        let claimedBefore = false;
+        let childBounty: BountyCollection;
+        while (!claimedBefore && await childBounties.hasNext()) {
+            childBounty = await childBounties.next();
+            if (childBounty.claimedBy.discordId == request.userId) {
+                claimedBefore = true;
+            }
+        }
+        if (claimedBefore) {
+            throw new AuthorizationError(
+                `Thank you for giving bounty commands a try!\n` +
+                `It looks like you have already claimed this bounty: ${process.env.BOUNTY_BOARD_URL + childBounty._id}`
+            );
+        }
+    }
+    
  }
 
 const submit = async (request: SubmitRequest): Promise<void> => {
