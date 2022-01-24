@@ -17,6 +17,26 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
     
     let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
+
+    // If this is evergreen, see if this user already claimed an instance
+    if (getDbResult.dbBountyResult.evergreen && getDbResult.dbBountyResult.childrenIds) {
+        const db: Db = await MongoDbUtils.connect('bountyboard');
+        const bountyCollection = db.collection('bounties');
+        const childBounties: Cursor = bountyCollection.find({ _id: { $in: getDbResult.dbBountyResult.childrenIds } });
+        let claimedBefore = false;
+        let childBounty: BountyCollection;
+        while (!claimedBefore && await childBounties.hasNext()) {
+            childBounty = await childBounties.next();
+            if (childBounty.claimedBy.discordId == claimedByUser.user.id) {
+                claimedBefore = true;
+            }
+        }
+        if (claimedBefore) {
+            await claimedByUser.send({ content: `You have already claimed this bounty: ${process.env.BOUNTY_BOARD_URL + childBounty._id}` });
+            return;
+        }
+    }
+
     const claimedBounty = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
     
     let bountyEmbedMessage: Message;
