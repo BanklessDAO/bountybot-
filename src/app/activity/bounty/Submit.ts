@@ -24,8 +24,8 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
     await writeDbHandler(request, submittedByUser);
 
     let bountyEmbedMessage: Message;
-	let channelId = "";
-	let messageId = "";
+	let channelId: string;
+	let messageId: string;
 
 	if (!request.message) {
 		// If we put the bounty in a DM using the new flow, find it. If not, find it in the bounty board channel
@@ -147,19 +147,17 @@ export const submitBountyMessage = async (submittedBounty: BountyCollection, mes
 	embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.in_review;
 	embedMessage.setColor('#d39e00');
 	embedMessage.addField('Submitted by', submittedByUser.user.tag, true);
-	embedMessage.setFooter({text: '✅ - complete |  🆘 - help'});
+	embedMessage.setFooter({text: '🆘 - help'});
 	const claimantMessage: Message = await submittedByUser.send({ embeds: [embedMessage] });
-	await addSubmitReactions(claimantMessage);
+	await claimantMessage.react('🆘');
+
+	embedMessage.setFooter({text: '✅ - complete'});
 	const creatorMessage: Message = await createdByUser.send({ embeds: [embedMessage] });
-	await addSubmitReactions(creatorMessage);
+	await creatorMessage.react('✅');
+
 
 	await updateMessageStore(submittedBounty, claimantMessage, creatorMessage);
 
-};
-
-export const addSubmitReactions = async (message: Message): Promise<any> => {
-	await message.react('✅');
-	await message.react('🆘');
 };
 
 // Save where we sent the Bounty message embeds for future updates

@@ -30,7 +30,6 @@ export class CreateRequest extends Request {
             this.reward = commandContext.options.create['reward'];
             this.evergreen = commandContext.options.create['evergreen'];
             this.claimLimit = commandContext.options.create['claim-limit'];
-            //this.copies = commandContext.options.create['copies'];
             this.gate = commandContext.options.create['gate'];
 
             // TODO: remove

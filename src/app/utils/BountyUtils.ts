@@ -52,12 +52,6 @@ const BountyUtils = {
         }
     },
 
-    validateCopies(copies: number): void {
-        if (copies > 100 || copies < 1) {
-            throw new ValidationError('Copies must be between `1` and `100`. If you have any questions, please reach out to your favorite Bounty Board representative!');
-        }
-    },
-
     validateReward(rewardInput: string): void {
         const [stringAmount, symbol] = (rewardInput != null) ? rewardInput.split(' ') : [null, null];
         const ALLOWED_CURRENCIES = ['BANK', 'ETH', 'BTC', 'USDC', 'USDT', 'TempCity', 'gOHM', 'LUSD', 'FOX', 'oneFOX'];
@@ -88,8 +82,8 @@ const BountyUtils = {
         if (!evergreen && claimLimit !== undefined) {
             throw new ValidationError('claim-limit is only used for evergreen bounties.');
         }
-        if (claimLimit !== undefined && (claimLimit < 1 || claimLimit > 100)) {
-            throw new ValidationError('claim-limit should be from 1 to 100');
+        if (claimLimit !== undefined && (claimLimit < 2 || claimLimit > 100)) {
+            throw new ValidationError('claim-limit should be from 2 to 100');
         }
     },
 

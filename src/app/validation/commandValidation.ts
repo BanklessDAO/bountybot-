@@ -60,16 +60,6 @@ const create = async (request: CreateRequest): Promise<void> => {
 
     BountyUtils.validateReward(request.reward);
 
-    if (request.copies) {
-        BountyUtils.validateCopies(request.copies);
-        throw new ValidationError(
-            `The copies option is currently under construction.\n` +
-            `Please create bounties without copies.\n` + 
-            `If you have any questions or would like to use the copies feature, ` +
-            `please reach out to your favorite Bounty Board representative`
-        );
-    }
-
     BountyUtils.validateEvergreen(request.evergreen, request.claimLimit);
 
     if (request.gate) {

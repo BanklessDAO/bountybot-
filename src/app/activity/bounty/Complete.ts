@@ -25,8 +25,8 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 
     let submitterMessage: Message;
 	let completorMessage: Message;
-	let channelId = "";
-	let messageId = "";
+	let channelId: string;
+	let messageId: string;
 
 	if (!request.message) {
 		// If we put the bounty in a DM using the new flow, find it. If not, find it in the bounty board channel

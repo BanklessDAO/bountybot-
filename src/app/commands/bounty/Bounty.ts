@@ -58,15 +58,9 @@ export default class Bounty extends SlashCommand {
                         {
                             name: 'claim-limit',
                             type: CommandOptionType.INTEGER,
-                            description: 'Maximum number of claimants for an evergreen bounty (1 to 100)',
+                            description: 'Maximum number of claimants for an evergreen bounty (2 to 100)',
                             required: false,
                         },
-                        //{
-                        //    name: 'copies',
-                        //    type: CommandOptionType.INTEGER,
-                        //    description: 'How many bounties should be published? (level 3+, max 100)',
-                        //    required: false,
-                        //},
                         {
                             name: 'gate',
                             type: CommandOptionType.ROLE,
