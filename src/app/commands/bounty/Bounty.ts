@@ -61,6 +61,12 @@ export default class Bounty extends SlashCommand {
                             description: 'Select a role that will have permissions to claim this bounty',
                             required: false,
                         },
+                        {
+                            name: 'assign',
+                            type: CommandOptionType.USER,
+                            description: 'Select a user thaty will have permissions to claim this bounty',
+                            required: false,
+                        }
                     ],
                 },
                 {

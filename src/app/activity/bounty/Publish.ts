@@ -107,10 +107,15 @@ export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus
 		},
 	};
 
-	if(dbBounty.gate) {
-			const role = await DiscordUtils.getRoleFromRoleId(dbBounty.gate[0], guildID);
-			messageEmbedOptions.fields.push({ name: 'Gated to', value: role.name, inline: false })
+	if (dbBounty.gate) {
+		const role = await DiscordUtils.getRoleFromRoleId(dbBounty.gate[0], guildID);
+		messageEmbedOptions.fields.push({ name: 'Gated to', value: role.name, inline: false })
     }
+
+	if (dbBounty.assign) {
+		const assignedUser = await DiscordUtils.getGuildMemberFromUserId(dbBounty.assign, guildID);
+		messageEmbedOptions.fields.push({ name: 'Assigned to', value: assignedUser.user.tag, inline: false })
+	}
 
 	return messageEmbedOptions;
 };

@@ -18,6 +18,7 @@ export interface BountyCollection extends Collection {
 	discordMessageId: string,
 	customerId: string,
 	gate: string[],
+	assign: string
 }
 
 export type UserObject = {

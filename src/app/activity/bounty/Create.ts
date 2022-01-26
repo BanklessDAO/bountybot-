@@ -1,6 +1,6 @@
 import { Bounty } from '../../types/bounty/Bounty';
 import Log, { LogUtils } from '../../utils/Log';
-import { Role, Message, MessageOptions, GuildMember, DMChannel, AwaitMessagesOptions, MessageReaction } from 'discord.js';
+import { Role, Message, MessageOptions, GuildMember, DMChannel, AwaitMessagesOptions, MessageReaction, User } from 'discord.js';
 import DiscordUtils from '../../utils/DiscordUtils';
 import BountyUtils from '../../utils/BountyUtils';
 import MongoDbUtils from '../../utils/MongoDbUtils';
@@ -13,6 +13,7 @@ import { PublishRequest } from '../../requests/PublishRequest';
 import { DeleteRequest } from '../../requests/DeleteRequest';
 import { Activities } from '../../constants/activities';
 import { BountyStatus } from '../../constants/bountyStatus';
+import { BountyCollection } from '../../types/bounty/BountyCollection';
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
     const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
@@ -141,6 +142,11 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
         bountyPreview.embeds[0].fields.push({ name: 'Gated to', value: role.name, inline: false });
     }
 
+    if (newBounty.assign) {
+        const assignedUser: GuildMember = await DiscordUtils.getGuildMemberFromUserId(newBounty.assign, guildId);
+        bountyPreview.embeds[0].fields.push({ name: 'Assigned to', value: assignedUser.user.tag, inline: false });
+    }
+
     const publishOrDeleteMessage = 
         'Thank you! If it looks good, please hit 👍 to publish the bounty.\n' +
         'Once the bounty has been published, others can view and claim the bounty.\n' +
@@ -165,6 +171,10 @@ const createDbHandler = async (
     // TODO: perform copies validation
     const rawCopies = createRequest.copies
     const copies = rawCopies && rawCopies > 0 ? rawCopies : 1;
+
+    if (createRequest.assign) {
+        createRequest.assignedName = (await DiscordUtils.getGuildMemberFromUserId(createRequest.assign, createRequest.guildId)).displayName;
+    }
 
     const listOfPrepBounties: Bounty[] = [];
     for (let i = 0; i < copies; i++) {
@@ -230,6 +240,11 @@ export const generateBountyRecord = (
 
     if (createRequest.gate) {
         bountyRecord.gate = [createRequest.gate]
+    }
+
+    if (createRequest.assign) {
+        bountyRecord.assign = createRequest.assign;
+        bountyRecord.assignName = createRequest.assignedName;
     }
 
     return bountyRecord;

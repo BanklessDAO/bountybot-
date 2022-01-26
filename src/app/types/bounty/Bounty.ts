@@ -19,6 +19,8 @@ export interface Bounty {
 	customerId: string,
 	customer_id: string,
 	gate?: string[],
+	assign?: string,
+	assignName?: string
 }
 
 export type UserObject = {

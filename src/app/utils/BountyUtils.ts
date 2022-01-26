@@ -93,6 +93,16 @@ const BountyUtils = {
         }
     },
 
+    async validateAssign(assign: string, guildId: string): Promise<void> {
+        try {
+            await DiscordUtils.getGuildMemberFromUserId(assign, guildId);
+        }
+        catch (e) {
+            Log.info(`User ${assign} is not a user or was unable to be fetched`);
+            throw new ValidationError('Please gate this bounty to a user in this server.');
+        }
+    },
+
     threeMonthsFromNow(): Date {
         let ts: number = Date.now();
         const date: Date = new Date(ts);

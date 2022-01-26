@@ -70,8 +70,19 @@ const create = async (request: CreateRequest): Promise<void> => {
         );
     }
 
+    if (request.gate && request.assign) {
+        throw new ValidationError(
+            `Thank you for giving bounties a try!\n` +
+            `Please select either assign-to or gate, but not both.`
+        );
+    }
+
     if (request.gate) {
         await BountyUtils.validateGate(request.gate, request.guildId);
+    }
+
+    if (request.assign) {
+        await BountyUtils.validateAssign(request.assign, request.guildId)
     }
 }
 

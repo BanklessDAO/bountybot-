@@ -10,6 +10,8 @@ export class CreateRequest extends Request {
     reward: string;
     copies: number;
     gate: string;
+    assign: string;
+    assignedName: string;
 
     // TODO: remove
     commandContext: CommandContext;
@@ -29,6 +31,7 @@ export class CreateRequest extends Request {
             this.reward = commandContext.options.create['reward'];
             this.copies = commandContext.options.create['copies'];
             this.gate = commandContext.options.create['gate'];
+            this.assign = commandContext.options.create['assign']
 
             // TODO: remove
             this.commandContext = commandContext;
