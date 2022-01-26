@@ -244,7 +244,7 @@ export const generateBountyRecord = (
 
     if (createRequest.assign) {
         bountyRecord.assign = createRequest.assign;
-        bountyRecord.assignName = createRequest.assignedName;
+        bountyRecord.assignedName = createRequest.assignedName;
     }
 
     return bountyRecord;

@@ -64,7 +64,7 @@ export default class Bounty extends SlashCommand {
                         {
                             name: 'assign',
                             type: CommandOptionType.USER,
-                            description: 'Select a user thaty will have permissions to claim this bounty',
+                            description: 'Select a user that will have permissions to claim this bounty',
                             required: false,
                         }
                     ],

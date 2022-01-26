@@ -99,7 +99,7 @@ const BountyUtils = {
         }
         catch (e) {
             Log.info(`User ${assign} is not a user or was unable to be fetched`);
-            throw new ValidationError('Please gate this bounty to a user in this server.');
+            throw new ValidationError('Please assign this bounty to a user in this server.');
         }
     },
 
