@@ -151,7 +151,7 @@ const writeDbHandler = async (request: CompleteRequest, completedByUser: GuildMe
 export const completeBountyMessage = async (completedBounty: BountyCollection, completorMessage: Message, submitterMessage: Message, completedByUser: GuildMember, submittedByUser: GuildMember): Promise<any> => {
 	Log.debug('fetching bounty message for complete')
 
-	let embedMessage: MessageEmbed = new MessageEmbed(submitterMessage.embeds[0]);
+	let embedMessage: MessageEmbed = new MessageEmbed(completorMessage.embeds[0]);
 	
 	await completorMessage.delete();
 	if (submitterMessage) await submitterMessage.delete();
