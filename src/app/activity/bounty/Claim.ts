@@ -197,6 +197,7 @@ export const claimBountyMessage = async (message: Message, claimedBounty: Bounty
         await message.edit({ embeds: [embedOrigMessage] });
     }
     await updateMessageStore(claimedBounty, claimantMessage);
+
 };
 
 export const addClaimReactions = async (message: Message): Promise<any> => {

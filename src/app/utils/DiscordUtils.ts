@@ -1,9 +1,10 @@
-import { GuildMember, Role, Guild, DMChannel, AwaitMessagesOptions, Message } from 'discord.js';
+import { GuildMember, Role, Guild, DMChannel, AwaitMessagesOptions, Message, Collection, Snowflake } from 'discord.js';
 import client from '../app';
 import { CommandContext } from 'slash-create';
 import ValidationError from '../errors/ValidationError';
 import { BountyEmbedFields } from '../constants/embeds';
 import Log from './Log';
+import RuntimeError from '../errors/RuntimeError';
 
 const DiscordUtils = {
     async getGuildMemberFromUserId(userId: string, guildId: string): Promise<GuildMember> {
@@ -26,7 +27,18 @@ const DiscordUtils = {
 
     // TODO: graceful timeout handling needed
     async awaitUserDM(dmChannel: DMChannel, replyOptions: AwaitMessagesOptions): Promise<string> {
-		const message = (await dmChannel.awaitMessages(replyOptions)).first();
+        let messages: Collection<Snowflake, Message> = null;
+        try {
+         messages = await dmChannel.awaitMessages(replyOptions);
+         // TODO: this is too broad
+         } catch (e) {
+             throw new ValidationError(
+                 'You have timed out!\n' +
+                 'You can run `/bounty create` to create a new bounty. Please respond to my questions within 5 minutes.\n' +
+                 'Please reach out to your favorite Bounty Board representative with any questions.\n'
+             );
+        }
+        const message = messages.first();
 		const messageText = message.content;
 
 		if(message.author.bot) {

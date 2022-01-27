@@ -119,6 +119,13 @@ const publish = async (request: PublishRequest): Promise<void> => {
         }
     }
     
+    if (dbBountyResult.assign && (request.userId !== dbBountyResult.assign)) {
+        throw new AuthorizationError(
+            `Thank you for giving bounty commands a try!\n` +
+            `It looks like you don't have permission to ${request.activity} this bounty.\n` +
+            `The creator of this bounty gated it to specific role holders. Check the "assigned to" value of the bounty to see which role you would need to claim it.`
+        )
+    }
  }
 
 const submit = async (request: SubmitRequest): Promise<void> => {

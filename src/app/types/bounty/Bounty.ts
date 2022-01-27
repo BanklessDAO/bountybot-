@@ -26,6 +26,8 @@ export interface Bounty {
 	isParent?: boolean,
 	parentId?: string,
 	childrenIds?: ObjectId[]
+	assign?: string,
+	assignedName?: string
 }
 
 export type UserObject = {

@@ -147,6 +147,7 @@ export const submitBountyMessage = async (submittedBounty: BountyCollection, mes
 	embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.in_review;
 	embedMessage.setColor('#d39e00');
 	embedMessage.addField('Submitted by', submittedByUser.user.tag, true);
+
 	embedMessage.setFooter({text: '🆘 - help'});
 	const claimantMessage: Message = await submittedByUser.send({ embeds: [embedMessage] });
 	await claimantMessage.react('🆘');

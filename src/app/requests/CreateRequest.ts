@@ -11,6 +11,8 @@ export class CreateRequest extends Request {
     claimLimit: number;
     copies: number;
     gate: string;
+    assign: string;
+    assignedName: string;
 
     // TODO: remove
     commandContext: CommandContext;
@@ -31,6 +33,7 @@ export class CreateRequest extends Request {
             this.evergreen = commandContext.options.create['evergreen'];
             this.claimLimit = commandContext.options.create['claim-limit'];
             this.gate = commandContext.options.create['gate'];
+            this.assign = commandContext.options.create['assign']
 
             // TODO: remove
             this.commandContext = commandContext;

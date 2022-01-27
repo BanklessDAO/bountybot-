@@ -159,6 +159,7 @@ export const completeBountyMessage = async (completedBounty: BountyCollection, c
 	embedMessage.setColor('#01d212');
 	embedMessage.addField('Completed by', completedByUser.user.tag, true);
 	embedMessage.setFooter({text: ''});
+
 	const submittedMessage: Message = await submittedByUser.send({ embeds: [embedMessage] });
 	await addCompleteReactions(submittedMessage);
 	const completedMessage: Message = await completedByUser.send({ embeds: [embedMessage] });
