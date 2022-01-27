@@ -13,6 +13,7 @@ export class CreateRequest extends Request {
     gate: string;
     assign: string;
     assignedName: string;
+    requireApplication: boolean;
 
     // TODO: remove
     commandContext: CommandContext;
@@ -33,7 +34,9 @@ export class CreateRequest extends Request {
             this.evergreen = commandContext.options.create['evergreen'];
             this.claimLimit = commandContext.options.create['claim-limit'];
             this.gate = commandContext.options.create['gate'];
-            this.assign = commandContext.options.create['assign']
+            this.assign = commandContext.options.create['assign-to'];
+            this.requireApplication = commandContext.options.create['require-application'];
+            
 
             // TODO: remove
             this.commandContext = commandContext;

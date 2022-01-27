@@ -13,6 +13,8 @@ import { Activities } from '../../constants/activities';
 import { CreateRequest } from '../../requests/CreateRequest';
 import { PublishRequest } from '../../requests/PublishRequest';
 import { ClaimRequest } from '../../requests/ClaimRequest';
+import { ApplyRequest } from '../../requests/ApplyRequest';
+import { AssignRequest } from '../../requests/AssignRequest';
 import { SubmitRequest } from '../../requests/SubmitRequest';
 import { CompleteRequest } from '../../requests/CompleteRequest';
 import { DeleteRequest } from '../../requests/DeleteRequest';
@@ -28,7 +30,7 @@ export default class Bounty extends SlashCommand {
     constructor(creator: SlashCreator) {
         super(creator, {
             name: 'bounty',
-            description: 'List, create, claim, delete, and mark bounties complete',
+            description: 'List, create, apply, assign, claim, delete, and mark bounties complete',
             //TODO: make this dynamic? - can pull guildId list by querying mongo from app.ts on startup
             guildIDs: guildIds,
             options: [
@@ -68,9 +70,15 @@ export default class Bounty extends SlashCommand {
                             required: false,
                         },
                         {
-                            name: 'assign',
+                            name: 'assign-to',
                             type: CommandOptionType.USER,
                             description: 'Select a user that will have permissions to claim this bounty',
+                            required: false,
+                        },
+                        {
+                            name: 'require-apply',
+                            type: CommandOptionType.USER,
+                            description: 'Require users to apply before claiming',
                             required: false,
                         }
                     ],
@@ -135,6 +143,44 @@ export default class Bounty extends SlashCommand {
                             name: 'bounty-id',
                             type: CommandOptionType.STRING,
                             description: 'Bounty ID',
+                            required: true,
+                        },
+                    ],
+                },
+                {
+                    name: Activities.assign,
+                    type: CommandOptionType.SUB_COMMAND,
+                    description: 'Assign a bounty as claimable by a user',
+                    options: [
+                        {
+                            name: 'bounty-id',
+                            type: CommandOptionType.STRING,
+                            description: 'Bounty ID',
+                            required: true,
+                        },
+                        {
+                            name: 'assign-to',
+                            type: CommandOptionType.USER,
+                            description: 'Assigned User',
+                            required: true,
+                        },
+                    ],
+                },
+                {
+                    name: Activities.apply,
+                    type: CommandOptionType.SUB_COMMAND,
+                    description: 'Apply for a bounty',
+                    options: [
+                        {
+                            name: 'bounty-id',
+                            type: CommandOptionType.STRING,
+                            description: 'Bounty ID',
+                            required: true,
+                        },
+                        {
+                            name: 'pitch',
+                            type: CommandOptionType.STRING,
+                            description: 'Pitch',
                             required: true,
                         },
                     ],
@@ -244,6 +290,18 @@ export default class Bounty extends SlashCommand {
                 break;
             case Activities.claim:
                 request = new ClaimRequest({
+                    commandContext: commandContext,
+                    messageReactionRequest: null
+                });
+                break;
+            case Activities.apply:
+                request = new ApplyRequest({
+                    commandContext: commandContext,
+                    messageReactionRequest: null
+                });
+                break;
+            case Activities.assign:
+                request = new AssignRequest({
                     commandContext: commandContext,
                     messageReactionRequest: null
                 });

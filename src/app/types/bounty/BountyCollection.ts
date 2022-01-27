@@ -25,7 +25,9 @@ export interface BountyCollection extends Collection {
 	isParent: boolean,
 	parentId: ObjectId,
 	childrenIds: ObjectId[]
-	assign: string
+	assign: string,
+	requireApplication: boolean,
+	applicants: Applicant[],
 }
 
 export type UserObject = {
@@ -38,6 +40,12 @@ export type MessageInfo = {
 	messageId: string,
 	channelId: string,
 };
+
+export type Applicant = {
+	discordId: string,
+	discordHandle: string,
+	pitch: string,
+}
 
 export type Reward = {
 	currency: string,

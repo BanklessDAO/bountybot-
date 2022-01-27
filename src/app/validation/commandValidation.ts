@@ -8,11 +8,10 @@ import { Activities } from '../constants/activities';
 import { ListRequest } from '../requests/ListRequest';
 import { PublishRequest } from '../requests/PublishRequest';
 import { CreateRequest } from '../requests/CreateRequest';
+import { ApplyRequest } from '../requests/ApplyRequest';
+import { AssignRequest } from '../requests/AssignRequest';
 import { SubmitRequest } from '../requests/SubmitRequest';
 import { BountyStatus } from '../constants/bountyStatus';
-import { TextChannel } from 'discord.js';
-import DiscordUtils from '../utils/DiscordUtils';
-import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import { ClaimRequest } from '../requests/ClaimRequest';
 import { CompleteRequest } from '../requests/CompleteRequest';
 import { HelpRequest } from '../requests/HelpRequest';
@@ -34,6 +33,10 @@ const ValidationModule = {
                 return publish(request as PublishRequest);
             case Activities.claim:
                 return claim(request as ClaimRequest);
+            case Activities.apply:
+                return apply(request as ApplyRequest);
+            case Activities.assign:
+                return assign(request as AssignRequest);
             case Activities.submit:
                 return submit(request as SubmitRequest);
             case Activities.complete:
@@ -62,6 +65,8 @@ const create = async (request: CreateRequest): Promise<void> => {
 
     BountyUtils.validateEvergreen(request.evergreen, request.claimLimit);
 
+    BountyUtils.validateRequireApplications(request);
+
     if (request.gate && request.assign) {
         throw new ValidationError(
             `Thank you for giving bounties a try!\n` +
@@ -74,7 +79,7 @@ const create = async (request: CreateRequest): Promise<void> => {
     }
 
     if (request.assign) {
-        await BountyUtils.validateAssign(request.assign, request.guildId)
+        await BountyUtils.validateAssign(request.assign, request.guildId, null)
     }
 }
 
@@ -105,6 +110,88 @@ const publish = async (request: PublishRequest): Promise<void> => {
     }
 }
 
+const apply = async (request: ApplyRequest): Promise<void> => {
+    Log.debug(`Validating activity ${request.activity}`);
+    BountyUtils.validateBountyId(request.bountyId);
+
+    BountyUtils.validatePitch(request.pitch);
+
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+    const dbCollectionBounties = db.collection('bounties');
+    const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
+        _id: new mongo.ObjectId(request.bountyId),
+    });
+
+    if (!dbBountyResult) {
+        throw new ValidationError(
+            `Please select a valid bounty id to ${request.activity} for. `
+        );
+    }
+
+    if (!dbBountyResult.requireApplication) {
+        throw new ValidationError(
+            `The bounty id you have selected does not require application.\n` +
+            `You can claim the bounty directly.\n` +
+            `Please reach out to your favorite Bounty Board representative with any questions!`
+            );
+    }
+
+    if (dbBountyResult.status && dbBountyResult.status !== BountyStatus.open) {
+        throw new ValidationError(
+            `The bounty id you have selected is in status ${dbBountyResult.status}\n` +
+            `Currently, only bounties with status ${BountyStatus.open} can be applied for.\n` +
+            `Please reach out to your favorite Bounty Board representative with any questions!`
+            );
+    }
+
+}
+
+const assign = async (request: AssignRequest): Promise<void> => {
+    Log.debug(`Validating activity ${request.activity}`);
+    BountyUtils.validateBountyId(request.bountyId);
+
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+    const dbCollectionBounties = db.collection('bounties');
+    const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
+        _id: new mongo.ObjectId(request.bountyId),
+    });
+
+    if (!dbBountyResult) {
+        throw new ValidationError(
+            `Please select a valid bounty id to ${request.activity}. `
+        );
+    }
+
+    if (!dbBountyResult.requireApplication) {
+        throw new ValidationError(
+            `This bounty did not require applications, so it is not assignable.`
+        );
+    }
+
+    if (dbBountyResult.status && dbBountyResult.status !== BountyStatus.open) {
+        throw new ValidationError(
+            `The bounty id you have selected is in status ${dbBountyResult.status}\n` +
+            `Currently, only bounties with status ${BountyStatus.open} can be assigned.\n` +
+            `Please reach out to your favorite Bounty Board representative with any questions!`
+            );
+    }
+
+    if (!request.assign) {
+        throw new ValidationError(
+            `Please speficy the user to assign this bounty to.`
+        );
+    }
+
+    if (!dbBountyResult.applicants) {
+        throw new ValidationError(
+            `No users have applied for this bounty yet.`
+        );
+    }
+
+    await BountyUtils.validateAssign(request.assign, request.guildId, dbBountyResult.applicants)
+
+}
+
 const claim = async (request: ClaimRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
     BountyUtils.validateBountyId(request.bountyId);
@@ -117,8 +204,7 @@ const claim = async (request: ClaimRequest): Promise<void> => {
 
     if (!dbBountyResult) {
         throw new ValidationError(
-            `Please select a valid bounty id to ${request.activity}. ` +
-            `Check your previous DMs from bountybot for the correct id.`
+            `Please select a valid bounty id to ${request.activity}. `
         );
     }
 

@@ -3,8 +3,9 @@ import Log, { LogUtils } from './Log';
 import DiscordUtils from '../utils/DiscordUtils';
 import { URL } from 'url';
 import { BountyCollection } from '../types/bounty/BountyCollection';
-import { Bounty } from '../types/bounty/Bounty';
+import { Applicant, Bounty } from '../types/bounty/Bounty';
 import { BountyStatus } from '../constants/bountyStatus';
+import { CreateRequest } from '../requests/CreateRequest';
 const BountyUtils = {
     TWENTYFOUR_HOURS_IN_SECONDS: 24*60*60,
 
@@ -87,6 +88,17 @@ const BountyUtils = {
         }
     },
 
+    validateRequireApplications(request: CreateRequest) {
+        if (request.evergreen) {
+            throw new ValidationError('Cannot require applications on evergreen bounties.');
+        }
+
+        // TODO Allow requireApplications on gated bounties
+        if (request.assign || request.gate) {
+            throw new ValidationError('Cannot require applications on assigned or gated bounties.');
+        }
+    },
+
     async validateGate(gate: string, guildId: string): Promise<void> {
         try {
             await DiscordUtils.getRoleFromRoleId(gate, guildId);
@@ -97,7 +109,12 @@ const BountyUtils = {
         }
     },
 
-    async validateAssign(assign: string, guildId: string): Promise<void> {
+    async validateAssign(assign: string, guildId: string, applicants: Applicant[]): Promise<void> {
+        if (applicants && !applicants.some(applicant => applicant.discordId)) {
+            let applicantList: string;
+            applicants.forEach( applicant => { applicantList += `\n ${applicant.discordHandle}`});
+            throw new ValidationError(`Please assign this bounty to a user from the list of applicants: ${applicantList}`);
+        }
         try {
             await DiscordUtils.getGuildMemberFromUserId(assign, guildId);
         }
@@ -159,6 +176,17 @@ const BountyUtils = {
                 '- special characters: .!@#$%&,?'
                 // TODO: think whether the following line should be here (likely not) or out of utils
                 //'Providing notes is not required, but it makes it easier for your work to be reviewed and for your bounty to be paid out.\n'
+            );
+        }
+    },
+
+    validatePitch(pitch: string): void {
+        const SUBMIT_PITCH_REGEX = /^[\w\s\W]{1,4000}$/;
+        if (pitch == null || !SUBMIT_PITCH_REGEX.test(pitch)) {
+            throw new ValidationError(
+                'Please enter a pitch with a maximum of 4000 characters, and the following requirements: \n' +
+                '- alphanumeric\n ' +
+                '- special characters: .!@#$%&,?'
             );
         }
     },
