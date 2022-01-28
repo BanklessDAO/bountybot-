@@ -1,6 +1,8 @@
 import { CommandContext } from 'slash-create'
 import { createBounty } from './Create'
 import { publishBounty } from './Publish'
+import { applyBounty } from './Apply'
+import { assignBounty } from './Assign'
 import { claimBounty } from './Claim'
 import { submitBounty } from './Submit'
 import { completeBounty } from './Complete'
@@ -53,10 +55,10 @@ export const BountyActivityHandler = {
                 await claimBounty(request as ClaimRequest);
                 break;
             case Activities.apply:
-                //await applyBounty(request as ApplyRequest);
+                await applyBounty(request as ApplyRequest);
                 break;
-            case Activities.claim:
-                //await assignBounty(request as AssignRequest);
+            case Activities.assign:
+                await assignBounty(request as AssignRequest);
                 break;
             case Activities.submit:
                 await submitBounty(request as SubmitRequest);

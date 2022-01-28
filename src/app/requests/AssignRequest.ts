@@ -16,13 +16,16 @@ export class AssignRequest extends Request {
         messageReactionRequest: MessageReactionRequest
     }) {
         if (args.commandContext) {
-            if (args.commandContext.subcommands[0] !== Activities.apply) {
+
+            if (args.commandContext.subcommands[0] !== Activities.assign) {
                 throw new Error('AssignRequest attempted created for non Assign activity.');
             }
+            console.log(`Before super`);
             super(args.commandContext.subcommands[0], args.commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.commandContext = args.commandContext;
-            this.bountyId = args.commandContext.options.apply['bounty-id'];
-            this.assign = args.commandContext.options.apply['assign-to'];
+            this.bountyId = args.commandContext.options.assign['bounty-id'];
+            this.assign = args.commandContext.options.assign['assign-to'];
+
         } else {
             // TODO add flow to assign though message reaction
             throw new Error('Assign context is required to be not null for AssignRequest construction.');

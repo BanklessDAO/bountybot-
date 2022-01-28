@@ -12,6 +12,7 @@ import { handler } from '../activity/bounty/Handler';
 import AuthorizationError from '../errors/AuthorizationError';
 import { BountyEmbedFields } from '../constants/embeds';
 import { PublishRequest } from '../requests/PublishRequest';
+import { ApplyRequest } from '../requests/ApplyRequest';
 import { Activities } from '../constants/activities';
 
 export default class implements DiscordEvent {
@@ -82,6 +83,15 @@ export default class implements DiscordEvent {
         } else if (reaction.emoji.name === '🏴') {
             Log.info(`${user.tag} attempting to claim a bounty ${bountyId} from the bounty board`);
             request = new ClaimRequest({
+                commandContext: null,
+                messageReactionRequest: {
+                    user: user,
+                    message: message
+                }
+            });
+        } else if (reaction.emoji.name === '🙋') {
+            Log.info(`${user.tag} attempting to apply for a bounty ${bountyId} from the bounty board`);
+            request = new ApplyRequest({
                 commandContext: null,
                 messageReactionRequest: {
                     user: user,

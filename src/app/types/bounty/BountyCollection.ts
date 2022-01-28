@@ -26,6 +26,7 @@ export interface BountyCollection extends Collection {
 	parentId: ObjectId,
 	childrenIds: ObjectId[]
 	assign: string,
+	assignedName: string,
 	requireApplication: boolean,
 	applicants: Applicant[],
 }

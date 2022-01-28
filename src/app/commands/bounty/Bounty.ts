@@ -76,8 +76,8 @@ export default class Bounty extends SlashCommand {
                             required: false,
                         },
                         {
-                            name: 'require-apply',
-                            type: CommandOptionType.USER,
+                            name: 'require-application',
+                            type: CommandOptionType.BOOLEAN,
                             description: 'Require users to apply before claiming',
                             required: false,
                         }
@@ -175,12 +175,6 @@ export default class Bounty extends SlashCommand {
                             name: 'bounty-id',
                             type: CommandOptionType.STRING,
                             description: 'Bounty ID',
-                            required: true,
-                        },
-                        {
-                            name: 'pitch',
-                            type: CommandOptionType.STRING,
-                            description: 'Pitch',
                             required: true,
                         },
                     ],

@@ -89,7 +89,7 @@ const BountyUtils = {
     },
 
     validateRequireApplications(request: CreateRequest) {
-        if (request.evergreen) {
+        if (request.evergreen && request.requireApplication) {
             throw new ValidationError('Cannot require applications on evergreen bounties.');
         }
 
@@ -111,7 +111,7 @@ const BountyUtils = {
 
     async validateAssign(assign: string, guildId: string, applicants: Applicant[]): Promise<void> {
         if (applicants && !applicants.some(applicant => applicant.discordId == assign)) {
-            let applicantList: string;
+            let applicantList: string = '';
             applicants.forEach( applicant => { applicantList += `\n ${applicant.discordHandle}`});
             throw new ValidationError(`Please assign this bounty to a user from the list of applicants: ${applicantList}`);
         }
@@ -227,8 +227,17 @@ const BountyUtils = {
                 title += '\n(Infinite claims available)';
             }
         }
-        if (bountyRecord.requireApplication) {
-            title += '\n(Requires application before claiming)';
+        if (bountyRecord.requireApplication) 
+        {
+            title += `\n(Requires application before claiming`;
+            if (bountyRecord.applicants) {
+                if (bountyRecord.applicants.length == 1) {
+                    title += `. 1 applicant so far.`;
+                } else {
+                    title += `. ${bountyRecord.applicants.length} applicants so far.`;
+                }
+            }
+            title += ')'
         }
         return title;
     

@@ -114,8 +114,6 @@ const apply = async (request: ApplyRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
     BountyUtils.validateBountyId(request.bountyId);
 
-    BountyUtils.validatePitch(request.pitch);
-
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({

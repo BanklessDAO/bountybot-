@@ -90,7 +90,7 @@ const writeDbHandler = async (dbBountyResult: BountyCollection, bountyMessageId:
 export const addPublishReactions = async (message: Message, requireApplication: boolean): Promise<any> => {
 	await message.reactions.removeAll();
 	if (requireApplication) {
-		await message.react(':raising_hand:');
+		await message.react('🙋');
 	} else {
 		await message.react('🏴');
 	}
@@ -99,7 +99,7 @@ export const addPublishReactions = async (message: Message, requireApplication: 
 
 export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
 
-	let footer = dbBounty.requireApplication ? ':raising_hand: - apply | ❌ - delete' : '🏴 - claim | ❌ - delete';
+	let footer = dbBounty.requireApplication ? '🙋 - apply | ❌ - delete' : '🏴 - claim | ❌ - delete';
 	let messageEmbedOptions: MessageEmbedOptions = {
 		color: 1998388,
 		title: BountyUtils.createPublicTitle(<Bounty>dbBounty),
