@@ -8,6 +8,8 @@ import { GuildMember } from 'discord.js';
 import { Activities } from '../constants/activities';
 import { PublishRequest } from '../requests/PublishRequest';
 import { CreateRequest } from '../requests/CreateRequest';
+import { ApplyRequest } from '../requests/ApplyRequest';
+import { AssignRequest } from '../requests/AssignRequest';
 import Log from '../utils/Log';
 import { SubmitRequest } from '../requests/SubmitRequest';
 import { ClaimRequest } from '../requests/ClaimRequest';
@@ -38,6 +40,10 @@ const AuthorizationModule = {
                 return publish(request as PublishRequest);
             case Activities.claim:
                 return claim(request as ClaimRequest);
+            case Activities.apply:
+                return apply(request as ApplyRequest);
+            case Activities.assign:
+                return assign(request as AssignRequest);
             case Activities.submit:
                 return submit(request as SubmitRequest);
             case Activities.complete:
@@ -118,12 +124,20 @@ const publish = async (request: PublishRequest): Promise<void> => {
             );
         }
     }
+
+    if (dbBountyResult.requireApplication && (!dbBountyResult.assign || (request.userId !== dbBountyResult.assign))) {
+        throw new AuthorizationError(
+            `Thank you for giving bounty commands a try!\n` +
+            'This bounty requires you to apply for it first, and the bounty creator\n' + 
+            'must then assign it to you before you can claim it.'
+        )
+    }
     
     if (dbBountyResult.assign && (request.userId !== dbBountyResult.assign)) {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
-            `The creator of this bounty gated it to specific role holders. Check the "assigned to" value of the bounty to see which role you would need to claim it.`
+            `The creator of this bounty has assigned it to another user.`
         )
     }
  }
@@ -146,6 +160,37 @@ const submit = async (request: SubmitRequest): Promise<void> => {
     }
 }
 
+const apply = async (request: ApplyRequest): Promise<void> => {
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+    const bountyCollection = db.collection('bounties');
+    const dbBountyResult: BountyCollection = await bountyCollection.findOne({
+        _id: new mongo.ObjectId(request.bountyId),
+    });
+    if (dbBountyResult.applicants && dbBountyResult.applicants.some(applicant => applicant.discordId == request.userId)) {
+        throw new AuthorizationError(
+            `Thank you for giving bounty commands a try!\n` +
+            `It looks like you have already applied for this bounty.\n` +
+            `Please reach out to your favorite bounty board representative with any questions!` 
+        );
+    }
+}
+
+const assign = async (request: AssignRequest): Promise<void> => {
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+    const bountyCollection = db.collection('bounties');
+    const dbBountyResult: BountyCollection = await bountyCollection.findOne({
+        _id: new mongo.ObjectId(request.bountyId),
+    });
+    if (request.userId !== dbBountyResult.createdBy.discordId) {
+        throw new AuthorizationError(
+            `Thank you for giving bounty commands a try!\n` +
+            `It looks like you don't have permission to ${request.activity} this bounty.\n` +
+            `This bounty can only be assigned by <@${dbBountyResult.createdBy.discordId}>  (${dbBountyResult.createdBy.discordHandle}).\n ` +
+            `Please reach out to your favorite bounty board representative with any questions!` 
+            );
+    }
+}
+
 const complete = async (request: CompleteRequest): Promise<void> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
@@ -157,7 +202,7 @@ const complete = async (request: CompleteRequest): Promise<void> => {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
-            `This bounty can only be completed by <@${dbBountyResult.createdBy.discordId}>  (${dbBountyResult.createdBy.discordHandle}). ` +
+            `This bounty can only be completed by <@${dbBountyResult.createdBy.discordId}>  (${dbBountyResult.createdBy.discordHandle}). \n` +
             `At this time, you can only complete bounties that you have created.\n` +
             `Please reach out to your favorite bounty board representative with any questions!` 
             );

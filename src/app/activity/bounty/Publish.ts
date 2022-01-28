@@ -26,7 +26,7 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
 	const bountyChannel: TextChannel = await guildMember.client.channels.fetch(dbCustomerResult.bountyChannel) as TextChannel;
 	const bountyMessage: Message = await bountyChannel.send({ embeds: [messageOptions] });
 	Log.info(`bounty published to ${bountyChannel.name}`);
-	addPublishReactions(bountyMessage);
+	addPublishReactions(bountyMessage, dbBountyResult.requireApplication);
 
     await writeDbHandler(dbBountyResult, bountyMessage.id);
 
@@ -87,14 +87,19 @@ const writeDbHandler = async (dbBountyResult: BountyCollection, bountyMessageId:
 
 }
 
-export const addPublishReactions = (message: Message): void => {
-	message.reactions.removeAll();
-	message.react('🏴');
+export const addPublishReactions = async (message: Message, requireApplication: boolean): Promise<any> => {
+	await message.reactions.removeAll();
+	if (requireApplication) {
+		await message.react(':raising_hand:');
+	} else {
+		await message.react('🏴');
+	}
 	message.react('❌');
 };
 
 export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
 
+	let footer = dbBounty.requireApplication ? ':raising_hand: - apply | ❌ - delete' : '🏴 - claim | ❌ - delete';
 	let messageEmbedOptions: MessageEmbedOptions = {
 		color: 1998388,
 		title: BountyUtils.createPublicTitle(<Bounty>dbBounty),
@@ -114,7 +119,7 @@ export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus
 		],
 		timestamp: new Date().getTime(),
 		footer: {
-			text: '🏴 - claim | ❌ - delete',
+			text: footer,
 		},
 	};
 

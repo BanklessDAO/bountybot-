@@ -16,6 +16,8 @@ import Log from '../../utils/Log';
 import { CreateRequest } from '../../requests/CreateRequest'
 import { PublishRequest } from '../../requests/PublishRequest';
 import { ClaimRequest } from '../../requests/ClaimRequest';
+import { ApplyRequest } from '../../requests/ApplyRequest';
+import { AssignRequest } from '../../requests/AssignRequest';
 import { SubmitRequest } from '../../requests/SubmitRequest';
 import { CompleteRequest } from '../../requests/CompleteRequest';
 import { ListRequest } from '../../requests/ListRequest';
@@ -49,6 +51,12 @@ export const BountyActivityHandler = {
                 break;
             case Activities.claim:
                 await claimBounty(request as ClaimRequest);
+                break;
+            case Activities.apply:
+                //await applyBounty(request as ApplyRequest);
+                break;
+            case Activities.claim:
+                //await assignBounty(request as AssignRequest);
                 break;
             case Activities.submit:
                 await submitBounty(request as SubmitRequest);

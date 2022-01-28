@@ -110,7 +110,7 @@ const BountyUtils = {
     },
 
     async validateAssign(assign: string, guildId: string, applicants: Applicant[]): Promise<void> {
-        if (applicants && !applicants.some(applicant => applicant.discordId)) {
+        if (applicants && !applicants.some(applicant => applicant.discordId == assign)) {
             let applicantList: string;
             applicants.forEach( applicant => { applicantList += `\n ${applicant.discordHandle}`});
             throw new ValidationError(`Please assign this bounty to a user from the list of applicants: ${applicantList}`);
@@ -226,6 +226,9 @@ const BountyUtils = {
             } else {
                 title += '\n(Infinite claims available)';
             }
+        }
+        if (bountyRecord.requireApplication) {
+            title += '\n(Requires application before claiming)';
         }
         return title;
     

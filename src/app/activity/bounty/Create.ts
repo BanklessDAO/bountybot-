@@ -228,6 +228,10 @@ export const generateBountyRecord = (
         bountyRecord.assignedName = createRequest.assignedName;
     }
 
+    if (createRequest.requireApplication) {
+        bountyRecord.requireApplication = true;
+    }
+
     return bountyRecord;
 };
 
