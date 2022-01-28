@@ -40,7 +40,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const bountyUrl = process.env.BOUNTY_BOARD_URL + claimedBounty._id;
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
     const createdByUser: GuildMember = await claimedByUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
-    let creatorClaimDM = `Your bounty has been claimed by @${claimedByUser.user.id} ${bountyUrl}`;
+    let creatorClaimDM = `Your bounty has been claimed by <@${claimedByUser.user.id}> ${bountyUrl}`;
     if (getDbResult.dbBountyResult.evergreen) {
         if (getDbResult.dbBountyResult.status == BountyStatus.open) {
             creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. ${origBountyUrl}`;
@@ -51,7 +51,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
 
     await createdByUser.send({ content: creatorClaimDM });
 
-    await claimedByUser.send({ content: `You have claimed this bounty! Reach out to @${createdByUser.user.id} with any questions` });
+    await claimedByUser.send({ content: `You have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions` });
     return;
 };
 

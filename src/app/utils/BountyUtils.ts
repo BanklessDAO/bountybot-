@@ -80,7 +80,10 @@ const BountyUtils = {
         }
     },
 
-    validateEvergreen(evergreen: boolean, claimLimit: number) {
+    validateEvergreen(evergreen: boolean, claimLimit: number, gateOrAssign: boolean) {
+        if (evergreen && gateOrAssign) {
+            throw new ValidationError('Cannot use gate or assign-to with evergreen bounties');
+        }
         if (!evergreen && claimLimit !== undefined) {
             throw new ValidationError('claim-limit is only used for evergreen bounties.');
         }

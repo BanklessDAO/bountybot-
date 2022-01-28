@@ -153,7 +153,7 @@ const submit = async (request: SubmitRequest): Promise<void> => {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
-            `This bounty has already been claimed by <@${dbBountyResult.claimedBy.discordId}>  (${dbBountyResult.claimedBy.discordHandle}). ` +
+            `This bounty has already been claimed by <@${dbBountyResult.claimedBy.discordId}>. ` +
             `At this time, you can only submit bounties that you have previously claimed.\n` +
             `Please reach out to your favorite bounty board representative with any questions!` 
             );
@@ -185,7 +185,7 @@ const assign = async (request: AssignRequest): Promise<void> => {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
-            `This bounty can only be assigned by <@${dbBountyResult.createdBy.discordId}>  (${dbBountyResult.createdBy.discordHandle}).\n ` +
+            `This bounty can only be assigned by <@${dbBountyResult.createdBy.discordId}>.\n ` +
             `Please reach out to your favorite bounty board representative with any questions!` 
             );
     }
@@ -202,7 +202,7 @@ const complete = async (request: CompleteRequest): Promise<void> => {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
-            `This bounty can only be completed by <@${dbBountyResult.createdBy.discordId}>  (${dbBountyResult.createdBy.discordHandle}). \n` +
+            `This bounty can only be completed by <@${dbBountyResult.createdBy.discordId}>. \n` +
             `At this time, you can only complete bounties that you have created.\n` +
             `Please reach out to your favorite bounty board representative with any questions!` 
             );
@@ -220,7 +220,7 @@ const deleteAuthorization = async (request: DeleteRequest): Promise<void> => {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
-            `This bounty can only be deleted by <@${dbBountyResult.createdBy.discordId}> (${dbBountyResult.createdBy.discordHandle}). ` +
+            `This bounty can only be deleted by <@${dbBountyResult.createdBy.discordId}>. ` +
             `At this time, you can only delete bounties that you have created.\n` +
             `Please reach out to your favorite bounty board representative with any questions!` 
             );

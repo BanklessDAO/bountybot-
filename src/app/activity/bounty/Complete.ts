@@ -62,12 +62,12 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 	
 	const creatorCompleteDM = 
         `Thank you for reviewing ${bountyUrl}\n` +
-        `Please remember to tip @${submittedByUser.id}`;
+        `Please remember to tip <@${submittedByUser.id}>`;
 
     
     const submitterCompleteDM = 
         `Your bounty has passed review and is now complete!\n${bountyUrl}\n` +
-        `@${completedByUser.id} should be tipping you with ${getDbResult.dbBountyResult.reward.amount} ${getDbResult.dbBountyResult.reward.currency} soon`;
+        `<@${completedByUser.id}> should be tipping you with ${getDbResult.dbBountyResult.reward.amount} ${getDbResult.dbBountyResult.reward.currency} soon`;
 	
     
     await completedByUser.send({ content: creatorCompleteDM });

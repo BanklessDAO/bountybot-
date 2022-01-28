@@ -20,7 +20,6 @@ export class AssignRequest extends Request {
             if (args.commandContext.subcommands[0] !== Activities.assign) {
                 throw new Error('AssignRequest attempted created for non Assign activity.');
             }
-            console.log(`Before super`);
             super(args.commandContext.subcommands[0], args.commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.commandContext = args.commandContext;
             this.bountyId = args.commandContext.options.assign['bounty-id'];

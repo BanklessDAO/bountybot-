@@ -61,13 +61,13 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     const bountyUrl = process.env.BOUNTY_BOARD_URL + appliedForBounty._id;
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
     const createdByUser: GuildMember = await applyingUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
-    let creatorDM = `Your bounty has been applied for by @${applyingUser.user.id} ${bountyUrl} \n` +
+    let creatorDM = `Your bounty has been applied for by <@${applyingUser.id}> ${bountyUrl} \n` +
                         `Their pitch: ${pitch ? pitch : '<none given>'} \n` +
                         'Use the "/bounty assign" command in the #bounty-board channel to select an applicant who can claim.';
 
     await createdByUser.send({ content: creatorDM });
 
-    await applyingUser.send({ content: `You have applied for this bounty! Reach out to @${createdByUser.id} with any questions` });
+    await applyingUser.send({ content: `You have applied for this bounty! Reach out to <@${createdByUser.id}> with any questions` });
     return;
 };
 

@@ -44,7 +44,7 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
 
     await assigningUser.send({ content: assigningDM });
 
-    await assignedUser.send({ content: `You have been assigned this bounty! Go to the #bounty-board channel to claim it. Reach out to @${assigningUser.id} with any questions\n` +
+    await assignedUser.send({ content: `You have been assigned this bounty! Go to the #bounty-board channel to claim it. Reach out to <@${assigningUser.id}> with any questions\n` +
                                          bountyUrl });
     return;
 };
