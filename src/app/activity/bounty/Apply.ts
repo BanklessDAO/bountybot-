@@ -17,7 +17,7 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     const applyingUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     Log.info(`${request.bountyId} bounty applied for by ${applyingUser.user.tag}`);
     
-    const pitchMessageText = `Hello <@${applyingUser.user.tag}>!\n` +
+    const pitchMessageText = `Hello @${applyingUser.displayName}!\n` +
         `Please respond to the following within 5 minutes.\n` +
         `Please tell the bounty creator why you should be chosen to claim this bounty (your pitch)`;
     const pitchMessage: Message = await applyingUser.send({ content: pitchMessageText });
@@ -43,7 +43,6 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     const appliedForBounty = await writeDbHandler(request, getDbResult.dbBountyResult, applyingUser, pitch);
     
     let bountyEmbedMessage: Message;
-    // TODO: consider changing claim, submit, complete, and delete requests to have a channel id instead of the complete Message
     if (!request.message) {
         const bountyChannel: TextChannel = await applyingUser.guild.channels.fetch(getDbResult.bountyChannel) as TextChannel;
         bountyEmbedMessage = await bountyChannel.messages.fetch(getDbResult.dbBountyResult.discordMessageId).catch(e => {
@@ -57,18 +56,18 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     // Need to refresh original bounty so the messages are correct
     getDbResult = await getDbHandler(request); 
 
-    await claimBountyMessage(bountyEmbedMessage, getDbResult.dbBountyResult);
+    await applyBountyMessage(bountyEmbedMessage, getDbResult.dbBountyResult);
     
     const bountyUrl = process.env.BOUNTY_BOARD_URL + appliedForBounty._id;
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
     const createdByUser: GuildMember = await applyingUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
-    let creatorDM = `Your bounty has been applied for by <@${applyingUser.user.id}> ${bountyUrl} \n` +
+    let creatorDM = `Your bounty has been applied for by @${applyingUser.user.id} ${bountyUrl} \n` +
                         `Their pitch: ${pitch ? pitch : '<none given>'} \n` +
                         'Use the "/bounty assign" command in the #bounty-board channel to select an applicant who can claim.';
 
     await createdByUser.send({ content: creatorDM });
 
-    await applyingUser.send({ content: `You have applied for this bounty! Reach out to <@${createdByUser.id}> (${createdByUser.displayName}) with any questions` });
+    await applyingUser.send({ content: `You have applied for this bounty! Reach out to @${createdByUser.id} with any questions` });
     return;
 };
 
@@ -121,11 +120,11 @@ const writeDbHandler = async (request: ApplyRequest, appliedForBounty: BountyCol
     return appliedForBounty;
 }
 
-export const claimBountyMessage = async (message: Message, appliedForBounty: BountyCollection): Promise<any> => {
+export const applyBountyMessage = async (message: Message, appliedForBounty: BountyCollection): Promise<any> => {
     Log.debug(`fetching bounty message for apply`)
     
     const embedOrigMessage: MessageEmbed = message.embeds[0];
-    embedOrigMessage.setTitle(BountyUtils.createPublicTitle(<Bounty>appliedForBounty));
+    embedOrigMessage.setTitle(await BountyUtils.createPublicTitle(<Bounty>appliedForBounty));
     await message.edit({ embeds: [embedOrigMessage] });
 };
 

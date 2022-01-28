@@ -1,5 +1,6 @@
 import ValidationError from '../errors/ValidationError';
 import Log, { LogUtils } from './Log';
+import { Role } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
 import { URL } from 'url';
 import { BountyCollection } from '../types/bounty/BountyCollection';
@@ -94,7 +95,7 @@ const BountyUtils = {
         }
 
         // TODO Allow requireApplications on gated bounties
-        if (request.assign || request.gate) {
+        if (request.requireApplication && (request.assign || request.gate)) {
             throw new ValidationError('Cannot require applications on assigned or gated bounties.');
         }
     },
@@ -217,7 +218,7 @@ const BountyUtils = {
         return elapsedSeconds < BountyUtils.TWENTYFOUR_HOURS_IN_SECONDS;
     },
 
-    createPublicTitle(bountyRecord: Bounty): string {
+    async createPublicTitle(bountyRecord: Bounty): Promise<string> {
         let title = bountyRecord.title;
         if (bountyRecord.evergreen && bountyRecord.isParent) {
             if (bountyRecord.claimLimit !== undefined) {
@@ -227,17 +228,23 @@ const BountyUtils = {
                 title += '\n(Infinite claims available)';
             }
         }
-        if (bountyRecord.requireApplication) 
-        {
-            title += `\n(Requires application before claiming`;
-            if (bountyRecord.applicants) {
-                if (bountyRecord.applicants.length == 1) {
-                    title += `. 1 applicant so far.`;
-                } else {
-                    title += `. ${bountyRecord.applicants.length} applicants so far.`;
+        if (bountyRecord.assign) {
+            title += `\n(Assigned to ${bountyRecord.assignedName})`
+        } else if (bountyRecord.gate) {
+            const role: Role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
+            title += `\n(Gated to ${role.name})`;
+        } else {
+            if (bountyRecord.requireApplication) {
+                title += `\n(Requires application before claiming`;
+                if (bountyRecord.applicants) {
+                    if (bountyRecord.applicants.length == 1) {
+                        title += `. 1 applicant so far.`;
+                    } else {
+                        title += `. ${bountyRecord.applicants.length} applicants so far.`;
+                    }
                 }
+                title += ')'
             }
-            title += ')'
         }
         return title;
     

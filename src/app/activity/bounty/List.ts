@@ -72,7 +72,7 @@ const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, gu
 export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
 	let messageEmbedOptions: MessageEmbedOptions = {
 		color: 1998388,
-		title: BountyUtils.createPublicTitle(bountyRecord),
+		title: await BountyUtils.createPublicTitle(bountyRecord),
 		url: (process.env.BOUNTY_BOARD_URL + bountyRecord._id.toHexString()),
 		author: {
 			iconURL: bountyRecord.createdBy.iconUrl,

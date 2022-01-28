@@ -102,7 +102,7 @@ export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus
 	let footer = dbBounty.requireApplication ? '🙋 - apply | ❌ - delete' : '🏴 - claim | ❌ - delete';
 	let messageEmbedOptions: MessageEmbedOptions = {
 		color: 1998388,
-		title: BountyUtils.createPublicTitle(<Bounty>dbBounty),
+		title: await BountyUtils.createPublicTitle(<Bounty>dbBounty),
 		url: (process.env.BOUNTY_BOARD_URL + dbBounty._id.toHexString()),
 		author: {
 			iconURL: dbBounty.createdBy.iconUrl,

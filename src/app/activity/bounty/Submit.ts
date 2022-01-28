@@ -51,7 +51,7 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
     
     await submitBountyMessage(getDbResult.dbBountyResult, bountyEmbedMessage, submittedByUser, createdByUser);
 	
-	let creatorSubmitDM = `Please reach out to <@${submittedByUser.user.id}>. They are ready for bounty review ${bountyUrl}`
+	let creatorSubmitDM = `Please reach out to @${submittedByUser.user.id}. They are ready for bounty review ${bountyUrl}`
 
 	if (request.url) {
 		creatorSubmitDM += `\nPlease review this URL:\n${request.url}`
@@ -61,7 +61,7 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
 		creatorSubmitDM += `\nPlease review these notes:\n${request.notes}`
 	}
 	await createdByUser.send({ content: creatorSubmitDM });
-	await submittedByUser.send({ content: `Bounty in review! Expect a message from <@${createdByUser.id}>` });
+	await submittedByUser.send({ content: `Bounty in review! Expect a message from @${createdByUser.id}` });
     return;
 }
 

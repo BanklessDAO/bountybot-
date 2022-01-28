@@ -44,7 +44,7 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
 
     await assigningUser.send({ content: assigningDM });
 
-    await assignedUser.send({ content: `You have been assigned this bounty! Go to the #bounty-board channel to claim it. Reach out to <@${assigningUser.id}> (${assigningUser.displayName}) with any questions\n` +
+    await assignedUser.send({ content: `You have been assigned this bounty! Go to the #bounty-board channel to claim it. Reach out to @${assigningUser.id} with any questions\n` +
                                          bountyUrl });
     return;
 };
@@ -98,7 +98,12 @@ export const assignedBountyMessage = async (message: Message, appliedForBounty: 
     Log.debug(`fetching bounty message for assign`)
     
     const embedOrigMessage: MessageEmbed = message.embeds[0];
-    embedOrigMessage.setTitle(BountyUtils.createPublicTitle(<Bounty>appliedForBounty));
+    embedOrigMessage.setTitle(await BountyUtils.createPublicTitle(<Bounty>appliedForBounty));
+    embedOrigMessage.setFooter({text: '🏴 - claim | ❌ - delete'});
     await message.edit({ embeds: [embedOrigMessage] });
+	await message.reactions.removeAll();
+	await message.react('🏴');
+	await message.react('❌');
+
 };
 

@@ -92,7 +92,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
     let bountyPreview: MessageOptions = {
         embeds: [{
-            title: BountyUtils.createPublicTitle(newBounty),
+            title: await BountyUtils.createPublicTitle(newBounty),
             url: (process.env.BOUNTY_BOARD_URL + newBounty._id),
             author: {
                 icon_url: guildMember.user.avatarURL(),
@@ -121,16 +121,6 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
         }],
     };
 
-    if (newBounty.gate) {
-        const role: Role = await DiscordUtils.getRoleFromRoleId(newBounty.gate[0], guildId);
-        bountyPreview.embeds[0].fields.push({ name: 'Gated to', value: role.name, inline: false });
-    }
-
-    if (newBounty.assign) {
-        const assignedUser: GuildMember = await DiscordUtils.getGuildMemberFromUserId(newBounty.assign, guildId);
-        bountyPreview.embeds[0].fields.push({ name: 'Assigned to', value: assignedUser.user.tag, inline: false });
-    }
-
     const publishOrDeleteMessage = 
         'Thank you! If it looks good, please hit 👍 to publish the bounty.\n' +
         'Once the bounty has been published, others can view and claim the bounty.\n' +
@@ -153,6 +143,10 @@ const createDbHandler = async (
 ): Promise<Bounty> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbBounty = db.collection('bounties');
+
+    if (createRequest.assign) {
+        createRequest.assignedName = (await DiscordUtils.getGuildMemberFromUserId(createRequest.assign, createRequest.guildId)).displayName;
+    }
 
     const createdBounty: Bounty = generateBountyRecord(
             createRequest,

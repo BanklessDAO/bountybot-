@@ -40,7 +40,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const bountyUrl = process.env.BOUNTY_BOARD_URL + claimedBounty._id;
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
     const createdByUser: GuildMember = await claimedByUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
-    let creatorClaimDM = `Your bounty has been claimed by <@${claimedByUser.user.id}> ${bountyUrl}`;
+    let creatorClaimDM = `Your bounty has been claimed by @${claimedByUser.user.id} ${bountyUrl}`;
     if (getDbResult.dbBountyResult.evergreen) {
         if (getDbResult.dbBountyResult.status == BountyStatus.open) {
             creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. ${origBountyUrl}`;
@@ -51,7 +51,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
 
     await createdByUser.send({ content: creatorClaimDM });
 
-    await claimedByUser.send({ content: `You have claimed this bounty! Reach out to <@${createdByUser.id}> (${createdByUser.displayName}) with any questions` });
+    await claimedByUser.send({ content: `You have claimed this bounty! Reach out to @${createdByUser.user.id} with any questions` });
     return;
 };
 
@@ -180,7 +180,7 @@ export const claimBountyMessage = async (message: Message, claimedBounty: Bounty
     // Send claimed bounty by DM
     embedNewMessage.fields[BountyEmbedFields.status].value = BountyStatus.in_progress;
     embedNewMessage.fields[BountyEmbedFields.bountyId].value = claimedBounty._id.toString();
-    embedNewMessage.setTitle(BountyUtils.createPublicTitle(<Bounty>claimedBounty));
+    embedNewMessage.setTitle(await BountyUtils.createPublicTitle(<Bounty>claimedBounty));
     embedNewMessage.setURL(process.env.BOUNTY_BOARD_URL + claimedBounty._id.toString());
     embedNewMessage.setColor('#d39e00');
     embedNewMessage.addField('Claimed by', claimedByUser.user.tag, true);
@@ -193,7 +193,7 @@ export const claimBountyMessage = async (message: Message, claimedBounty: Bounty
         await message.delete();
     } else {
         const embedOrigMessage: MessageEmbed = message.embeds[0];
-        embedOrigMessage.setTitle(BountyUtils.createPublicTitle(<Bounty>originalBounty));
+        embedOrigMessage.setTitle(await BountyUtils.createPublicTitle(<Bounty>originalBounty));
         await message.edit({ embeds: [embedOrigMessage] });
     }
     await updateMessageStore(claimedBounty, claimantMessage);
