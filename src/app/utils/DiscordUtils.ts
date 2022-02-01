@@ -17,6 +17,21 @@ const DiscordUtils = {
         return await guild.roles.fetch(roleId);
     },
 
+    async getRolesFromGuildId(guildId: string): Promise<Collection<Snowflake, Role>> {
+        const guild = await client.guilds.fetch(guildId);
+        return guild.roles.cache;
+    },
+
+    async verifyOnlineFromGuildId(guildId: string) : Promise<boolean> {
+        const guild = await client.guilds.fetch(guildId);
+        return guild.available;
+    },
+
+    async getGuildNameFromGuildId(guildId: string): Promise<string> {
+        const guild = await client.guilds.fetch(guildId);
+        return guild.name;
+    },
+
     async getGuildAndMember(guildId: string, userId: string): Promise<{ guild: Guild, guildMember: GuildMember }> {
         const guild = await client.guilds.fetch(guildId);
         return {
