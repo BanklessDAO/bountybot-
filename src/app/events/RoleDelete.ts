@@ -8,7 +8,7 @@ export default class implements DiscordEvent {
     name = 'roleDelete';
     once = false;
 
-    async execute(role: Role): Promise<any> {
+    async execute(role: Role): Promise<void> {
         await this.roleDeleteHandler(role);
     }
 

@@ -8,7 +8,7 @@ export default class implements DiscordEvent {
     name = 'roleCreate';
     once = false;
 
-    async execute(role: Role): Promise<any> {
+    async execute(role: Role): Promise<void> {
         await this.roleCreateHandler(role);
     }
 

@@ -8,7 +8,7 @@ export default class implements DiscordEvent {
     name = 'roleUpdate';
     once = false;
 
-    async execute(oldRole: Role, newRole: Role): Promise<any> {
+    async execute(oldRole: Role, newRole: Role): Promise<void> {
         await this.roleUpdateHandler(oldRole, newRole);
     }
 

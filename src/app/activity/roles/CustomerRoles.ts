@@ -32,7 +32,7 @@ export const upsertCustomerRoles = async (request: UpsertCustomerRolesRequest): 
 
 const dbHandler = async (request: UpsertCustomerRolesRequest, rolesMap: Map<string, string>): Promise<void> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
-	const customerRolesCollection = db.collection('customer.roles');
+    const customerRolesCollection = db.collection('customer.roles');
 
 	const dbCustomerRolesResult: CustomerRolesCollection = await customerRolesCollection.findOne({
 		customerId: request.customerId,
@@ -40,14 +40,15 @@ const dbHandler = async (request: UpsertCustomerRolesRequest, rolesMap: Map<stri
 
     if (!dbCustomerRolesResult) {
         await customerRolesCollection.insertOne({
-            customerId: request.customerId
+            customerId: request.customerId,
+            customer_id: request.customerId,
         })
     }
 
 	const writeResult: UpdateWriteOpResult = await customerRolesCollection.updateOne(dbCustomerRolesResult, {
 		$set: {
 			roles: {
-                rolesMap: rolesMap
+                rolesMap: rolesMap,
 			},
 		},
 	});
