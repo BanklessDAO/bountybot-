@@ -30,13 +30,6 @@ export const iou = async (IOURequest: IOURequest): Promise<any> => {
             },
             description: newBounty.description,
             fields: [
-                // TODO: figure out a way to explicitly match order with BountyEmbedFields
-                // static bountyId = 0;
-                // static criteria = 1;
-                // static reward = 2;
-                // static status = 3;
-                // static deadline = 4;
-                // static createdBy = 5;
                 { name: 'IOU Id', value: newBounty._id.toString(), inline: false },
                 { name: 'Reward', value: newBounty.reward.amount + ' ' + newBounty.reward.currency, inline: true },
                 { name: 'Status', value: BountyStatus.open, inline: true },
@@ -94,12 +87,13 @@ export const generateBountyRecord = (
     let bountyRecord: Bounty = {
         customerId: IOURequest.guildId,
         title: IOURequest.title,
+        iou: true,
         owedTo: {
             discordHandle: owedTo.user.tag,
             discordId: owedTo.user.id,
             iconUrl: owedTo.user.avatarURL(),
         },
-    reward: {
+        reward: {
             currency: symbol.toUpperCase(),
             amount: new Double(parseFloat(reward)),
             scale: new Int32(scale),
@@ -112,11 +106,11 @@ export const generateBountyRecord = (
         createdAt: currentDate,
         statusHistory: [
             {
-                status: BountyStatus.draft,
+                status: BountyStatus.open,
                 setAt: currentDate,
             },
         ],
-        status: BountyStatus.draft,
+        status: BountyStatus.open,
     };
 
     return bountyRecord;

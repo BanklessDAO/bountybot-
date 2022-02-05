@@ -12,6 +12,7 @@ import { handler } from '../activity/bounty/Handler';
 import AuthorizationError from '../errors/AuthorizationError';
 import { BountyEmbedFields } from '../constants/embeds';
 import { PublishRequest } from '../requests/PublishRequest';
+import { PaidRequest } from '../requests/PaidRequest';
 import { ApplyRequest } from '../requests/ApplyRequest';
 import { Activities } from '../constants/activities';
 
@@ -89,6 +90,15 @@ export default class implements DiscordEvent {
                     message: message
                 }
             });
+        } else if (reaction.emoji.name === '💰') {
+            Log.info(`${user.tag} attempting to pay an IOU ${bountyId} from the bounty board`);
+            request = new PaidRequest({
+                commandContext: null,
+                messageReactionRequest: {
+                    user: user,
+                    message: message
+                }
+            });
         } else if (reaction.emoji.name === '🙋') {
             Log.info(`${user.tag} attempting to apply for a bounty ${bountyId} from the bounty board`);
             request = new ApplyRequest({
@@ -111,6 +121,7 @@ export default class implements DiscordEvent {
                         bountyId: bountyId,
                         guildId: guildId,
                         userId: user.id,
+                        resolutionNote: null,
                         activity: Activities.delete,
                         bot: user.bot
                     }

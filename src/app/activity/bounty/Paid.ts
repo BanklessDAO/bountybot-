@@ -54,7 +54,7 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
     await paidBountyMessage(getDbResult.dbBountyResult, payerMessage, paidByUser, owedToUser);
 	
 	const creatorPaidDM = 
-        `Thank you for marking as paid ${bountyUrl}\n` +
+        `Thank you for marking your IOU as paid ${bountyUrl}\n` +
         `If you haven't already, please remember to tip <@${owedToUser.id}>`;
 
     
@@ -139,7 +139,8 @@ export const paidBountyMessage = async (paidBounty: BountyCollection, payerMessa
 	let embedMessage: MessageEmbed = new MessageEmbed(payerMessage.embeds[0]);
 	
 	await payerMessage.delete();
-	embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.complete;
+	// TODO: Figure out better way to find fields to modify
+	embedMessage.fields[2].value = BountyStatus.complete;
 	embedMessage.setColor('#01d212');
 	embedMessage.addField('Paid by', paidByUser.user.tag, true);
 	if (paidBounty.resolutionNote) {

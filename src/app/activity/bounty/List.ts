@@ -8,8 +8,6 @@ import { ListRequest } from '../../requests/ListRequest';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
-import { NOT_IOU } from '../../constants/misc';
-import { BountyEmbedFields } from '../../constants/embeds';
 
 const DB_RECORD_LIMIT = 10;
 
@@ -36,7 +34,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 
 	switch (listType) { 
 	case 'CREATED_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, iou: { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'CLAIMED_BY_ME':
 		dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
@@ -48,7 +46,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: 'Draft', 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'OPEN':
-		dbRecords = bountyCollection.find({ status: BountyStatus.open, NOT_IOU, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ status: BountyStatus.open, iou: { $ne: true }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'IN_PROGRESS':
 		dbRecords = bountyCollection.find({ status: BountyStatus.in_progress, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
