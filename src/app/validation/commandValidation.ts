@@ -14,8 +14,11 @@ import { SubmitRequest } from '../requests/SubmitRequest';
 import { BountyStatus } from '../constants/bountyStatus';
 import { ClaimRequest } from '../requests/ClaimRequest';
 import { CompleteRequest } from '../requests/CompleteRequest';
+import { IOURequest } from '../requests/IOURequest';
+import { PaidRequest } from '../requests/PaidRequest';
 import { HelpRequest } from '../requests/HelpRequest';
 import { DeleteRequest } from '../requests/DeleteRequest';
+import { NOT_IOU } from '../constants/misc';
 
 
 const ValidationModule = {
@@ -39,6 +42,10 @@ const ValidationModule = {
                 return assign(request as AssignRequest);
             case Activities.submit:
                 return submit(request as SubmitRequest);
+            case Activities.iou:
+                return iou(request as IOURequest);
+            case Activities.paid:
+                return paid(request as PaidRequest);
             case Activities.complete:
                 return complete(request as CompleteRequest);
             case Activities.list:
@@ -83,6 +90,39 @@ const create = async (request: CreateRequest): Promise<void> => {
     }
 }
 
+const iou = async (request: IOURequest): Promise<void> => {
+    Log.debug(`Validating activity ${request.activity}`);
+    BountyUtils.validateTitle(request.title);
+
+    BountyUtils.validateReward(request.reward);
+}
+
+const paid = async (request: PaidRequest): Promise<void> => {
+    Log.debug(`Validating activity ${request.activity}`);
+    BountyUtils.validateBountyId(request.bountyId);
+
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+    const dbCollectionBounties = db.collection('bounties');
+    const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
+        _id: new mongo.ObjectId(request.bountyId),
+        iou: true,
+    });
+
+    if (!dbBountyResult) {
+        throw new ValidationError(
+            `Please select a valid IOU id to mark paid. `
+        );
+    }
+
+    if (dbBountyResult.status && dbBountyResult.status !== BountyStatus.open) {
+        throw new ValidationError(
+            `The IOU id you have selected is in status ${dbBountyResult.status}\n` +
+            `Currently, only IOUs with status ${BountyStatus.open} can be mark paid.\n` +
+            `Please reach out to your favorite Bounty Board representative with any questions!`
+            );
+    }
+}
+
 const publish = async (request: PublishRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
 
@@ -92,6 +132,7 @@ const publish = async (request: PublishRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
+        NOT_IOU,
     });
 
     if (!dbBountyResult) {
@@ -118,6 +159,7 @@ const apply = async (request: ApplyRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
+        NOT_IOU,
     });
 
     if (!dbBountyResult) {
@@ -152,6 +194,7 @@ const assign = async (request: AssignRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
+        NOT_IOU,
     });
 
     if (!dbBountyResult) {
@@ -198,6 +241,7 @@ const claim = async (request: ClaimRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
+        NOT_IOU,
     });
 
     if (!dbBountyResult) {
@@ -231,6 +275,7 @@ const submit = async (request: SubmitRequest): Promise<void> => {
     const bountyCollection = db.collection('bounties');
     const dbBountyResult: BountyCollection = await bountyCollection.findOne({
         _id: new mongo.ObjectId(request.bountyId),
+        NOT_IOU,
     });
 
     if (!dbBountyResult) {
@@ -253,6 +298,7 @@ const complete = async (request: CompleteRequest): Promise<void> => {
     const bountyCollection = db.collection('bounties');
     const dbBountyResult: BountyCollection = await bountyCollection.findOne({
         _id: new mongo.ObjectId(request.bountyId),
+        NOT_IOU,
     });
 
     if (!dbBountyResult) {

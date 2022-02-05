@@ -17,6 +17,8 @@ import { ApplyRequest } from '../../requests/ApplyRequest';
 import { AssignRequest } from '../../requests/AssignRequest';
 import { SubmitRequest } from '../../requests/SubmitRequest';
 import { CompleteRequest } from '../../requests/CompleteRequest';
+import { IOURequest } from '../../requests/IOURequest';
+import { PaidRequest } from '../../requests/PaidRequest';
 import { DeleteRequest } from '../../requests/DeleteRequest';
 import { ListRequest } from '../../requests/ListRequest';
 import { HelpRequest } from '../../requests/HelpRequest';
@@ -145,6 +147,12 @@ export default class Bounty extends SlashCommand {
                             description: 'Bounty ID',
                             required: true,
                         },
+                        {
+                            name: 'notes',
+                            type: CommandOptionType.STRING,
+                            description: 'Optional notes',
+                            required: false,
+                        },
                     ],
                 },
                 {
@@ -176,6 +184,50 @@ export default class Bounty extends SlashCommand {
                             type: CommandOptionType.STRING,
                             description: 'Bounty ID',
                             required: true,
+                        },
+                    ],
+                },
+                {
+                    name: Activities.iou,
+                    type: CommandOptionType.SUB_COMMAND,
+                    description: 'Create an IOU',
+                    options: [
+                        {
+                            name: 'title',
+                            type: CommandOptionType.STRING,
+                            description: 'What is the IOU for?',
+                            required: true,
+                        },
+                        {
+                            name: 'reward',
+                            type: CommandOptionType.STRING,
+                            description: 'What is the owed reward? (i.e 100 BANK)',
+                            required: true,
+                        },
+                        {
+                            name: 'owed-to',
+                            type: CommandOptionType.USER,
+                            description: 'User owed',
+                            required: true,
+                        },
+                    ],
+                },
+                {
+                    name: Activities.paid,
+                    type: CommandOptionType.SUB_COMMAND,
+                    description: 'Mark an IOU as paid',
+                    options: [
+                        {
+                            name: 'iou-id',
+                            type: CommandOptionType.STRING,
+                            description: 'IOU ID',
+                            required: true,
+                        },
+                        {
+                            name: 'notes',
+                            type: CommandOptionType.STRING,
+                            description: 'Optional notes',
+                            required: false,
                         },
                     ],
                 },
@@ -213,6 +265,14 @@ export default class Bounty extends SlashCommand {
                                     name: 'in progress',
                                     value: 'IN_PROGRESS',
                                 },
+                                {
+                                    name: 'my open IOUs',
+                                    value: 'MY_OPEN_IOUS',
+                                },
+                                {
+                                    name: 'my paid IOUs',
+                                    value: 'MY_PAID_IOUS',
+                                },
                             ],
                             required: true,
                         },
@@ -221,13 +281,19 @@ export default class Bounty extends SlashCommand {
                 {
                     name: Activities.delete,
                     type: CommandOptionType.SUB_COMMAND,
-                    description: 'Delete an open or in draft bounty',
+                    description: 'Delete an open or in draft bounty or IOU',
                     options: [
                         {
                             name: 'bounty-id',
                             type: CommandOptionType.STRING,
                             description: 'Bounty ID',
                             required: true,
+                        },
+                        {
+                            name: 'notes',
+                            type: CommandOptionType.STRING,
+                            description: 'Optional notes',
+                            required: false,
                         },
                     ],
                 },
@@ -275,13 +341,18 @@ export default class Bounty extends SlashCommand {
                     commandContext: commandContext 
                 });
                 break;
-            case Activities.publish:
-                request = new PublishRequest({
-                    commandContext: commandContext,
-                    messageReactionRequest: null,
-                    directRequest: null
+            case Activities.iou:
+                request = new IOURequest({
+                    commandContext: commandContext 
                 });
                 break;
+            case Activities.publish:
+            request = new PublishRequest({
+                commandContext: commandContext,
+                messageReactionRequest: null,
+                directRequest: null
+            });
+            break;
             case Activities.claim:
                 request = new ClaimRequest({
                     commandContext: commandContext,
@@ -308,6 +379,12 @@ export default class Bounty extends SlashCommand {
                 break;
             case Activities.complete:
                 request = new CompleteRequest({
+                    commandContext: commandContext,
+                    messageReactionRequest: null
+                });
+                break;
+            case Activities.paid:
+                request = new PaidRequest({
                     commandContext: commandContext,
                     messageReactionRequest: null
                 });

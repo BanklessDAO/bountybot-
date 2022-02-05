@@ -8,5 +8,7 @@ export class Activities {
     static complete = 'complete';
     static delete = 'delete';
     static list = 'list';
+    static iou = 'iou';
+    static paid = 'paid';
     static help = 'help';
 }

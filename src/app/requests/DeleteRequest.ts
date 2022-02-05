@@ -7,6 +7,7 @@ import DiscordUtils from '../utils/DiscordUtils';
 
 export class DeleteRequest extends Request {
     bountyId: string;
+    resolutionNote: string;
     commandContext: CommandContext;
 
     message: Message;
@@ -19,6 +20,7 @@ export class DeleteRequest extends Request {
             guildId: string,
             userId: string,
             activity: string,
+            resolutionNote: string,
             bot: boolean 
         }
     }) {
@@ -30,6 +32,7 @@ export class DeleteRequest extends Request {
             super(commandContext.subcommands[0], commandContext.guildID, commandContext.user.id, commandContext.user.bot);
             this.commandContext = commandContext;
             this.bountyId = commandContext.options.delete['bounty-id'];
+            this.resolutionNote = commandContext.options.delete['notes'];
         }
         else if (args.messageReactionRequest) {
             let messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
@@ -39,6 +42,7 @@ export class DeleteRequest extends Request {
         else if (args.directRequest) {
             super(args.directRequest.activity, args.directRequest.guildId, args.directRequest.userId, args.directRequest.bot);
             this.bountyId = args.directRequest.bountyId;
+            this.resolutionNote = args.directRequest.resolutionNote;
 
         }
     }

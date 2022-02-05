@@ -8,6 +8,8 @@ import { ListRequest } from '../../requests/ListRequest';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
+import { NOT_IOU } from '../../constants/misc';
+import { BountyEmbedFields } from '../../constants/embeds';
 
 const DB_RECORD_LIMIT = 10;
 
@@ -46,10 +48,16 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: 'Draft', 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'OPEN':
-		dbRecords = bountyCollection.find({ status: BountyStatus.open, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ status: BountyStatus.open, NOT_IOU, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'IN_PROGRESS':
 		dbRecords = bountyCollection.find({ status: BountyStatus.in_progress, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		break;
+	case 'MY_OPEN_IOUS':
+		dbRecords = bountyCollection.find({ status: BountyStatus.open, iou: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		break;
+	case 'MY_PAID_IOUS':
+		dbRecords = bountyCollection.find({ status: BountyStatus.complete, iou: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	}
 	if (!(await dbRecords.hasNext())) {
@@ -70,6 +78,30 @@ const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, gu
 };
 
 export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
+	let fields = [];
+	if (bountyRecord.iou) {
+		fields = [
+			{ name: 'Bounty Id', value: bountyRecord._id.toHexString(), inline: false },
+			{ name: 'Reward', value: bountyRecord.reward.amount + ' ' + bountyRecord.reward.currency.toUpperCase(), inline: true },
+			{ name: 'Status', value: newStatus, inline: true },
+			{ name: 'Created by', value: bountyRecord.createdBy.discordHandle, inline: true },
+		]
+
+	} else {	
+		fields = [
+			{ name: 'Bounty Id', value: bountyRecord._id.toHexString(), inline: false },
+			{ name: 'Criteria', value: bountyRecord.criteria, inline: false },
+			{ name: 'Reward', value: bountyRecord.reward.amount + ' ' + bountyRecord.reward.currency.toUpperCase(), inline: true },
+			{ name: 'Status', value: newStatus, inline: true },
+			{ name: 'Deadline', value: formatDisplayDate(bountyRecord.dueAt), inline: true },
+			{ name: 'Created by', value: bountyRecord.createdBy.discordHandle, inline: true },
+		]
+	}
+
+	if (bountyRecord.resolutionNote) {
+		fields.push({ name: 'Notes', value: bountyRecord.resolutionNote, inline: false });
+	}
+
 	let messageEmbedOptions: MessageEmbedOptions = {
 		color: 1998388,
 		title: await BountyUtils.createPublicTitle(bountyRecord),
@@ -85,14 +117,7 @@ export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: 
         // static status = 3;
         // static deadline = 4;
         // static createdBy = 5;
-		fields: [
-			{ name: 'Bounty Id', value: bountyRecord._id.toHexString(), inline: false },
-			{ name: 'Criteria', value: bountyRecord.criteria, inline: false },
-			{ name: 'Reward', value: bountyRecord.reward.amount + ' ' + bountyRecord.reward.currency.toUpperCase(), inline: true },
-			{ name: 'Status', value: newStatus, inline: true },
-			{ name: 'Deadline', value: formatDisplayDate(bountyRecord.dueAt), inline: true },
-			{ name: 'Created by', value: bountyRecord.createdBy.discordHandle, inline: true },
-		],
+		fields: fields,
 		timestamp: new Date(bountyRecord.createdAt).getTime(),
 	};
 

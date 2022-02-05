@@ -18,6 +18,8 @@ import { Request } from '../requests/Request';
 import { BountyStatus } from '../constants/bountyStatus';
 import { HelpRequest } from '../requests/HelpRequest';
 import { DeleteRequest } from '../requests/DeleteRequest';
+import { IOURequest } from '../requests/IOURequest';
+import { PaidRequest } from '../requests/PaidRequest';
 
 const AuthorizationModule = {
     /**
@@ -46,6 +48,10 @@ const AuthorizationModule = {
                 return assign(request as AssignRequest);
             case Activities.submit:
                 return submit(request as SubmitRequest);
+            case Activities.iou:
+                return iou(request as IOURequest);
+            case Activities.paid:
+                return paid(request as PaidRequest);
             case Activities.complete:
                 return complete(request as CompleteRequest);
             case Activities.list:
@@ -61,6 +67,21 @@ const AuthorizationModule = {
 };
 
 const create = async (request: CreateRequest): Promise<void> => {
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+	const dbCustomers = db.collection('customers');
+
+	const customerResult: CustomerCollection = await dbCustomers.findOne({
+		customerId: request.guildId
+	});
+
+    if (! (await DiscordUtils.hasAllowListedRole(request.userId, request.guildId, customerResult.allowlistedRoles))) {
+        throw new AuthorizationError(`Thank you for giving bounty commands a try!\n` +
+                                `It looks like you don't have permission to use this command.\n` +
+                                `If you think this is an error, please reach out to a server admin for help.`);
+    }
+}
+
+const iou = async (request: IOURequest): Promise<void> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
 	const dbCustomers = db.collection('customers');
 
@@ -186,6 +207,22 @@ const assign = async (request: AssignRequest): Promise<void> => {
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
             `This bounty can only be assigned by <@${dbBountyResult.createdBy.discordId}>.\n ` +
+            `Please reach out to your favorite bounty board representative with any questions!` 
+            );
+    }
+}
+
+const paid = async (request: PaidRequest): Promise<void> => {
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+    const bountyCollection = db.collection('bounties');
+    const dbBountyResult: BountyCollection = await bountyCollection.findOne({
+        _id: new mongo.ObjectId(request.bountyId),
+    });
+    if (request.userId !== dbBountyResult.createdBy.discordId) {
+        throw new AuthorizationError(
+            `Thank you for giving bounty commands a try!\n` +
+            `It looks like you don't have permission to mark this IOU as paid.\n` +
+            `This IOU can only be paid by <@${dbBountyResult.createdBy.discordId}>.\n ` +
             `Please reach out to your favorite bounty board representative with any questions!` 
             );
     }
