@@ -4,7 +4,6 @@ import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import { BountyCollection } from '../types/bounty/BountyCollection';
 import AuthorizationError from '../errors/AuthorizationError';
 import DiscordUtils from '../utils/DiscordUtils';
-import { GuildMember } from 'discord.js';
 import { Activities } from '../constants/activities';
 import { PublishRequest } from '../requests/PublishRequest';
 import { CreateRequest } from '../requests/CreateRequest';
@@ -18,7 +17,6 @@ import { Request } from '../requests/Request';
 import { BountyStatus } from '../constants/bountyStatus';
 import { HelpRequest } from '../requests/HelpRequest';
 import { DeleteRequest } from '../requests/DeleteRequest';
-import { IOURequest } from '../requests/IOURequest';
 import { PaidRequest } from '../requests/PaidRequest';
 
 const AuthorizationModule = {
@@ -48,8 +46,6 @@ const AuthorizationModule = {
                 return assign(request as AssignRequest);
             case Activities.submit:
                 return submit(request as SubmitRequest);
-            case Activities.iou:
-                return iou(request as IOURequest);
             case Activities.paid:
                 return paid(request as PaidRequest);
             case Activities.complete:
@@ -67,21 +63,6 @@ const AuthorizationModule = {
 };
 
 const create = async (request: CreateRequest): Promise<void> => {
-    const db: Db = await MongoDbUtils.connect('bountyboard');
-	const dbCustomers = db.collection('customers');
-
-	const customerResult: CustomerCollection = await dbCustomers.findOne({
-		customerId: request.guildId
-	});
-
-    if (! (await DiscordUtils.hasAllowListedRole(request.userId, request.guildId, customerResult.allowlistedRoles))) {
-        throw new AuthorizationError(`Thank you for giving bounty commands a try!\n` +
-                                `It looks like you don't have permission to use this command.\n` +
-                                `If you think this is an error, please reach out to a server admin for help.`);
-    }
-}
-
-const iou = async (request: IOURequest): Promise<void> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
 	const dbCustomers = db.collection('customers');
 

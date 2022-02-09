@@ -34,7 +34,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 
 	switch (listType) { 
 	case 'CREATED_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, iou: { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, isIOU: { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'CLAIMED_BY_ME':
 		dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
@@ -46,16 +46,16 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: 'Draft', 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'OPEN':
-		dbRecords = bountyCollection.find({ status: BountyStatus.open, iou: { $ne: true }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ status: BountyStatus.open, isIOU: { $ne: true }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'IN_PROGRESS':
 		dbRecords = bountyCollection.find({ status: BountyStatus.in_progress, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
-	case 'MY_OPEN_IOUS':
-		dbRecords = bountyCollection.find({ status: BountyStatus.open, iou: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+	case 'PAID_BY_ME':
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.open, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
-	case 'MY_PAID_IOUS':
-		dbRecords = bountyCollection.find({ status: BountyStatus.complete, iou: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+	case 'UNPAID_BY_ME':
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.complete, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	}
 	if (!(await dbRecords.hasNext())) {
@@ -77,7 +77,7 @@ const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, gu
 
 export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
 	let fields = [];
-	if (bountyRecord.iou) {
+	if (bountyRecord.isIOU) {
 		fields = [
 			{ name: 'Bounty Id', value: bountyRecord._id.toHexString(), inline: false },
 			{ name: 'Reward', value: bountyRecord.reward.amount + ' ' + bountyRecord.reward.currency.toUpperCase(), inline: true },

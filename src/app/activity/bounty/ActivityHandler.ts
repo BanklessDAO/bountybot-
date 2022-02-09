@@ -6,7 +6,6 @@ import { assignBounty } from './Assign'
 import { claimBounty } from './Claim'
 import { submitBounty } from './Submit'
 import { completeBounty } from './Complete'
-import { iou } from './IOU'
 import { paidBounty } from './Paid'
 import { listBounty } from './List'
 import { deleteBounty } from './Delete'
@@ -24,7 +23,6 @@ import { ApplyRequest } from '../../requests/ApplyRequest';
 import { AssignRequest } from '../../requests/AssignRequest';
 import { SubmitRequest } from '../../requests/SubmitRequest';
 import { CompleteRequest } from '../../requests/CompleteRequest';
-import { IOURequest } from '../../requests/IOURequest';
 import { PaidRequest } from '../../requests/PaidRequest';
 import { ListRequest } from '../../requests/ListRequest';
 import { DeleteRequest } from '../../requests/DeleteRequest';
@@ -69,9 +67,6 @@ export const BountyActivityHandler = {
                 break;
             case Activities.complete:
                 await completeBounty(request as CompleteRequest);
-                break;
-            case Activities.iou:
-                await iou(request as IOURequest);
                 break;
             case Activities.paid:
                 await paidBounty(request as PaidRequest);

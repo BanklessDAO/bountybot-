@@ -33,7 +33,7 @@ export interface Bounty {
 	assignedName?: string,
 	requireApplication?: boolean,
 	applicants?: Applicant[],
-	iou?: boolean,
+	isIOU?: boolean,
 	resolutionNote?: string,
 	owedTo?: UserObject
 }

@@ -23,7 +23,7 @@ export class PaidRequest extends Request {
             }
             super(Activities.paid, commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.commandContext = commandContext;
-            this.bountyId = commandContext.options.paid['bounty-id'];
+            this.bountyId = commandContext.options.paid['iou-id'];
             this.resolutionNote = commandContext.options.paid['notes'];
         }
         else if (args.messageReactionRequest) {

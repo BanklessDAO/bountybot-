@@ -30,8 +30,13 @@ export class DeleteRequest extends Request {
                 throw new Error('DeleteRequest attempted created for non Delete activity.');
             }
             super(commandContext.subcommands[0], commandContext.guildID, commandContext.user.id, commandContext.user.bot);
+            const isIOU = commandContext.commandName == 'iou' ? true : false;
             this.commandContext = commandContext;
-            this.bountyId = commandContext.options.delete['bounty-id'];
+            if (isIOU) {
+                this.bountyId = commandContext.options.delete['iou-id'];
+            } else {
+                this.bountyId = commandContext.options.delete['bounty-id'];
+            }
             this.resolutionNote = commandContext.options.delete['notes'];
         }
         else if (args.messageReactionRequest) {

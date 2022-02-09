@@ -32,7 +32,7 @@ export interface BountyCollection extends Collection {
 	assignedName: string,
 	requireApplication: boolean,
 	applicants: Applicant[],
-	iou: boolean,
+	isIOU: boolean,
 	resolutionNote: string,
 	owedTo: UserObject
 }

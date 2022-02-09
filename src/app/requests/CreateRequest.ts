@@ -14,6 +14,8 @@ export class CreateRequest extends Request {
     assign: string;
     assignedName: string;
     requireApplication: boolean;
+    owedTo: string;
+    isIOU: boolean;
 
     // TODO: remove
     commandContext: CommandContext;
@@ -27,15 +29,23 @@ export class CreateRequest extends Request {
             if (commandContext.subcommands[0] !== Activities.create) {
                 throw new Error('CreateRequest attempted for non Create activity.');
             }
+            const isIOU = commandContext.commandName == 'iou' ? true : false;
             super(commandContext.subcommands[0], commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.userId = commandContext.user.id;
-            this.title = commandContext.options.create['title'];
+            if (isIOU) {
+                this.title = commandContext.options.create['why'];
+                this.owedTo = commandContext.options.create['owed-to'];
+                this.isIOU = isIOU;
+            } else {
+                this.title = commandContext.options.create['title'];
+                this.evergreen = commandContext.options.create['evergreen'];
+                this.claimLimit = commandContext.options.create['claim-limit'];
+                this.gate = commandContext.options.create['gate'];
+                this.assign = commandContext.options.create['assign-to'];
+                this.requireApplication = commandContext.options.create['require-application'];
+                }
+
             this.reward = commandContext.options.create['reward'];
-            this.evergreen = commandContext.options.create['evergreen'];
-            this.claimLimit = commandContext.options.create['claim-limit'];
-            this.gate = commandContext.options.create['gate'];
-            this.assign = commandContext.options.create['assign-to'];
-            this.requireApplication = commandContext.options.create['require-application'];
             
 
             // TODO: remove

@@ -14,7 +14,6 @@ import { SubmitRequest } from '../requests/SubmitRequest';
 import { BountyStatus } from '../constants/bountyStatus';
 import { ClaimRequest } from '../requests/ClaimRequest';
 import { CompleteRequest } from '../requests/CompleteRequest';
-import { IOURequest } from '../requests/IOURequest';
 import { PaidRequest } from '../requests/PaidRequest';
 import { HelpRequest } from '../requests/HelpRequest';
 import { DeleteRequest } from '../requests/DeleteRequest';
@@ -41,8 +40,6 @@ const ValidationModule = {
                 return assign(request as AssignRequest);
             case Activities.submit:
                 return submit(request as SubmitRequest);
-            case Activities.iou:
-                return iou(request as IOURequest);
             case Activities.paid:
                 return paid(request as PaidRequest);
             case Activities.complete:
@@ -89,13 +86,6 @@ const create = async (request: CreateRequest): Promise<void> => {
     }
 }
 
-const iou = async (request: IOURequest): Promise<void> => {
-    Log.debug(`Validating activity ${request.activity}`);
-    BountyUtils.validateTitle(request.title);
-
-    BountyUtils.validateReward(request.reward);
-}
-
 const paid = async (request: PaidRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
     BountyUtils.validateBountyId(request.bountyId);
@@ -104,7 +94,7 @@ const paid = async (request: PaidRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        iou: true,
+        isIOU: true,
     });
 
     if (!dbBountyResult) {
@@ -131,7 +121,7 @@ const publish = async (request: PublishRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        iou: { $ne: true },
+        isIOU: { $ne: true },
     });
 
     if (!dbBountyResult) {
@@ -158,7 +148,7 @@ const apply = async (request: ApplyRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        iou: { $ne: true },
+        isIOU: { $ne: true },
     });
 
     if (!dbBountyResult) {
@@ -193,7 +183,7 @@ const assign = async (request: AssignRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        iou: { $ne: true },
+        isIOU: { $ne: true },
     });
 
     if (!dbBountyResult) {
@@ -240,7 +230,7 @@ const claim = async (request: ClaimRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        iou: { $ne: true },
+        isIOU: { $ne: true },
     });
 
     if (!dbBountyResult) {
@@ -274,7 +264,7 @@ const submit = async (request: SubmitRequest): Promise<void> => {
     const bountyCollection = db.collection('bounties');
     const dbBountyResult: BountyCollection = await bountyCollection.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        iou: { $ne: true },
+        isIOU: { $ne: true },
     });
 
     if (!dbBountyResult) {
@@ -297,7 +287,7 @@ const complete = async (request: CompleteRequest): Promise<void> => {
     const bountyCollection = db.collection('bounties');
     const dbBountyResult: BountyCollection = await bountyCollection.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        iou: { $ne: true },
+        isIOU: { $ne: true },
     });
 
     if (!dbBountyResult) {
@@ -327,9 +317,9 @@ const list = async (request: ListRequest): Promise<void> => {
             return;
         case 'IN_PROGRESS':
             return;
-        case 'MY_OPEN_IOUS':
+        case 'PAID_BY_ME':
             return;
-        case 'MY_PAID_IOUS':
+        case 'UNPAID_BY_ME':
             return;
         default:
             Log.info('invalid list-type');
