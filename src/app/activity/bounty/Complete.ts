@@ -133,6 +133,7 @@ const writeDbHandler = async (request: CompleteRequest, completedByUser: GuildMe
             // note that createdAt, claimedAt are not part of the BountyCollection type
 			reviewedAt: currentDate,
 			status: BountyStatus.complete,
+			resolutionNote: request.resolutionNote,
 		},
 		$push: {
 			statusHistory: {

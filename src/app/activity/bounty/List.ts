@@ -1,6 +1,6 @@
 import MongoDbUtils  from '../../utils/MongoDbUtils';
 import { Cursor, Db } from 'mongodb';
-import { GuildMember, MessageEmbedOptions, Role } from 'discord.js';
+import { Message, GuildMember, MessageEmbedOptions, Role } from 'discord.js';
 import Log, { LogUtils } from '../../utils/Log';
 import { Bounty } from '../../types/bounty/Bounty';
 import DiscordUtils from '../../utils/DiscordUtils';
@@ -32,6 +32,8 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
     Log.debug('Connected to database successfully.');
     Log.info('Bounty list type: ' + listType);
 
+	let IOUList: boolean = false;
+
 	switch (listType) { 
 	case 'CREATED_BY_ME':
 		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, isIOU: { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
@@ -52,27 +54,46 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		dbRecords = bountyCollection.find({ status: BountyStatus.in_progress, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		break;
 	case 'PAID_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.open, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.complete, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		IOUList = true;
 		break;
 	case 'UNPAID_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.complete, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.open, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		IOUList = true;
 		break;
 	}
 	if (!(await dbRecords.hasNext())) {
 		return await listUser.send({ content: 'We couldn\'t find any bounties!' });
 	}
-	return await sendMultipleMessages(listUser, dbRecords, request.guildId, channelName);
+	return await sendMultipleMessages(listUser, dbRecords, request.guildId, channelName, IOUList);
 };
 
-const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, guildId: string, bountyChannelName: string): Promise<any> => {
-	const listOfBounties = [];
-	while (listOfBounties.length < 10 && await dbRecords.hasNext()) {
-		const record: Bounty = await dbRecords.next();
-		const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.status, guildId);
-		listOfBounties.push(messageOptions);
+const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, guildId: string, bountyChannelName: string, IOUList: boolean): Promise<any> => {
+	if (IOUList) {
+		while (await dbRecords.hasNext()) {
+			const record: Bounty = await dbRecords.next();
+			const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.status, guildId);
+			if (record.status == BountyStatus.open) {
+				messageOptions.footer = {
+					text: '💰 - paid | ❌ - delete ',
+				};
+			}
+			const message: Message = await (listUser.send( { embeds: [messageOptions] } ));
+			if (record.status == BountyStatus.open) {
+				await message.react('💰');
+				await message.react('❌');
+			}
+		}
+	} else {
+		const listOfBounties = [];
+		while (listOfBounties.length < 10 && await dbRecords.hasNext()) {
+			const record: Bounty = await dbRecords.next();
+			const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.status, guildId);
+			listOfBounties.push(messageOptions);
+		}
+		await (listUser.send({ embeds: listOfBounties }));
+		await listUser.send({ content: `Please go to ${bountyChannelName} or your DMs to take action.` });
 	}
-	await (listUser.send({ embeds: listOfBounties }));
-	return await listUser.send({ content: `Please go to ${bountyChannelName} or your DMs to take action.` });
 };
 
 export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
@@ -82,7 +103,6 @@ export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: 
 			{ name: 'Bounty Id', value: bountyRecord._id.toHexString(), inline: false },
 			{ name: 'Reward', value: bountyRecord.reward.amount + ' ' + bountyRecord.reward.currency.toUpperCase(), inline: true },
 			{ name: 'Status', value: newStatus, inline: true },
-			{ name: 'Created by', value: bountyRecord.createdBy.discordHandle, inline: true },
 		]
 
 	} else {	

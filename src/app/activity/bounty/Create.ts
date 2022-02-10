@@ -108,7 +108,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                 url: (process.env.BOUNTY_BOARD_URL + newBounty._id),
                 author: {
                     icon_url: guildMember.user.avatarURL(),
-                    name: `${newBounty.createdBy.discordHandle}`,
+                    name: `${newBounty.createdBy.discordHandle}: ${guildId}`,
                 },
                 description: newBounty.description,
                 fields: [

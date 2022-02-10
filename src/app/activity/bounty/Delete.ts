@@ -1,7 +1,7 @@
 import { DeleteRequest } from '../../requests/DeleteRequest';
 import DiscordUtils from '../../utils/DiscordUtils';
 import Log, { LogUtils } from '../../utils/Log';
-import { DMChannel, GuildMember, Message, TextChannel } from 'discord.js';
+import { GuildMember, Message, TextChannel } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
@@ -107,6 +107,7 @@ const writeDbHandler = async (request: DeleteRequest, deletedByUser: GuildMember
             // note that createdAt, claimedAt are not part of the BountyCollection type
 			deletedAt: currentDate,
 			status: BountyStatus.deleted,
+            resolutionNote: request.resolutionNote,
 		},
 		$push: {
 			statusHistory: {
