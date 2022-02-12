@@ -149,7 +149,7 @@ export default class Bounty extends SlashCommand {
                         {
                             name: 'notes',
                             type: CommandOptionType.STRING,
-                            description: 'Optional notes',
+                            description: 'Optional public notes',
                             required: false,
                         },
                     ],

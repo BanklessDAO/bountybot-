@@ -34,15 +34,15 @@ export default class IOU extends SlashCommand {
                     description: 'Create a new IOU',
                     options: [
                         {
-                            name: 'reward',
-                            type: CommandOptionType.STRING,
-                            description: 'What is the reward? (i.e 100 BANK)',
-                            required: true,
-                        },
-                        {
                             name: 'owed-to',
                             type: CommandOptionType.USER,
                             description: 'Select a user owed this IOU',
+                            required: true,
+                        },
+                        {
+                            name: 'reward',
+                            type: CommandOptionType.STRING,
+                            description: 'What is the reward? (i.e 100 BANK)',
                             required: true,
                         },
                         {

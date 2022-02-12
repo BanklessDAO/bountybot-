@@ -118,7 +118,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                 ],
                 timestamp: new Date().getTime(),
                 footer: {
-                    text: '💰 - paid | ❌ - delete ',
+                    text: '💰 - mark as paid | ❌ - delete ',
                 },
             }],
         };
