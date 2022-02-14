@@ -13,6 +13,8 @@ import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
 
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
+    Log.debug('In Claim activity');
+
     const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
     
@@ -40,12 +42,12 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const bountyUrl = process.env.BOUNTY_BOARD_URL + claimedBounty._id;
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
     const createdByUser: GuildMember = await claimedByUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
-    let creatorClaimDM = `Your bounty has been claimed by <@${claimedByUser.user.id}> ${bountyUrl}`;
+    let creatorClaimDM = `Your bounty has been claimed by <@${claimedByUser.user.id}> <${bountyUrl}>`;
     if (getDbResult.dbBountyResult.evergreen) {
         if (getDbResult.dbBountyResult.status == BountyStatus.open) {
-            creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. ${origBountyUrl}`;
+            creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. <${origBountyUrl}>`;
         } else {
-            creatorClaimDM += `\nYour evergreen bounty has reached its claim limit and has been marked deleted. ${origBountyUrl}`;
+            creatorClaimDM += `\nYour evergreen bounty has reached its claim limit and has been marked deleted. <${origBountyUrl}>`;
         }
     }
 

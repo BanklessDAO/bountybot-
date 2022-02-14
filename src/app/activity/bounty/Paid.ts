@@ -9,9 +9,11 @@ import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import RuntimeError from '../../errors/RuntimeError';
 import { BountyStatus } from '../../constants/bountyStatus';
 import { BountyEmbedFields } from '../../constants/embeds';
+import { PaidStatus } from '../../constants/paidStatus';
 
 
 export const paidBounty = async (request: PaidRequest): Promise<void> => {
+	Log.debug('In Paid activity');
 
     const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 	// Since we are in DMs with new flow, guild might not be populated in the request
@@ -54,7 +56,7 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
     await paidBountyMessage(getDbResult.dbBountyResult, payerMessage, paidByUser, owedToUser);
 	
 	const creatorPaidDM = 
-        `Thank you for marking your IOU as paid ${bountyUrl}\n` +
+        `Thank you for marking your IOU as paid <${bountyUrl}>\n` +
         `If you haven't already, please remember to tip <@${owedToUser.id}>`;
 
     
@@ -117,6 +119,7 @@ const writeDbHandler = async (request: PaidRequest, paidByUser: GuildMember): Pr
             // note that createdAt, claimedAt are not part of the BountyCollection type
 			reviewedAt: currentDate,
 			status: BountyStatus.complete,
+			paidStatus: PaidStatus.paid,
 			resolutionNote: request.resolutionNote
 		},
 		$push: {
@@ -140,7 +143,7 @@ export const paidBountyMessage = async (paidBounty: BountyCollection, payerMessa
 	
 	await payerMessage.delete();
 	// TODO: Figure out better way to find fields to modify
-	embedMessage.fields[2].value = BountyStatus.complete;
+	embedMessage.fields[2].value = PaidStatus.paid;
 	embedMessage.setColor('#01d212');
 	embedMessage.addField('Paid by', paidByUser.user.tag, true);
 	if (paidBounty.resolutionNote) {

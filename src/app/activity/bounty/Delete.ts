@@ -11,6 +11,8 @@ import { BountyStatus } from '../../constants/bountyStatus';
 
 
 export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
+    Log.debug('In Delete activity');
+
     const deletedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
 	Log.info(`${request.bountyId} bounty deleted by ${deletedByUser.user.tag}`);
 	
@@ -40,7 +42,7 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
 	
 	const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
 	let creatorDeleteDM = 
-        `The following bounty has been deleted: ${bountyUrl}\n`;
+        `The following bounty has been deleted: <${bountyUrl}>\n`;
 
     if (getDbResult.dbBountyResult.evergreen && getDbResult.dbBountyResult.isParent &&
         getDbResult.dbBountyResult.childrenIds !== undefined && getDbResult.dbBountyResult.childrenIds.length > 0) {

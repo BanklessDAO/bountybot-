@@ -12,6 +12,7 @@ import { BountyEmbedFields } from '../../constants/embeds';
 
 
 export const submitBounty = async (request: SubmitRequest): Promise<void> => {
+	Log.debug('In Submit activity');
 	
     const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 	// Since we are in DMs with new flow, guild might not be populated in the request
@@ -51,7 +52,7 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
     
     await submitBountyMessage(getDbResult.dbBountyResult, bountyEmbedMessage, submittedByUser, createdByUser);
 	
-	let creatorSubmitDM = `Please reach out to <@${submittedByUser.user.id}>. They are ready for bounty review ${bountyUrl}`
+	let creatorSubmitDM = `Please reach out to <@${submittedByUser.user.id}>. They are ready for bounty review <${bountyUrl}>`
 
 	if (request.url) {
 		creatorSubmitDM += `\nPlease review this URL:\n${request.url}`

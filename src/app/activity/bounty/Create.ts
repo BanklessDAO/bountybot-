@@ -8,8 +8,11 @@ import { Db, UpdateWriteOpResult, Double, Int32 } from 'mongodb'
 import ValidationError from '../../errors/ValidationError';
 import { CreateRequest } from '../../requests/CreateRequest';
 import { BountyStatus } from '../../constants/bountyStatus';
+import { PaidStatus } from '../../constants/paidStatus';
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
+    Log.debug('In Create activity');
+
     const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
     const guildMember: GuildMember = guildAndMember.guildMember;
     const guildId: string = guildAndMember.guild.id;
@@ -114,7 +117,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                 fields: [
                     { name: 'IOU Id', value: newBounty._id.toString(), inline: false },
                     { name: 'Reward', value: newBounty.reward.amount + ' ' + newBounty.reward.currency, inline: true },
-                    { name: 'Status', value: BountyStatus.open, inline: true },
+                    { name: 'Status', value: PaidStatus.unpaid, inline: true },
                 ],
                 timestamp: new Date().getTime(),
                 footer: {
@@ -223,7 +226,10 @@ export const generateBountyRecord = (
     let scale = reward.split('.')[1]?.length;
     scale = (scale != null) ? scale : 0;
     const currentDate = (new Date()).toISOString();
-    const status = createRequest.isIOU ? BountyStatus.open : BountyStatus. draft;
+    let status = BountyStatus.draft;
+    if (createRequest.isIOU) {
+        status = BountyStatus.open;
+    }
 
     let bountyRecord: Bounty = {
         customerId: createRequest.guildId,
@@ -248,6 +254,7 @@ export const generateBountyRecord = (
             },
         ],
         status: status,
+        paidStatus: createRequest.isIOU ? PaidStatus.unpaid : null,
         dueAt: dueAt ? dueAt.toISOString() : null,
     };
 

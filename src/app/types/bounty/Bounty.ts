@@ -15,6 +15,7 @@ export interface Bounty {
 	createdAt: string,
 	dueAt?: string,
 	status?: string,
+	paidStatus?: string,
 	statusHistory: Status[],
 	discordMessageId?: string,
 	creatorMessage?: MessageInfo,

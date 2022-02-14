@@ -17,6 +17,7 @@ export interface BountyCollection extends Collection {
 	submissionUrl: string,
 	submissionNotes: string,
 	status: string,
+	paidStatus: string,
 	statusHistory: Status[],
 	discordMessageId: string,
 	creatorMessage: MessageInfo,

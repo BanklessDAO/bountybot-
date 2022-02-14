@@ -8,10 +8,13 @@ import { ListRequest } from '../../requests/ListRequest';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
+import { PaidStatus } from '../../constants/paidStatus';
 
 const DB_RECORD_LIMIT = 10;
 
 export const listBounty = async (request: ListRequest): Promise<any> => {
+	Log.debug('In List activity');
+
     const listUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId)
     const listType: string = request.listType;
 
@@ -72,14 +75,14 @@ const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, gu
 	if (IOUList) {
 		while (await dbRecords.hasNext()) {
 			const record: Bounty = await dbRecords.next();
-			const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.status, guildId);
-			if (record.status == BountyStatus.open) {
+			const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.paidStatus, guildId);
+			if (record.paidStatus == PaidStatus.unpaid) {
 				messageOptions.footer = {
 					text: '💰 - paid | ❌ - delete ',
 				};
 			}
 			const message: Message = await (listUser.send( { embeds: [messageOptions] } ));
-			if (record.status == BountyStatus.open) {
+			if (record.paidStatus == PaidStatus.unpaid) {
 				await message.react('💰');
 				await message.react('❌');
 			}

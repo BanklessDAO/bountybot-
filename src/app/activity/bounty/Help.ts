@@ -6,10 +6,10 @@ import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
-import { BountyStatus } from '../../constants/bountyStatus';
 
 
 export const helpBounty = async (request: HelpRequest): Promise<void> => {
+    Log.debug('In Help activity');
 
     const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 	// Since we are in DMs with new flow, guild might not be populated in the request
