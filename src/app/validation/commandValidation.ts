@@ -364,16 +364,18 @@ const deleteValidation = async (request: DeleteRequest): Promise<void> => {
 
 const help = async (request: HelpRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
-    BountyUtils.validateBountyId(request.bountyId);
+    if (request.bountyId) {
+        BountyUtils.validateBountyId(request.bountyId);
 
-    const db: Db = await MongoDbUtils.connect('bountyboard');
-    const bountyCollection = db.collection('bounties');
-    const dbBountyResult: BountyCollection = await bountyCollection.findOne({
-        _id: new mongo.ObjectId(request.bountyId),
-    });
+        const db: Db = await MongoDbUtils.connect('bountyboard');
+        const bountyCollection = db.collection('bounties');
+        const dbBountyResult: BountyCollection = await bountyCollection.findOne({
+            _id: new mongo.ObjectId(request.bountyId),
+        });
 
-    if (!dbBountyResult) {
-        throw new ValidationError(`Please select a valid bounty id to request ${request.activity}. ` +
-            'Check your previous DMs from bountybot for the correct id.')
+        if (!dbBountyResult) {
+            throw new ValidationError(`Please select a valid bounty id to request ${request.activity}. ` +
+                'Check your previous DMs from bountybot for the correct id.')
+        }
     }
 }

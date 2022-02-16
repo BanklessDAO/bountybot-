@@ -126,6 +126,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
             }],
         };
         const message: Message = await guildMember.send(bountyCard);
+        await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created. Go to your DMs to see it." } , { ephemeral: true });
 
         await updateMessageStore(newBounty, message);
     

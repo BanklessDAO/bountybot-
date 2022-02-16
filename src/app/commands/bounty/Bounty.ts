@@ -17,7 +17,6 @@ import { ApplyRequest } from '../../requests/ApplyRequest';
 import { AssignRequest } from '../../requests/AssignRequest';
 import { SubmitRequest } from '../../requests/SubmitRequest';
 import { CompleteRequest } from '../../requests/CompleteRequest';
-import { PaidRequest } from '../../requests/PaidRequest';
 import { DeleteRequest } from '../../requests/DeleteRequest';
 import { ListRequest } from '../../requests/ListRequest';
 import { HelpRequest } from '../../requests/HelpRequest';
@@ -252,7 +251,15 @@ export default class Bounty extends SlashCommand {
                 {
                     name: Activities.help,
                     type: CommandOptionType.SUB_COMMAND,
-                    description: 'FAQ for using bounty commands',
+                    description: 'FAQ for using bounty commands or help on a particular bounty',
+                    options: [
+                        {
+                            name: 'bounty-id',
+                            type: CommandOptionType.STRING,
+                            description: 'Bounty ID',
+                            required: false,
+                        },
+                    ],
                 },
             ],
             throttling: {

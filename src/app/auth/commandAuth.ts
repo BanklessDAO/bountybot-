@@ -246,18 +246,20 @@ const deleteAuthorization = async (request: DeleteRequest): Promise<void> => {
 }
 
 const help = async (request: HelpRequest): Promise<void> => {
-    const db: Db = await MongoDbUtils.connect('bountyboard');
-    const bountyCollection = db.collection('bounties');
-    const dbBountyResult: BountyCollection = await bountyCollection.findOne({
-        _id: new mongo.ObjectId(request.bountyId),
-    });
+    if (request.bountyId) {
+        const db: Db = await MongoDbUtils.connect('bountyboard');
+        const bountyCollection = db.collection('bounties');
+        const dbBountyResult: BountyCollection = await bountyCollection.findOne({
+            _id: new mongo.ObjectId(request.bountyId),
+        });
 
-    if (! (dbBountyResult.status === BountyStatus.open || request.userId === dbBountyResult.claimedBy.discordId)) {
-        throw new AuthorizationError(
-            `Thank you for giving bounty commands a try!\n` +
-            `It looks like you don't have permission to request ${request.activity} for this bounty.\n` +
-            `Please reach out to your favorite bounty board representative with any questions!` 
-            );
+        if (! (dbBountyResult.status === BountyStatus.open || request.userId === dbBountyResult.claimedBy.discordId)) {
+            throw new AuthorizationError(
+                `Thank you for giving bounty commands a try!\n` +
+                `It looks like you don't have permission to request ${request.activity} for this bounty.\n` +
+                `Please reach out to your favorite bounty board representative with any questions!` 
+                );
+        }
     }
 }
 
