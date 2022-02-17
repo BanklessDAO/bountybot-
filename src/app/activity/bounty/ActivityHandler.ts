@@ -30,6 +30,8 @@ import { HelpRequest } from '../../requests/HelpRequest';
 import { Activities } from '../../constants/activities';
 import DiscordUtils from '../../utils/DiscordUtils';
 import { GmRequest } from '../../requests/GmRequest'
+import { UpsertUserWalletRequest } from '../../requests/UpsertUserWalletRequest'
+import { upsertUserWallet } from '../user/RegisterWallet'
 
 export const BountyActivityHandler = {
     /**
@@ -79,6 +81,9 @@ export const BountyActivityHandler = {
                 break;
             case Activities.help:
                 await helpBounty(request as HelpRequest);
+                break;
+            case Activities.registerWallet:
+                await upsertUserWallet(request as UpsertUserWalletRequest);
                 break;
             case 'gm':
                 let gmRequest: GmRequest = request;

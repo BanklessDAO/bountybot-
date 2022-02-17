@@ -1,5 +1,6 @@
 import ValidationError from '../errors/ValidationError';
 import BountyUtils from '../utils/BountyUtils';
+import WalletUtils from '../utils/WalletUtils';
 import Log, { LogUtils } from '../utils/Log';
 import mongo, { Db } from 'mongodb';
 import MongoDbUtils from '../utils/MongoDbUtils';
@@ -17,6 +18,7 @@ import { CompleteRequest } from '../requests/CompleteRequest';
 import { PaidRequest } from '../requests/PaidRequest';
 import { HelpRequest } from '../requests/HelpRequest';
 import { DeleteRequest } from '../requests/DeleteRequest';
+import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
 
 
 const ValidationModule = {
@@ -50,6 +52,8 @@ const ValidationModule = {
                 return deleteValidation(request as DeleteRequest);
             case Activities.help:
                 return help(request as HelpRequest);
+            case Activities.registerWallet:
+                return registerWallet(request as UpsertUserWalletRequest);
             case 'gm':
                 return;
             default:
@@ -381,5 +385,13 @@ const help = async (request: HelpRequest): Promise<void> => {
             throw new ValidationError(`Please select a valid bounty id to request ${request.activity}. ` +
                 'Check your previous DMs from bountybot for the correct id.')
         }
+    }
+}
+
+const registerWallet = async (request: UpsertUserWalletRequest): Promise<void> => {
+    Log.debug(`Validating activity ${request.activity}`);
+
+    if (request.address) {
+        WalletUtils.validateEthereumWalletAddress(request.address)
     }
 }

@@ -56,6 +56,8 @@ const AuthorizationModule = {
                 return deleteAuthorization(request as DeleteRequest);
             case Activities.help:
                 return help(request as HelpRequest);
+            case Activities.registerWallet:
+                return;
 			case 'gm':
                 return;
         }
