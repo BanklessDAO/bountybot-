@@ -4,6 +4,8 @@ import { SlashCreator, GatewayServer, SlashCommand, CommandContext } from 'slash
 import path from 'path';
 import fs from 'fs';
 import Log from './utils/Log';
+import { ChangeStreamOptions, Db } from 'mongodb';
+import MongoDbUtils from './utils/MongoDbUtils';
 
 new Log();
 
@@ -69,5 +71,27 @@ client.once('ready', () => {
 
 // Login to Discord with your client's token
 client.login(process.env.DISCORD_BOT_TOKEN);
+
+// Listen to db sync events
+async function dbSyncListener(): Promise<void> {
+const db: Db = await MongoDbUtils.connect('bountyboard');
+const dbBounty = db.collection('bounties');
+
+const collection = db.collection("bounties");
+const changeStreamOptions: ChangeStreamOptions = { fullDocument: "updateLookup" };
+// This could be any pipeline.
+const pipeline = [];
+
+const changeStream = collection.watch();
+
+// set up a listener when change events are emitted
+changeStream.on("change", next => {
+	// process any change event
+	Log.debug("received a change to the collection: \t" + JSON.stringify(next));
+	});
+}
+
+dbSyncListener();
+
 
 export default client;
