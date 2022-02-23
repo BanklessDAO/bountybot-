@@ -29,6 +29,7 @@ export interface BountyCollection extends Collection {
 	assignedName: string,
 	requireApplication: boolean,
 	applicants: Applicant[],
+	activityHistory: ClientInteraction[],
 }
 
 export type UserObject = {
@@ -58,3 +59,9 @@ export type Status = {
 	status: string,
 	setAt: string,
 }
+
+export type ClientInteraction = {
+	activity: string,
+	modifiedAt: string,
+	client: string
+};

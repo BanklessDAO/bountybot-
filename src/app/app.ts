@@ -6,6 +6,8 @@ import fs from 'fs';
 import Log from './utils/Log';
 import { ChangeStreamOptions, Db } from 'mongodb';
 import MongoDbUtils from './utils/MongoDbUtils';
+import { ClientSync } from './clientSync/ClientSync';
+import { ChangestreamEvent } from './types/mongo/Changestream';
 
 new Log();
 
@@ -75,19 +77,19 @@ client.login(process.env.DISCORD_BOT_TOKEN);
 // Listen to db sync events
 async function dbSyncListener(): Promise<void> {
 const db: Db = await MongoDbUtils.connect('bountyboard');
-const dbBounty = db.collection('bounties');
-
 const collection = db.collection("bounties");
 const changeStreamOptions: ChangeStreamOptions = { fullDocument: "updateLookup" };
 // This could be any pipeline.
 const pipeline = [];
 
-const changeStream = collection.watch();
+const changeStream = collection.watch(pipeline, changeStreamOptions);
 
 // set up a listener when change events are emitted
 changeStream.on("change", next => {
-	// process any change event
+	// note: passes full document, and not updated fields
 	Log.debug("received a change to the collection: \t" + JSON.stringify(next));
+	let changeEvent = next as ChangestreamEvent;
+	ClientSync({ changeStreamEvent: changeEvent });
 	});
 }
 
