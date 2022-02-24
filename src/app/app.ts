@@ -7,7 +7,7 @@ import Log from './utils/Log';
 import { ChangeStreamOptions, Db } from 'mongodb';
 import MongoDbUtils from './utils/MongoDbUtils';
 import { ClientSync } from './clientSync/ClientSync';
-import { ChangestreamEvent } from './types/mongo/Changestream';
+import { ChangeStreamEvent } from './types/mongo/ChangeStream';
 
 new Log();
 
@@ -88,7 +88,7 @@ const changeStream = collection.watch(pipeline, changeStreamOptions);
 changeStream.on("change", next => {
 	// note: passes full document, and not updated fields
 	Log.debug("received a change to the collection: \t" + JSON.stringify(next));
-	let changeEvent = next as ChangestreamEvent;
+	let changeEvent = next as ChangeStreamEvent;
 	ClientSync({ changeStreamEvent: changeEvent });
 	});
 }

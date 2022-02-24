@@ -78,7 +78,8 @@ export default class implements DiscordEvent {
                     userId: user.id,
                     activity: Activities.publish,
                     bot: user.bot
-                }
+                },
+                clientSyncRequest: null,
             });
         } else if (reaction.emoji.name === '🏴') {
             Log.info(`${user.tag} attempting to claim a bounty ${bountyId} from the bounty board`);
@@ -87,7 +88,8 @@ export default class implements DiscordEvent {
                 messageReactionRequest: {
                     user: user,
                     message: message
-                }
+                },
+                clientSyncRequest: null,
             });
         } else if (reaction.emoji.name === '🙋') {
             Log.info(`${user.tag} attempting to apply for a bounty ${bountyId} from the bounty board`);
@@ -96,7 +98,7 @@ export default class implements DiscordEvent {
                 messageReactionRequest: {
                     user: user,
                     message: message
-                }
+                },
             });
 
         } else if (reaction.emoji.name === '❌') {
@@ -113,7 +115,7 @@ export default class implements DiscordEvent {
                         userId: user.id,
                         activity: Activities.delete,
                         bot: user.bot
-                    }
+                    },
                 })
             }
             else if (message.channel instanceof TextChannel) {
@@ -123,7 +125,7 @@ export default class implements DiscordEvent {
                         user: user,
                         message: message
                     },
-                    directRequest: null
+                    directRequest: null,
                 });
         }
 
@@ -135,7 +137,7 @@ export default class implements DiscordEvent {
                 messageReactionRequest: {
                     user: user,
                     message: message
-                }
+                },
             });
 
         } else if (reaction.emoji.name === '✅') {
@@ -145,7 +147,7 @@ export default class implements DiscordEvent {
                 messageReactionRequest: {
                     user: user,
                     message: message
-                }
+                },
             });
 
         } else if (reaction.emoji.name === '🆘') {

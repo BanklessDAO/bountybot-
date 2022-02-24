@@ -279,13 +279,15 @@ export default class Bounty extends SlashCommand {
                 request = new PublishRequest({
                     commandContext: commandContext,
                     messageReactionRequest: null,
-                    directRequest: null
+                    directRequest: null,
+                    clientSyncRequest: null,
                 });
                 break;
             case Activities.claim:
                 request = new ClaimRequest({
                     commandContext: commandContext,
-                    messageReactionRequest: null
+                    messageReactionRequest: null,
+                    clientSyncRequest: null,
                 });
                 break;
             case Activities.apply:

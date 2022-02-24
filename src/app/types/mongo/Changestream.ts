@@ -1,6 +1,6 @@
 import { BountyCollection } from "../bounty/BountyCollection";
 
-export interface ChangestreamEvent {
+export interface ChangeStreamEvent {
     operationType: string,
     fullDocument: BountyCollection,
 }

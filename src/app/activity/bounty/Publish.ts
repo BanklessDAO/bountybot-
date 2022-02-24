@@ -1,5 +1,4 @@
-import { CommandContext } from 'slash-create'
-import { GuildMember, TextChannel, Message, MessageEmbedOptions } from 'discord.js'
+import { TextChannel, Message, MessageEmbedOptions } from 'discord.js'
 import Log, { LogUtils } from '../../utils/Log';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../../utils/MongoDbUtils';
@@ -18,17 +17,18 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
     const guildId = publishRequest.guildId;
     const { guildMember } = await DiscordUtils.getGuildAndMember(publishRequest.guildId, publishRequest.userId);
 
-    const [dbBountyResult, dbCustomerResult] = await getDbHandler(bountyId, guildId);
+    const [dbBountyResult, dbCustomerResult] = await getDbHandler(bountyId, guildId, publishRequest);
 
-	
-	const messageOptions: MessageEmbedOptions = await generateEmbedMessage(dbBountyResult, 'Open', guildId);
+	const messageOptions: MessageEmbedOptions = await generateEmbedMessage(dbBountyResult, BountyStatus.open, guildId);
 
 	const bountyChannel: TextChannel = await guildMember.client.channels.fetch(dbCustomerResult.bountyChannel) as TextChannel;
 	const bountyMessage: Message = await bountyChannel.send({ embeds: [messageOptions] });
 	Log.info(`bounty published to ${bountyChannel.name}`);
 	addPublishReactions(bountyMessage, dbBountyResult.requireApplication);
 
-    await writeDbHandler(dbBountyResult, bountyMessage.id);
+    if (!publishRequest.clientSyncRequest) {
+		await writeDbHandler(dbBountyResult, bountyMessage.id);
+	}
 
     await guildMember.send({ content: `Bounty published to ${bountyChannel.name} and the website! ${process.env.BOUNTY_BOARD_URL}${bountyId}` });
 
@@ -45,17 +45,20 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
 	return;
 }
 
-const getDbHandler = async (bountyId: string, guildId: string): Promise<[BountyCollection, CustomerCollection]> => {
+const getDbHandler = async (bountyId: string, guildId: string, request: PublishRequest): Promise<[BountyCollection, CustomerCollection]> => {
     Log.debug(`Entered get DbHandler for publish`);
     const db: Db = await MongoDbUtils.connect('bountyboard');
 	const dbCollectionBounties = db.collection('bounties');
     const dbCollectionCustomers = db.collection('customers');
+
+	const status = request.clientSyncRequest ? 'Open' : 'Draft';
+
     const dbCustomerResult: CustomerCollection = await dbCollectionCustomers.findOne({
 		customerId: guildId
 	});
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
 		_id: new mongo.ObjectId(bountyId),
-		status: 'Draft',
+		status: status,
 	});
 
     return [dbBountyResult, dbCustomerResult];

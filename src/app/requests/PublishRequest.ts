@@ -5,6 +5,7 @@ import { Request } from './Request'
 import { MessageReactionRequest } from '../types/discord/MessageReactionRequest';
 import { Activities } from '../constants/activities';
 import DiscordUtils from '../utils/DiscordUtils';
+import { ChangeStreamEvent } from '../types/mongo/ChangeStream';
 
 export class PublishRequest extends Request {
     bountyId: string;
@@ -19,6 +20,7 @@ export class PublishRequest extends Request {
             activity: string,
             bot: boolean 
         }
+        clientSyncRequest: ChangeStreamEvent,
     }) {
         if (args.commandContext) {
             let commandContext: CommandContext = args.commandContext;
@@ -36,7 +38,13 @@ export class PublishRequest extends Request {
         else if (args.directRequest) {
             super(args.directRequest.activity, args.directRequest.guildId, args.directRequest.userId, args.directRequest.bot);
             this.bountyId = args.directRequest.bountyId;
-
+        }
+        else if (args.clientSyncRequest) {
+            const upsertedBountyRecord = args.clientSyncRequest.fullDocument;
+            const creatorUserId = upsertedBountyRecord.createdBy.discordId
+            super(Activities.publish, upsertedBountyRecord.customerId, creatorUserId, false);
+            this.bountyId = upsertedBountyRecord._id;
+            this.clientSyncRequest = true;
         }
 
         Log.debug(`Created PublishRequest`);

@@ -101,7 +101,7 @@ const publish = async (request: PublishRequest): Promise<void> => {
         );
     }
 
-    if (dbBountyResult.status && dbBountyResult.status !== BountyStatus.draft) {
+    if (!request.clientSyncRequest && dbBountyResult.status && dbBountyResult.status !== BountyStatus.draft) {
         throw new ValidationError(
             `The bounty id you have selected is in status ${dbBountyResult.status}\n` +
             `Currently, only bounties with status draft can be published to the bounty channel.\n` +
