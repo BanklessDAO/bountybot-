@@ -29,7 +29,8 @@ export interface Bounty {
 	assign?: string,
 	assignedName?: string,
 	requireApplication?: boolean,
-	applicants?: Applicant[]
+	applicants?: Applicant[],
+	activityHistory: ClientInteraction[],
 }
 
 export type UserObject = {
@@ -58,4 +59,10 @@ export type Reward = {
 export type Status = {
 	status: string,
 	setAt: string,
-}
+};
+
+export type ClientInteraction = {
+	activity: string,
+	modifiedAt: string,
+	client: string
+};

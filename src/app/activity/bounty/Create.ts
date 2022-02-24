@@ -14,6 +14,7 @@ import { DeleteRequest } from '../../requests/DeleteRequest';
 import { Activities } from '../../constants/activities';
 import { BountyStatus } from '../../constants/bountyStatus';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
+import { Clients } from '../../constants/clients';
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
     const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
@@ -200,6 +201,13 @@ export const generateBountyRecord = (
                 status: BountyStatus.draft,
                 setAt: currentDate,
             },
+        ],
+        activityHistory: [
+            {
+                activity: Activities.create,
+                modifiedAt: currentDate,
+                client: Clients.bountybot,
+            }
         ],
         status: BountyStatus.draft,
         dueAt: dueAt.toISOString(),

@@ -10,7 +10,28 @@ import { BountyCollection } from "../types/bounty/BountyCollection";
 import { ChangeStreamEvent } from "../types/mongo/ChangeStream";
 import Log, { LogUtils } from "../utils/Log";
 
+/**
+ * Handles some basic validation/safety logic to prevent unintentional double calls to activities.
+ * For example, most bounty lifecycle activities require writing to the bounty record the channel id
+ * and message id of the bounty card (whether in a Text or DM Channel). In that case, we don't want to kick
+ * off the activity that generated that db operation.
+ * The other case is that a user kicks off an activity on the bot, like claim. 
+ * This will result in a write operation to the db, and we don't want to kick off the claim activity again. 
+ * @param args an object containing the ChangeStreamEvent
+ * @returns void promise
+ */
 export const ClientSync = async (args: {changeStreamEvent: ChangeStreamEvent}): Promise<void> => {
+    // if OperationType is insert, updatedFields will be invalid
+    let filterEvent = (
+        "update" === args.changeStreamEvent.operationType && 
+        !args.changeStreamEvent.updateDescription.updatedFields.activityHistory
+    );
+    
+    if (filterEvent) {
+        console.log(`filtered type of event ${args.changeStreamEvent.operationType} with no activity history`);
+        return;
+    }
+    
     if (args.changeStreamEvent.fullDocument) {
         const activityHistory = args.changeStreamEvent.fullDocument.activityHistory;
         console.log('here');

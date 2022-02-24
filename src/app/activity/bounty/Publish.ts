@@ -10,6 +10,8 @@ import BountyUtils from '../../utils/BountyUtils';
 import RuntimeError from '../../errors/RuntimeError';
 import { PublishRequest } from '../../requests/PublishRequest';
 import { BountyStatus } from '../../constants/bountyStatus';
+import { Activities } from '../../constants/activities';
+import { Clients } from '../../constants/clients';
 
 export const publishBounty = async (publishRequest: PublishRequest): Promise<any> => {
     Log.info(`starting to finalize bounty: ${publishRequest.bountyId} from guild: ${publishRequest.guildId}`);
@@ -80,6 +82,11 @@ const writeDbHandler = async (dbBountyResult: BountyCollection, bountyMessageId:
 				status: BountyStatus.open,
 				setAt: currentDate,
 			},
+			activityHistory: {
+				activity: Activities.publish,
+				modifiedAt: currentDate,
+				client: Clients.bountybot,
+			}
 		},
 	});
 

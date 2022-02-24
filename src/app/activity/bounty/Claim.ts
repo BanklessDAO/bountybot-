@@ -11,6 +11,8 @@ import RuntimeError from '../../errors/RuntimeError';
 import { BountyEmbedFields } from '../../constants/embeds';
 import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
+import { Activities } from '../../constants/activities';
+import { Clients } from '../../constants/clients';
 
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
@@ -160,6 +162,11 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
                 status: BountyStatus.in_progress,
                 setAt: currentDate,
             },
+            activityHistory: {
+				activity: Activities.claim,
+				modifiedAt: currentDate,
+				client: Clients.bountybot,
+			}
         },
     });
 

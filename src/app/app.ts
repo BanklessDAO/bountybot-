@@ -4,10 +4,11 @@ import { SlashCreator, GatewayServer, SlashCommand, CommandContext } from 'slash
 import path from 'path';
 import fs from 'fs';
 import Log from './utils/Log';
-import { ChangeStreamOptions, Db } from 'mongodb';
+import mongo, { ChangeStreamOptions, Db } from 'mongodb';
 import MongoDbUtils from './utils/MongoDbUtils';
 import { ClientSync } from './clientSync/ClientSync';
 import { ChangeStreamEvent } from './types/mongo/ChangeStream';
+import { BountyCollection } from './types/bounty/BountyCollection';
 
 new Log();
 
@@ -82,13 +83,23 @@ const changeStreamOptions: ChangeStreamOptions = { fullDocument: "updateLookup" 
 // This could be any pipeline.
 const pipeline = [];
 
-const changeStream = collection.watch(pipeline, changeStreamOptions);
+// const changeStream = collection.watch(pipeline, changeStreamOptions);
+const changeStream = collection.watch();
 
 // set up a listener when change events are emitted
-changeStream.on("change", next => {
+changeStream.on("change", async next => {
 	// note: passes full document, and not updated fields
 	Log.debug("received a change to the collection: \t" + JSON.stringify(next));
-	let changeEvent = next as ChangeStreamEvent;
+	let changeEvent = next as unknown as ChangeStreamEvent;
+
+	// Note: for insert operation, fullDocument is populated instead of updatedFields
+	if (! ("insert" === changeEvent.operationType) ) {
+		const upsertedBountyRecord: BountyCollection = await collection.findOne({
+			_id: new mongo.ObjectId(changeEvent.documentKey._id),
+		});
+		changeEvent.fullDocument = upsertedBountyRecord;
+	}
+
 	ClientSync({ changeStreamEvent: changeEvent });
 	});
 }
