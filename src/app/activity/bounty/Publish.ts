@@ -43,6 +43,8 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
 		});
 		await previewMessage.delete();
 	}
+
+	await updateMessageStore(dbBountyResult, bountyMessage);
 	
 	return;
 }
@@ -74,7 +76,6 @@ const writeDbHandler = async (dbBountyResult: BountyCollection, bountyMessageId:
 	const writeResult: UpdateWriteOpResult = await dbCollectionBounties.updateOne(dbBountyResult, {
 		$set: {
 			status: BountyStatus.open,
-			discordMessageId: bountyMessageId,
 		},
 		$unset: { creatorMessage: "" } ,
 		$push: {
@@ -145,3 +146,20 @@ export const generateEmbedMessage = async (dbBounty: BountyCollection, newStatus
 
 	return messageEmbedOptions;
 };
+
+export const updateMessageStore = async (bounty: BountyCollection, card: Message): Promise<any> => {
+	const db: Db = await MongoDbUtils.connect('bountyboard');
+	const dbCollectionBounties = db.collection('bounties');
+
+	const writeResult: UpdateWriteOpResult = await dbCollectionBounties.updateOne(
+		{_id: new mongo.ObjectId(bounty._id)}, {
+		$set: {
+			discordMessageId: card.id,
+		},
+	});
+
+	if (writeResult.result.ok !== 1) {
+        Log.error('failed to update publish bounty with message Id');
+        throw new Error(`Write to database for bounty ${bounty._id} failed. `);
+    }
+}

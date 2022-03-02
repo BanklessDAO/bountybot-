@@ -20,7 +20,10 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     
     let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 
-    const claimedBounty = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
+    let claimedBounty = getDbResult.dbBountyResult;
+    if (!request.clientSyncRequest) {
+        claimedBounty = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
+    }
     
     let bountyEmbedMessage: Message;
     // TODO: consider changing claim, submit, complete, and delete requests to have a channel id instead of the complete Message

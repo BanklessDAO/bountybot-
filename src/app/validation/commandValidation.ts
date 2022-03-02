@@ -210,7 +210,16 @@ const claim = async (request: ClaimRequest): Promise<void> => {
         );
     }
 
-    if (dbBountyResult.status && dbBountyResult.status !== BountyStatus.open) {
+    if (request.clientSyncRequest && dbBountyResult.evergreen) {
+        throw new ValidationError(
+            `🚧 🚧 🚧 \n` + 
+            `Reflecting claims for an evergreen bounty in the front end is in development.` +
+            `Please reach out to your favorite Bounty Board representative with any questions!` +
+            `🚧 🚧 🚧 \n`
+            );
+    }
+
+    if (!request.clientSyncRequest && dbBountyResult.status && dbBountyResult.status !== BountyStatus.open) {
         throw new ValidationError(
             `The bounty id you have selected is in status ${dbBountyResult.status}\n` +
             `Currently, only bounties with status ${BountyStatus.open} can be claimed.\n` +
