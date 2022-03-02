@@ -145,6 +145,12 @@ export default class Bounty extends SlashCommand {
                             description: 'Bounty ID',
                             required: true,
                         },
+                        {
+                            name: 'notes',
+                            type: CommandOptionType.STRING,
+                            description: 'Optional public notes',
+                            required: false,
+                        },
                     ],
                 },
                 {
@@ -221,13 +227,19 @@ export default class Bounty extends SlashCommand {
                 {
                     name: Activities.delete,
                     type: CommandOptionType.SUB_COMMAND,
-                    description: 'Delete an open or in draft bounty',
+                    description: 'Delete an open or in draft bounty or IOU',
                     options: [
                         {
                             name: 'bounty-id',
                             type: CommandOptionType.STRING,
                             description: 'Bounty ID',
                             required: true,
+                        },
+                        {
+                            name: 'notes',
+                            type: CommandOptionType.STRING,
+                            description: 'Optional notes',
+                            required: false,
                         },
                     ],
                 },
@@ -239,7 +251,15 @@ export default class Bounty extends SlashCommand {
                 {
                     name: Activities.help,
                     type: CommandOptionType.SUB_COMMAND,
-                    description: 'FAQ for using bounty commands',
+                    description: 'FAQ for using bounty commands or help on a particular bounty',
+                    options: [
+                        {
+                            name: 'bounty-id',
+                            type: CommandOptionType.STRING,
+                            description: 'Bounty ID',
+                            required: false,
+                        },
+                    ],
                 },
             ],
             throttling: {

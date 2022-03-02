@@ -1,7 +1,7 @@
 import { DeleteRequest } from '../../requests/DeleteRequest';
 import DiscordUtils from '../../utils/DiscordUtils';
 import Log, { LogUtils } from '../../utils/Log';
-import { DMChannel, GuildMember, Message, TextChannel } from 'discord.js';
+import { GuildMember, Message, TextChannel } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
@@ -11,6 +11,8 @@ import { BountyStatus } from '../../constants/bountyStatus';
 
 
 export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
+    Log.debug('In Delete activity');
+
     const deletedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
 	Log.info(`${request.bountyId} bounty deleted by ${deletedByUser.user.tag}`);
 	
@@ -40,7 +42,7 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
 	
 	const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
 	let creatorDeleteDM = 
-        `The following bounty has been deleted: ${bountyUrl}\n`;
+        `The following bounty has been deleted: <${bountyUrl}>\n`;
 
     if (getDbResult.dbBountyResult.evergreen && getDbResult.dbBountyResult.isParent &&
         getDbResult.dbBountyResult.childrenIds !== undefined && getDbResult.dbBountyResult.childrenIds.length > 0) {
@@ -107,6 +109,7 @@ const writeDbHandler = async (request: DeleteRequest, deletedByUser: GuildMember
             // note that createdAt, claimedAt are not part of the BountyCollection type
 			deletedAt: currentDate,
 			status: BountyStatus.deleted,
+            resolutionNote: request.resolutionNote,
 		},
 		$push: {
 			statusHistory: {

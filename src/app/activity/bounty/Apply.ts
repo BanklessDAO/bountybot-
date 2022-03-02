@@ -14,6 +14,7 @@ import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
 
 export const applyBounty = async (request: ApplyRequest): Promise<any> => {
+    Log.debug('In Apply activity');
     const applyingUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     Log.info(`${request.bountyId} bounty applied for by ${applyingUser.user.tag}`);
     
@@ -61,7 +62,7 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     const bountyUrl = process.env.BOUNTY_BOARD_URL + appliedForBounty._id;
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
     const createdByUser: GuildMember = await applyingUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
-    let creatorDM = `Your bounty has been applied for by <@${applyingUser.id}> ${bountyUrl} \n` +
+    let creatorDM = `Your bounty has been applied for by <@${applyingUser.id}> <${bountyUrl}> \n` +
                         `Their pitch: ${pitch ? pitch : '<none given>'} \n` +
                         'Use the "/bounty assign" command in the #bounty-board channel to select an applicant who can claim.';
 

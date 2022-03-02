@@ -5,7 +5,7 @@ import { Activities } from '../constants/activities';
 import { Message } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
 
-export class CompleteRequest extends Request {
+export class PaidRequest extends Request {
     bountyId: string;
     resolutionNote: string;
     commandContext: CommandContext;
@@ -18,17 +18,17 @@ export class CompleteRequest extends Request {
     }) {
         if (args.commandContext) {
             let commandContext: CommandContext = args.commandContext;
-            if (commandContext.subcommands[0] !== Activities.complete) {
-                throw new Error('CompleteRequest attempted created for non Complete activity.');
+            if (commandContext.subcommands[0] !== Activities.paid) {
+                throw new Error('PaidRequest attempted created for non Paid activity.');
             }
-            super(Activities.complete, commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
+            super(Activities.paid, commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.commandContext = commandContext;
-            this.bountyId = commandContext.options.complete['bounty-id'];
-            this.resolutionNote = commandContext.options.complete['notes'];
+            this.bountyId = commandContext.options.paid['iou-id'];
+            this.resolutionNote = commandContext.options.paid['notes'];
         }
         else if (args.messageReactionRequest) {
             let messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
-            super(Activities.complete, messageReactionRequest.message.guildId, messageReactionRequest.user.id, messageReactionRequest.user.bot);
+            super(Activities.paid, messageReactionRequest.message.guildId, messageReactionRequest.user.id, messageReactionRequest.user.bot);
             this.message = messageReactionRequest.message;
             this.bountyId = DiscordUtils.getBountyIdFromEmbedMessage(messageReactionRequest.message);
         }

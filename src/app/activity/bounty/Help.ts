@@ -1,39 +1,48 @@
 import { HelpRequest } from '../../requests/HelpRequest';
 import DiscordUtils from '../../utils/DiscordUtils';
+import client from '../../app';
 import Log from '../../utils/Log';
-import { GuildMember } from 'discord.js';
+import { GuildMember, TextChannel } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
-import { BountyStatus } from '../../constants/bountyStatus';
 
 
 export const helpBounty = async (request: HelpRequest): Promise<void> => {
+    Log.debug('In Help activity');
+    if (request.bountyId) {
 
-    const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
-	// Since we are in DMs with new flow, guild might not be populated in the request
-	if (request.guildId === undefined || request.guildId === null) {
-		request.guildId = getDbResult.dbBountyResult.customerId;
-	}
-    
-    const helpRequestedUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
-	Log.info(`${request.bountyId} bounty requested help by ${helpRequestedUser.user.tag}`);
+        const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
+        // Since we are in DMs with new flow, guild might not be populated in the request
+        if (request.guildId === undefined || request.guildId === null) {
+            request.guildId = getDbResult.dbBountyResult.customerId;
+        }
+        
+        const helpRequestedUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
+        Log.info(`${request.bountyId} bounty requested help by ${helpRequestedUser.user.tag}`);
 
-    const bountyCreator: GuildMember = await DiscordUtils.getGuildMemberFromUserId(getDbResult.dbBountyResult.createdBy.discordId, request.guildId)
-    
-    const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
-    const creatorHelpDM = 
-        `<@${helpRequestedUser.id}> has requested help with the following bounty:\n` +
-        `${bountyUrl}\n` + 
-        `Don't hesitate to reach out to your favorite Bounty Board representative with any questions!`;
+        const bountyCreator: GuildMember = await DiscordUtils.getGuildMemberFromUserId(getDbResult.dbBountyResult.createdBy.discordId, request.guildId)
+        
+        const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
+        const creatorHelpDM = 
+            `<@${helpRequestedUser.id}> has requested help with the following bounty:\n` +
+            `<${bountyUrl}>\n` + 
+            `Don't hesitate to reach out to your favorite Bounty Board representative with any questions!`;
 
-    const userHelpDM = 
-        `<@${bountyCreator.id}> has been notified of your request for help with the following bounty:\n` +
-        `${bountyUrl};`
+        const userHelpDM = 
+            `<@${bountyCreator.id}> has been notified of your request for help with the following bounty:\n` +
+            `<${bountyUrl}>`;
+        
+        await bountyCreator.send({ content: creatorHelpDM});
+        await helpRequestedUser.send({ content: userHelpDM });
+    } else {
+        const bountyChannel: TextChannel = await client.channels.fetch(request.commandContext.channelID) as TextChannel;
     
-    await bountyCreator.send({ content: creatorHelpDM});
-    await helpRequestedUser.send({ content: userHelpDM });
+        await bountyChannel.send({ content: `Type **/bounty** and you will see a list of commands and their descriptions. ` +
+         `Use <tab> to step through the options for each command.\nFor more detailed help, go here: ${process.env.BOUNTY_BOARD_HELP_URL}`});
+    }
+
     return;
 }
 

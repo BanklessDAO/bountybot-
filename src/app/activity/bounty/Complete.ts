@@ -9,9 +9,11 @@ import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import RuntimeError from '../../errors/RuntimeError';
 import { BountyStatus } from '../../constants/bountyStatus';
 import { BountyEmbedFields } from '../../constants/embeds';
+import { PaidStatus } from '../../constants/paidStatus';
 
 
 export const completeBounty = async (request: CompleteRequest): Promise<void> => {
+	Log.debug('In Complete activity');
 
     const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 	// Since we are in DMs with new flow, guild might not be populated in the request
@@ -61,12 +63,12 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
     await completeBountyMessage(getDbResult.dbBountyResult, completorMessage, submitterMessage, completedByUser, submittedByUser);
 	
 	const creatorCompleteDM = 
-        `Thank you for reviewing ${bountyUrl}\n` +
+        `Thank you for reviewing <${bountyUrl}>\n` +
         `Please remember to tip <@${submittedByUser.id}>`;
 
     
     const submitterCompleteDM = 
-        `Your bounty has passed review and is now complete!\n${bountyUrl}\n` +
+        `Your bounty has passed review and is now complete!\n<${bountyUrl}>\n` +
         `<@${completedByUser.id}> should be tipping you with ${getDbResult.dbBountyResult.reward.amount} ${getDbResult.dbBountyResult.reward.currency} soon`;
 	
     
@@ -133,6 +135,8 @@ const writeDbHandler = async (request: CompleteRequest, completedByUser: GuildMe
             // note that createdAt, claimedAt are not part of the BountyCollection type
 			reviewedAt: currentDate,
 			status: BountyStatus.complete,
+			paidStatus: dbBountyResult.isIOU ? PaidStatus.paid: null,
+			resolutionNote: request.resolutionNote,
 		},
 		$push: {
 			statusHistory: {

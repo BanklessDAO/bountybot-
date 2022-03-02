@@ -236,7 +236,9 @@ const BountyUtils = {
         } else if (bountyRecord.gate) {
             const role: Role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
             title += `\n(Gated to ${role.name})`;
-        } else {
+        } else if (bountyRecord.isIOU) {
+            title += `\n(IOU owed to ${bountyRecord.owedTo.discordHandle})`;
+        } else {    
             if (bountyRecord.requireApplication) {
                 title += `\n(Requires application before claiming`;
                 if (bountyRecord.applicants) {

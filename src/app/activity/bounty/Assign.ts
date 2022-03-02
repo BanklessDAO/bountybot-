@@ -14,6 +14,8 @@ import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
 
 export const assignBounty = async (request: AssignRequest): Promise<any> => {
+    Log.debug('In Assign activity');
+
     const assigningUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     Log.info(`${request.bountyId} bounty being assigned by ${assigningUser.user.tag}`);
     
@@ -45,7 +47,7 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
     await assigningUser.send({ content: assigningDM });
 
     await assignedUser.send({ content: `You have been assigned this bounty! Go to the #bounty-board channel to claim it. Reach out to <@${assigningUser.id}> with any questions\n` +
-                                         bountyUrl });
+                                         `<${bountyUrl}>`});
     return;
 };
 

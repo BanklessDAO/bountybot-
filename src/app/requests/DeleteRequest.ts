@@ -7,6 +7,7 @@ import DiscordUtils from '../utils/DiscordUtils';
 
 export class DeleteRequest extends Request {
     bountyId: string;
+    resolutionNote: string;
     commandContext: CommandContext;
 
     message: Message;
@@ -19,6 +20,7 @@ export class DeleteRequest extends Request {
             guildId: string,
             userId: string,
             activity: string,
+            resolutionNote: string,
             bot: boolean 
         }
     }) {
@@ -28,8 +30,14 @@ export class DeleteRequest extends Request {
                 throw new Error('DeleteRequest attempted created for non Delete activity.');
             }
             super(commandContext.subcommands[0], commandContext.guildID, commandContext.user.id, commandContext.user.bot);
+            const isIOU = commandContext.commandName == 'iou' ? true : false;
             this.commandContext = commandContext;
-            this.bountyId = commandContext.options.delete['bounty-id'];
+            if (isIOU) {
+                this.bountyId = commandContext.options.delete['iou-id'];
+            } else {
+                this.bountyId = commandContext.options.delete['bounty-id'];
+            }
+            this.resolutionNote = commandContext.options.delete['notes'];
         }
         else if (args.messageReactionRequest) {
             let messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
@@ -39,6 +47,7 @@ export class DeleteRequest extends Request {
         else if (args.directRequest) {
             super(args.directRequest.activity, args.directRequest.guildId, args.directRequest.userId, args.directRequest.bot);
             this.bountyId = args.directRequest.bountyId;
+            this.resolutionNote = args.directRequest.resolutionNote;
 
         }
     }

@@ -14,6 +14,8 @@ import { Activities } from '../../constants/activities';
 import { Clients } from '../../constants/clients';
 
 export const publishBounty = async (publishRequest: PublishRequest): Promise<any> => {
+	Log.debug('In Publish activity');
+
     Log.info(`starting to finalize bounty: ${publishRequest.bountyId} from guild: ${publishRequest.guildId}`);
     const bountyId = publishRequest.bountyId;
     const guildId = publishRequest.guildId;
@@ -32,7 +34,7 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
 		await writeDbHandler(dbBountyResult, bountyMessage.id);
 	}
 
-    await guildMember.send({ content: `Bounty published to ${bountyChannel.name} and the website! ${process.env.BOUNTY_BOARD_URL}${bountyId}` });
+    await guildMember.send({ content: `Bounty published to ${bountyChannel.name} and the website! <${process.env.BOUNTY_BOARD_URL}${bountyId}>` });
 
 	// Remove old publish preview
 	if (dbBountyResult.creatorMessage !== undefined) {
