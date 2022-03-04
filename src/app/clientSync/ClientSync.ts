@@ -28,18 +28,15 @@ export const ClientSync = async (args: {changeStreamEvent: ChangeStreamEvent}): 
     );
     
     if (filterEvent) {
-        console.log(`filtered type of event ${args.changeStreamEvent.operationType} with no activity history`);
         return;
     }
     
     if (args.changeStreamEvent.fullDocument) {
         const activityHistory = args.changeStreamEvent.fullDocument.activityHistory;
-        console.log('here');
         if (activityHistory && activityHistory[activityHistory.length - 1].client != Clients.bountybot) {
             changeStreamEventHandler(args.changeStreamEvent);
         } else {
             // no-op: don't process bot changes to the db
-            console.log('no activity history');
         }
     }
 }
@@ -52,8 +49,8 @@ export const ClientSync = async (args: {changeStreamEvent: ChangeStreamEvent}): 
  */
 const changeStreamEventHandler= async (event: ChangeStreamEvent): Promise<void> => {
     let request: any;
-    const interactionHistory = event.fullDocument.activityHistory;
-    const lastClientActivity = interactionHistory[interactionHistory.length - 1];
+    const activityHistory = event.fullDocument.activityHistory;
+    const lastClientActivity = activityHistory[activityHistory.length - 1];
     const activity = lastClientActivity.activity;
     Log.info(`Processing ${activity} activity event. Origination: ${Clients.bountyboardweb}`);
     switch (activity) {
@@ -64,7 +61,6 @@ const changeStreamEventHandler= async (event: ChangeStreamEvent): Promise<void> 
             Log.info('verify new bounty received');
             // TODO: add field to front end
             event.fullDocument.requireApplication = false;
-            console.log(event.fullDocument.requireApplication);
             request = new PublishRequest({
                 commandContext: null,
                 messageReactionRequest: null,
@@ -92,7 +88,6 @@ const changeStreamEventHandler= async (event: ChangeStreamEvent): Promise<void> 
     }
 
     try {
-        console.dir(request);
         await handler(request); 
     }
     catch (e) {

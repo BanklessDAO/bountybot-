@@ -161,7 +161,7 @@ export const updateMessageStore = async (bounty: BountyCollection, card: Message
 	});
 
 	if (writeResult.result.ok !== 1) {
-        Log.error('failed to update publish bounty with message Id');
+        Log.error(`failed to update publish bounty with message Id ${card.id}`);
         throw new Error(`Write to database for bounty ${bounty._id} failed. `);
     }
 }

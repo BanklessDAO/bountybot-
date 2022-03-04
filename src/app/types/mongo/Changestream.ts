@@ -1,9 +1,6 @@
 import { BountyCollection } from "../bounty/BountyCollection";
 
 export interface ChangeStreamEvent {
-    _id: {
-        _data: string,
-    }
     operationType: string,
     fullDocument: BountyCollection,
     documentKey: {
@@ -11,7 +8,7 @@ export interface ChangeStreamEvent {
     },
     updateDescription: {
         updatedFields: BountyCollection,
-        removedFields: BountyCollection,
+        removedFields: Array<keyof BountyCollection>,
     }
     
 }

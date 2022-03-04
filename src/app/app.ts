@@ -4,7 +4,7 @@ import { SlashCreator, GatewayServer, SlashCommand, CommandContext } from 'slash
 import path from 'path';
 import fs from 'fs';
 import Log from './utils/Log';
-import mongo, { ChangeStreamOptions, Db } from 'mongodb';
+import mongo, { ChangeStreamOptions, Db, ChangeEvent } from 'mongodb';
 import MongoDbUtils from './utils/MongoDbUtils';
 import { ClientSync } from './clientSync/ClientSync';
 import { ChangeStreamEvent } from './types/mongo/ChangeStream';
@@ -88,9 +88,8 @@ const changeStream = collection.watch();
 
 // set up a listener when change events are emitted
 changeStream.on("change", async next => {
-	// note: passes full document, and not updated fields
-	Log.debug("received a change to the collection: \t" + JSON.stringify(next));
-	let changeEvent = next as unknown as ChangeStreamEvent;
+	// note: passes updated fields
+	let changeEvent = next as ChangeEvent<BountyCollection> as ChangeStreamEvent;
 
 	// Note: for insert operation, fullDocument is populated instead of updatedFields
 	if (! ("insert" === changeEvent.operationType) ) {
