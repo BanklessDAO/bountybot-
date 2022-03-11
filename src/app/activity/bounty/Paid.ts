@@ -8,7 +8,7 @@ import { BountyCollection } from '../../types/bounty/BountyCollection';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import RuntimeError from '../../errors/RuntimeError';
 import { BountyStatus } from '../../constants/bountyStatus';
-import { BountyEmbedFields } from '../../constants/embeds';
+import { BountyEmbedFields, IOUEmbedFields } from '../../constants/embeds';
 import { PaidStatus } from '../../constants/paidStatus';
 
 
@@ -21,7 +21,7 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
 		request.guildId = getDbResult.dbBountyResult.customerId;
 	}
     const paidByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
-	Log.info(`${request.bountyId} IOU paid by ${paidByUser.user.tag}`);
+	Log.info(`${request.bountyId} bounty paid by ${paidByUser.user.tag}`);
 	
     await writeDbHandler(request, paidByUser);
 
@@ -56,7 +56,7 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
     await paidBountyMessage(getDbResult.dbBountyResult, payerMessage, paidByUser, owedToUser);
 	
 	const creatorPaidDM = 
-        `Thank you for marking your IOU as paid <${bountyUrl}>\n` +
+        `Thank you for marking your bounty as paid <${bountyUrl}>\n` +
         `If you haven't already, please remember to tip <@${owedToUser.id}>`;
 
     
@@ -77,7 +77,7 @@ const getDbHandler = async (request: PaidRequest): Promise<{dbBountyResult: Boun
 
 	const dbBountyResult: BountyCollection = await bountyCollection.findOne({
 		_id: new mongo.ObjectId(request.bountyId),
-		status: BountyStatus.open,
+		status: { $nin: [BountyStatus.draft, BountyStatus.deleted] }
 	});
 
     if (request.message) {
@@ -104,35 +104,41 @@ const writeDbHandler = async (request: PaidRequest, paidByUser: GuildMember): Pr
 
 	const dbBountyResult: BountyCollection = await bountyCollection.findOne({
 		_id: new mongo.ObjectId(request.bountyId),
-		status: BountyStatus.open,
+		status: { $nin: [BountyStatus.draft, BountyStatus.deleted] }
 	});
 
 	const currentDate = (new Date()).toISOString();
-	const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, {
+	// TODO: what's a better type here?
+	let writeObject: any = {
 		$set: {
-			reviewedBy: {
+			paidBy: {
 				discordHandle: paidByUser.user.tag,
 				discordId: paidByUser.user.id,
 				iconUrl: paidByUser.user.avatarURL(),
 			},
             // TO-DO: What is the point of status history if we publish createdAt, claimedAt... as first class fields?
             // note that createdAt, claimedAt are not part of the BountyCollection type
-			reviewedAt: currentDate,
-			status: BountyStatus.complete,
+			paidAt: currentDate,
 			paidStatus: PaidStatus.paid,
-			resolutionNote: request.resolutionNote
+			resolutionNote: request.resolutionNote,
 		},
-		$push: {
+	}
+	if (dbBountyResult.isIOU) {
+		writeObject.$set.addField({
+			status: BountyStatus.complete, 
+		})
+		writeObject.$push = {
 			statusHistory: {
 				status: BountyStatus.complete,
 				setAt: currentDate,
 			},
-		},
-	});
+		}
+	}
+	const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, writeObject);
 
     if (writeResult.result.ok !== 1) {
         Log.error(`Write result did not execute correctly`);
-        throw new Error(`Write to database for IOU ${request.bountyId} failed for Paid `);
+        throw new Error(`Write to database for bounty ${request.bountyId} failed for Paid `);
     }
 }
 
@@ -143,7 +149,11 @@ export const paidBountyMessage = async (paidBounty: BountyCollection, payerMessa
 	
 	await payerMessage.delete();
 	// TODO: Figure out better way to find fields to modify
-	embedMessage.fields[2].value = PaidStatus.paid;
+	if (paidBounty.isIOU) {
+		embedMessage.fields[IOUEmbedFields.paidStatus].value = PaidStatus.paid;
+	} else {
+		embedMessage.addField('Paid Status', 'Paid', false);
+	}
 	embedMessage.setColor('#01d212');
 	embedMessage.addField('Paid by', paidByUser.user.tag, true);
 	if (paidBounty.resolutionNote) {
@@ -176,8 +186,8 @@ export const updateMessageStore = async (bounty: BountyCollection, paidMessage: 
     });
 
     if (writeResult.result.ok !== 1) {
-        Log.error('failed to update paid IOU with message Id');
-        throw new Error(`Write to database for IOU ${bounty._id} failed. `);
+        Log.error('failed to update paid bounty with message Id');
+        throw new Error(`Write to database for bounty ${bounty._id} failed. `);
     }
 
 };

@@ -7,3 +7,9 @@ export class BountyEmbedFields {
     static createdBy = 5;
     static claimedBy = 6;
 } 
+
+export class IOUEmbedFields {
+    static bountyId = 0;
+    static description = 1;
+    static paidStatus = 2;
+}

@@ -101,7 +101,6 @@ const paid = async (request: PaidRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        isIOU: true,
     });
 
     if (!dbBountyResult) {
