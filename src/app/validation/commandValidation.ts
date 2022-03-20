@@ -105,14 +105,21 @@ const paid = async (request: PaidRequest): Promise<void> => {
 
     if (!dbBountyResult) {
         throw new ValidationError(
-            `Please select a valid IOU id to mark paid. `
+            `Please select a valid bounty to mark paid. `
         );
     }
 
-    if (dbBountyResult.status && dbBountyResult.status !== BountyStatus.open) {
+    const iouStatus = dbBountyResult.status && 
+        dbBountyResult.status !== BountyStatus.open && 
+        dbBountyResult.isIOU;
+    const bountyStatus = dbBountyResult.status && 
+        ['Draft', 'Open', 'Deleted'].includes(dbBountyResult.status) &&
+        !dbBountyResult.isIOU;
+    if (dbBountyResult.status && (iouStatus || bountyStatus)) {
         throw new ValidationError(
-            `The IOU id you have selected is in status ${dbBountyResult.status}\n` +
-            `Currently, only IOUs with status ${BountyStatus.open} can be mark paid.\n` +
+            `The bounty you have selected is in status ${dbBountyResult.status}\n` +
+            `Currently, only bounties that are in status ${BountyStatus.in_progress}, ${BountyStatus.in_review}, or ${BountyStatus.complete} can be mark paid.\n` +
+            `IOUs in status ${BountyStatus.open} may be marked as paid\n` +
             `Please reach out to your favorite Bounty Board representative with any questions!`
             );
     }

@@ -46,7 +46,10 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     
     const bountyUrl = process.env.BOUNTY_BOARD_URL + claimedBounty._id;
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
-    let creatorClaimDM = `Your bounty has been claimed by <@${claimedByUser.user.id}> <${bountyUrl}>`;
+    let creatorClaimDM = 
+    `Your bounty has been claimed by <@${claimedByUser.user.id}> <${bountyUrl}>\n` +
+    `You are free to complete this bounty or to mark it as paid at any time.\n` +
+    `Marking a bounty as complete and/or paid may help you with accounting or project status tasks later on.`;
     if (getDbResult.dbBountyResult.evergreen) {
         if (getDbResult.dbBountyResult.status == BountyStatus.open) {
             creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. <${origBountyUrl}>`;
@@ -201,7 +204,7 @@ export const claimBountyMessage = async (message: Message, claimedBounty: Bounty
     const claimantMessage: Message = await claimedByUser.send({ embeds: [embedNewMessage] });
     await addClaimantReactions(claimantMessage);
 
-    embedNewMessage.setFooter({text: '✅ - complete'});
+    embedNewMessage.setFooter({text: '✅ - complete | 💰 - mark as paid'});
 	const creatorMessage: Message = await createdByUser.send({ embeds: [embedNewMessage] });
 	await addCreatorReactions(creatorMessage);
 
@@ -226,6 +229,7 @@ export const addClaimantReactions = async (message: Message): Promise<any> => {
 export const addCreatorReactions = async (message: Message): Promise<any> => {
     // await message.reactions.removeAll();
     await message.react('✅');
+    await message.react('💰');
 };
 
 // Save where we sent the Bounty message embeds for future updates

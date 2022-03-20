@@ -1,7 +1,7 @@
 import { PaidRequest } from '../../requests/PaidRequest';
 import DiscordUtils from '../../utils/DiscordUtils';
 import Log, { LogUtils } from '../../utils/Log';
-import { GuildMember, MessageEmbed, Message, TextChannel } from 'discord.js';
+import { GuildMember, MessageEmbed, Message, TextChannel, Collection, MessageReaction } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
@@ -50,7 +50,10 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
     }
 
 	const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
-	const owedToUser: GuildMember = await paidByUser.guild.members.fetch(getDbResult.dbBountyResult.owedTo.discordId);
+	const owedToDiscordId = getDbResult.dbBountyResult.isIOU ? 
+		getDbResult.dbBountyResult.owedTo.discordId :
+		getDbResult.dbBountyResult.claimedBy.discordId;
+	const owedToUser: GuildMember = await paidByUser.guild.members.fetch(owedToDiscordId);
 
     
     await paidBountyMessage(getDbResult.dbBountyResult, payerMessage, paidByUser, owedToUser);
@@ -146,29 +149,46 @@ export const paidBountyMessage = async (paidBounty: BountyCollection, payerMessa
 	Log.debug('fetching bounty message for paid')
 
 	let embedMessage: MessageEmbed = new MessageEmbed(payerMessage.embeds[0]);
-	
+	let reactions = payerMessage.reactions.cache;
+	let reactionFooterText = '';
 	await payerMessage.delete();
 	// TODO: Figure out better way to find fields to modify
 	if (paidBounty.isIOU) {
 		embedMessage.fields[IOUEmbedFields.paidStatus].value = PaidStatus.paid;
 	} else {
 		embedMessage.addField('Paid Status', 'Paid', false);
+		if (paidBounty.status !== BountyStatus.complete) {
+			reactionFooterText = '✅ - complete';
+		}
+		else {
+			reactionFooterText = 'Bounty Complete and Paid. No futher action required.'
+		}
 	}
 	embedMessage.setColor('#01d212');
 	embedMessage.addField('Paid by', paidByUser.user.tag, true);
 	if (paidBounty.resolutionNote) {
 		embedMessage.addField('Notes', paidBounty.resolutionNote, false);
 	}
-	embedMessage.setFooter({text: ''});
+
+	embedMessage.setFooter({text: reactionFooterText});
 
 	const paidMessage: Message = await paidByUser.send({ embeds: [embedMessage] });
-	await addPaidReactions(paidMessage);
+	await addPaidReactions(paidMessage, paidBounty, reactions);
 
 	await updateMessageStore(paidBounty, paidMessage);
 };
 
-export const addPaidReactions = async (message: Message): Promise<any> => {
-	await message.react('🔥');
+export const addPaidReactions = async (message: Message, bounty: BountyCollection, previousReactions: Collection<String, MessageReaction>): Promise<any> => {
+	if (bounty.isIOU) {
+		await message.react('🔥');
+	}
+	else {
+		for (const [key, value] of previousReactions) {
+			if (value.me && value.emoji.name !== '💰') {
+				await message.react(value.emoji.name);
+			}
+		}
+	}
 };
 
 // Save where we sent the Bounty message embeds for future updates
