@@ -38,8 +38,14 @@ export class CreateRequest extends Request {
                 this.isIOU = isIOU;
             } else {
                 this.title = commandContext.options.create['title'];
-                this.evergreen = commandContext.options.create['evergreen'];
-                this.claimLimit = commandContext.options.create['claim-limit'];
+                if (commandContext.options.create['repeat'] !== undefined) {  // Backwards compatible with old evergreen and claim-limit options
+                    this.evergreen = true;
+                    if (commandContext.options.create['repeat'] == 1) {  // repeat of 1 is the same as NOT evergreen
+                        this.evergreen = false;
+                    } else if (commandContext.options.create['repeat'] !== 0) {    // 0 means NO claim limit
+                        this.claimLimit = commandContext.options.create['repeat'];
+                    }    
+                }
                 this.gate = commandContext.options.create['gate'];
                 this.assign = commandContext.options.create['assign-to'];
                 this.requireApplication = commandContext.options.create['require-application'];

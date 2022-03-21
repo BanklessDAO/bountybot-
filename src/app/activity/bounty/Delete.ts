@@ -46,7 +46,7 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
 
     if (getDbResult.dbBountyResult.evergreen && getDbResult.dbBountyResult.isParent &&
         getDbResult.dbBountyResult.childrenIds !== undefined && getDbResult.dbBountyResult.childrenIds.length > 0) {
-        creatorDeleteDM += 'Children bounties created from this evergreen bounty will remain.\n';
+        creatorDeleteDM += 'Children bounties created from this repeatable bounty will remain.\n';
     }
 
     await deletedByUser.send({ content: creatorDeleteDM });

@@ -94,19 +94,16 @@ const BountyUtils = {
 
     validateEvergreen(evergreen: boolean, claimLimit: number, gateOrAssign: boolean) {
         if (evergreen && gateOrAssign) {
-            throw new ValidationError('Cannot use gate or assign-to with evergreen bounties');
+            throw new ValidationError('Cannot use gate or assign-to with repeatable bounties');
         }
-        if (!evergreen && claimLimit !== undefined) {
-            throw new ValidationError('claim-limit is only used for evergreen bounties.');
-        }
-        if (claimLimit !== undefined && (claimLimit < 2 || claimLimit > 100)) {
-            throw new ValidationError('claim-limit should be from 2 to 100');
+        if (claimLimit !== undefined && (claimLimit < 0 || claimLimit > 100)) {
+            throw new ValidationError('repeat should be from 0 (meaning infinite) to 100');
         }
     },
 
     validateRequireApplications(request: CreateRequest) {
         if (request.evergreen && request.requireApplication) {
-            throw new ValidationError('Cannot require applications on evergreen bounties.');
+            throw new ValidationError('Cannot require applications on repeatable bounties.');
         }
 
         // TODO Allow requireApplications on gated bounties
@@ -236,7 +233,7 @@ const BountyUtils = {
     async createPublicTitle(bountyRecord: Bounty): Promise<string> {
         let title = bountyRecord.title;
         if (bountyRecord.evergreen && bountyRecord.isParent) {
-            if (bountyRecord.claimLimit !== undefined) {
+            if (bountyRecord.claimLimit > 1) {
                 const claimsAvailable = bountyRecord.claimLimit - (bountyRecord.childrenIds !== undefined ? bountyRecord.childrenIds.length : 0);
                 title += `\n(${claimsAvailable} claim${claimsAvailable !== 1 ? "s" : ""} available)`;
             } else {

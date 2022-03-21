@@ -49,9 +49,9 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     let creatorClaimDM = `Your bounty has been claimed by <@${claimedByUser.user.id}> <${bountyUrl}>`;
     if (getDbResult.dbBountyResult.evergreen) {
         if (getDbResult.dbBountyResult.status == BountyStatus.open) {
-            creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. <${origBountyUrl}>`;
+            creatorClaimDM += `\nSince you marked your original bounty as repeating, it will stay on the board as Open. <${origBountyUrl}>`;
         } else {
-            creatorClaimDM += `\nYour evergreen bounty has reached its claim limit and has been marked deleted. <${origBountyUrl}>`;
+            creatorClaimDM += `\nYour repeating bounty has reached its repeat limit and has been marked deleted. <${origBountyUrl}>`;
         }
     }
 
