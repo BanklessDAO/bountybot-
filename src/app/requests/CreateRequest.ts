@@ -46,8 +46,8 @@ export class CreateRequest extends Request {
                         this.claimLimit = commandContext.options.create['repeat'];
                     }    
                 }
-                this.gate = commandContext.options.create['gate'];
-                this.assign = commandContext.options.create['assign-to'];
+                this.gate = commandContext.options.create['for-role'];
+                this.assign = commandContext.options.create['for-user'];
                 this.requireApplication = commandContext.options.create['require-application'];
                 }
 

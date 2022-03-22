@@ -151,7 +151,7 @@ export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: 
 	if(bountyRecord.gate) {
 		try {
 			role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], guildID);
-            messageEmbedOptions.fields.push({ name: 'Gated to', value: role.name, inline: false })
+            messageEmbedOptions.fields.push({ name: 'For role', value: role.name, inline: false })
 		}
 		catch (error) {
 			LogUtils.logError(`Failed to fetch role for roleId ${bountyRecord.gate[0]}`, error, bountyRecord.customerId)

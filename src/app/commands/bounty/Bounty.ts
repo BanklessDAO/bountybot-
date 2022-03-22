@@ -59,13 +59,13 @@ export default class Bounty extends SlashCommand {
                             required: false,
                         },
                         {
-                            name: 'gate',
+                            name: 'for-role',
                             type: CommandOptionType.ROLE,
                             description: 'Select a role that will have permissions to claim this bounty',
                             required: false,
                         },
                         {
-                            name: 'assign-to',
+                            name: 'for-user',
                             type: CommandOptionType.USER,
                             description: 'Select a user that will have permissions to claim this bounty',
                             required: false,
@@ -160,7 +160,7 @@ export default class Bounty extends SlashCommand {
                             required: true,
                         },
                         {
-                            name: 'assign-to',
+                            name: 'for-user',
                             type: CommandOptionType.USER,
                             description: 'Assigned User',
                             required: true,

@@ -94,7 +94,7 @@ const BountyUtils = {
 
     validateEvergreen(evergreen: boolean, claimLimit: number, gateOrAssign: boolean) {
         if (evergreen && gateOrAssign) {
-            throw new ValidationError('Cannot use gate or assign-to with repeatable bounties');
+            throw new ValidationError('Cannot use for-role or for-user with repeatable bounties');
         }
         if (claimLimit !== undefined && (claimLimit < 0 || claimLimit > 100)) {
             throw new ValidationError('repeat should be from 0 (meaning infinite) to 100');
@@ -108,7 +108,7 @@ const BountyUtils = {
 
         // TODO Allow requireApplications on gated bounties
         if (request.requireApplication && (request.assign || request.gate)) {
-            throw new ValidationError('Cannot require applications on assigned or gated bounties.');
+            throw new ValidationError('Cannot require applications on bounties gated to users or roles.');
         }
     },
 
@@ -117,8 +117,8 @@ const BountyUtils = {
             await DiscordUtils.getRoleFromRoleId(gate, guildId);
         }
         catch (e) {
-            Log.info(`Gate ${gate} is not a Role`);
-            throw new ValidationError('Please gate this bounty to a role.');
+            Log.info(`${gate} is not a valid role on this server`);
+            throw new ValidationError('Please choose a valid role on this server.');
         }
     },
 
@@ -126,14 +126,14 @@ const BountyUtils = {
         if (applicants && !applicants.some(applicant => applicant.discordId == assign)) {
             let applicantList: string = '';
             applicants.forEach( applicant => { applicantList += `\n ${applicant.discordHandle}`});
-            throw new ValidationError(`Please assign this bounty to a user from the list of applicants: ${applicantList}`);
+            throw new ValidationError(`Please choose a user from the list of applicants: ${applicantList}`);
         }
         try {
             await DiscordUtils.getGuildMemberFromUserId(assign, guildId);
         }
         catch (e) {
             Log.info(`User ${assign} is not a user or was unable to be fetched`);
-            throw new ValidationError('Please assign this bounty to a user in this server.');
+            throw new ValidationError('Please choose a valid user on this server.');
         }
     },
 
@@ -241,10 +241,10 @@ const BountyUtils = {
             }
         }
         if (bountyRecord.assign) {
-            title += `\n(Assigned to ${bountyRecord.assignedName})`
+            title += `\n(For user ${bountyRecord.assignedName})`
         } else if (bountyRecord.gate) {
             const role: Role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
-            title += `\n(Gated to ${role.name})`;
+            title += `\n(For role ${role.name})`;
         } else if (bountyRecord.isIOU) {
             title += `\n(IOU owed to ${bountyRecord.owedTo.discordHandle})`;
         } else {    

@@ -80,7 +80,7 @@ const create = async (request: CreateRequest): Promise<void> => {
     if (request.gate && request.assign) {
         throw new ValidationError(
             `Thank you for giving bounties a try!\n` +
-            `Please select either assign-to or gate, but not both.`
+            `Please select either for-user or for-role, but not both.`
         );
     }
 
