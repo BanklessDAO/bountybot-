@@ -74,10 +74,16 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 	
 	let creatorCompleteDM = 
         `Thank you for reviewing <${bountyUrl}>\n` +
-		`This bounty is now completed.\n`;
+		`This bounty is now complete.\n`;
         
 	if (!getDbResult.dbBountyResult.paidStatus || getDbResult.dbBountyResult.paidStatus === PaidStatus.unpaid) {
 		creatorCompleteDM = creatorCompleteDM.concat(`Please remember to mark this bounty as paid (💰)and pay <@${submittedByUser.id}>`);
+	}
+	else {
+		creatorCompleteDM = creatorCompleteDM.concat(
+			`No further action is required for this bounty.\n` +
+			`You can search for this bounty at ${process.env.BOUNTY_BOARD_URL} or by running '/bounty list' and selecting completed by me`
+		);
 	}
     
     let submitterCompleteDM = `Your bounty has passed review and is now complete!\n<${bountyUrl}>\n`;

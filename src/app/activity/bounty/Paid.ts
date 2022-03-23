@@ -128,7 +128,12 @@ const writeDbHandler = async (request: PaidRequest, paidByUser: GuildMember): Pr
 	}
 	if (dbBountyResult.isIOU) {
 		writeObject.$set.addField({
-			status: BountyStatus.complete, 
+			status: BountyStatus.complete,
+			reviewedBy: {
+				discordHandle: paidByUser.user.tag,
+				discordId: paidByUser.user.id,
+				iconUrl: paidByUser.user.avatarURL(),
+			}
 		})
 		writeObject.$push = {
 			statusHistory: {

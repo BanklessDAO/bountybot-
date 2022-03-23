@@ -109,13 +109,13 @@ const paid = async (request: PaidRequest): Promise<void> => {
         );
     }
 
-    const iouStatus = dbBountyResult.status && 
+    const iouNotPayable = dbBountyResult.status && 
         dbBountyResult.status !== BountyStatus.open && 
         dbBountyResult.isIOU;
-    const bountyStatus = dbBountyResult.status && 
+    const bountyNotPayable = dbBountyResult.status && 
         ['Draft', 'Open', 'Deleted'].includes(dbBountyResult.status) &&
         !dbBountyResult.isIOU;
-    if (dbBountyResult.status && (iouStatus || bountyStatus)) {
+    if (dbBountyResult.status && (iouNotPayable || bountyNotPayable)) {
         throw new ValidationError(
             `The bounty you have selected is in status ${dbBountyResult.status}\n` +
             `Currently, only bounties that are in status ${BountyStatus.in_progress}, ${BountyStatus.in_review}, or ${BountyStatus.complete} can be mark paid.\n` +

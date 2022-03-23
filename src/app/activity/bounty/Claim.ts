@@ -48,7 +48,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
     let creatorClaimDM = 
     `Your bounty has been claimed by <@${claimedByUser.user.id}> <${bountyUrl}>\n` +
-    `You are free to complete this bounty or to mark it as paid at any time.\n` +
+    `You are free to complete this bounty and/or to mark it as paid at any time.\n` +
     `Marking a bounty as complete and/or paid may help you with accounting or project status tasks later on.`;
     if (getDbResult.dbBountyResult.evergreen) {
         if (getDbResult.dbBountyResult.status == BountyStatus.open) {
