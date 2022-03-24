@@ -109,7 +109,7 @@ const publish = async (request: PublishRequest): Promise<void> => {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
-            `The creator of this bounty gated it to specific role holders. Check the "gated to" value of the bounty to see which role you would need to claim it.`
+            `The creator of this bounty gated it to specific role holders. Check the "for-role" value of the bounty to see which role you would need to claim it.`
         );
     }
 

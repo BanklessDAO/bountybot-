@@ -23,7 +23,7 @@ export class AssignRequest extends Request {
             super(args.commandContext.subcommands[0], args.commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.commandContext = args.commandContext;
             this.bountyId = args.commandContext.options.assign['bounty-id'];
-            this.assign = args.commandContext.options.assign['assign-to'];
+            this.assign = args.commandContext.options.assign['for-user'];
 
         } else {
             // TODO add flow to assign though message reaction

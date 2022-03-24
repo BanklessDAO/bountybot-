@@ -52,9 +52,9 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     `Marking a bounty as complete and/or paid may help you with accounting or project status tasks later on.`;
     if (getDbResult.dbBountyResult.evergreen) {
         if (getDbResult.dbBountyResult.status == BountyStatus.open) {
-            creatorClaimDM += `\nSince you marked your original bounty as evergreen, it will stay on the board as Open. <${origBountyUrl}>`;
+            creatorClaimDM += `\nSince you marked your original bounty as multi-claimant, it will stay on the board as Open. <${origBountyUrl}>`;
         } else {
-            creatorClaimDM += `\nYour evergreen bounty has reached its claim limit and has been marked deleted. <${origBountyUrl}>`;
+            creatorClaimDM += `\nYour multi-claimant bounty has reached its claim limit and has been marked deleted. <${origBountyUrl}>`;
         }
     }
 

@@ -80,7 +80,7 @@ const create = async (request: CreateRequest): Promise<void> => {
     if (request.gate && request.assign) {
         throw new ValidationError(
             `Thank you for giving bounties a try!\n` +
-            `Please select either assign-to or gate, but not both.`
+            `Please select either for-user or for-role, but not both.`
         );
     }
 
@@ -259,7 +259,7 @@ const claim = async (request: ClaimRequest): Promise<void> => {
     if (request.clientSyncRequest && dbBountyResult.evergreen) {
         throw new ValidationError(
             `🚧 🚧 🚧 \n` + 
-            `Reflecting claims for an evergreen bounty in the front end is in development.` +
+            `Reflecting claims for a multi-claimant bounty in the front end is in development.` +
             `Please reach out to your favorite Bounty Board representative with any questions!` +
             `🚧 🚧 🚧 \n`
             );

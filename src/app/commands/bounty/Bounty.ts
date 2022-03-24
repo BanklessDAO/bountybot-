@@ -53,25 +53,19 @@ export default class Bounty extends SlashCommand {
                             required: true,
                         },
                         {
-                            name: 'evergreen',
-                            type: CommandOptionType.BOOLEAN,
-                            description: 'Make this bounty repeatedly claimable (true/false)',
-                            required: false,
-                        },
-                        {
-                            name: 'claim-limit',
+                            name: 'claimants',
                             type: CommandOptionType.INTEGER,
-                            description: 'Maximum number of claimants for an evergreen bounty (2 to 100)',
+                            description: 'Maximum number of claimants for this bounty (0 to 100, 0 means infinite)',
                             required: false,
                         },
                         {
-                            name: 'gate',
+                            name: 'for-role',
                             type: CommandOptionType.ROLE,
                             description: 'Select a role that will have permissions to claim this bounty',
                             required: false,
                         },
                         {
-                            name: 'assign-to',
+                            name: 'for-user',
                             type: CommandOptionType.USER,
                             description: 'Select a user that will have permissions to claim this bounty',
                             required: false,
@@ -79,7 +73,7 @@ export default class Bounty extends SlashCommand {
                         {
                             name: 'require-application',
                             type: CommandOptionType.BOOLEAN,
-                            description: 'Require users to apply before claiming',
+                            description: 'Require users to apply for a bounty. You choose who gets it.',
                             required: false,
                         }
                     ],
@@ -166,7 +160,7 @@ export default class Bounty extends SlashCommand {
                             required: true,
                         },
                         {
-                            name: 'assign-to',
+                            name: 'for-user',
                             type: CommandOptionType.USER,
                             description: 'Assigned User',
                             required: true,
