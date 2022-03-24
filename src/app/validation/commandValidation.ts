@@ -253,7 +253,7 @@ const claim = async (request: ClaimRequest): Promise<void> => {
     if (request.clientSyncRequest && dbBountyResult.evergreen) {
         throw new ValidationError(
             `🚧 🚧 🚧 \n` + 
-            `Reflecting claims for a repeatable bounty in the front end is in development.` +
+            `Reflecting claims for a multi-claimant bounty in the front end is in development.` +
             `Please reach out to your favorite Bounty Board representative with any questions!` +
             `🚧 🚧 🚧 \n`
             );

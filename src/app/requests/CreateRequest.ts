@@ -38,12 +38,12 @@ export class CreateRequest extends Request {
                 this.isIOU = isIOU;
             } else {
                 this.title = commandContext.options.create['title'];
-                if (commandContext.options.create['repeat'] !== undefined) {  // Backwards compatible with old evergreen and claim-limit options
+                if (commandContext.options.create['claimants'] !== undefined) {  // Backwards compatible with old evergreen and claim-limit options
                     this.evergreen = true;
-                    if (commandContext.options.create['repeat'] == 1) {  // repeat of 1 is the same as NOT evergreen
+                    if (commandContext.options.create['claimants'] == 1) {  // 1 claimant is the same as NOT evergreen
                         this.evergreen = false;
-                    } else if (commandContext.options.create['repeat'] !== 0) {    // 0 means NO claim limit
-                        this.claimLimit = commandContext.options.create['repeat'];
+                    } else if (commandContext.options.create['claimants'] !== 0) {    // 0 means NO claim limit
+                        this.claimLimit = commandContext.options.create['claimants'];
                     }    
                 }
                 this.gate = commandContext.options.create['for-role'];

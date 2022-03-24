@@ -94,16 +94,16 @@ const BountyUtils = {
 
     validateEvergreen(evergreen: boolean, claimLimit: number, gateOrAssign: boolean) {
         if (evergreen && gateOrAssign) {
-            throw new ValidationError('Cannot use for-role or for-user with repeatable bounties');
+            throw new ValidationError('Cannot use for-role or for-user with multiple-claimant bounties');
         }
         if (claimLimit !== undefined && (claimLimit < 0 || claimLimit > 100)) {
-            throw new ValidationError('repeat should be from 0 (meaning infinite) to 100');
+            throw new ValidationError('claimants should be from 0 (meaning infinite) to 100');
         }
     },
 
     validateRequireApplications(request: CreateRequest) {
         if (request.evergreen && request.requireApplication) {
-            throw new ValidationError('Cannot require applications on repeatable bounties.');
+            throw new ValidationError('Cannot require applications on multi-claimant bounties.');
         }
 
         // TODO Allow requireApplications on gated bounties

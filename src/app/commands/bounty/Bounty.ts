@@ -53,7 +53,7 @@ export default class Bounty extends SlashCommand {
                             required: true,
                         },
                         {
-                            name: 'repeat',
+                            name: 'claimants',
                             type: CommandOptionType.INTEGER,
                             description: 'Maximum number of claimants for this bounty (0 to 100, 0 means infinite)',
                             required: false,
@@ -73,7 +73,7 @@ export default class Bounty extends SlashCommand {
                         {
                             name: 'require-application',
                             type: CommandOptionType.BOOLEAN,
-                            description: 'Require users to apply before claiming',
+                            description: 'Require users to apply for a bounty. You choose who gets it.',
                             required: false,
                         }
                     ],
