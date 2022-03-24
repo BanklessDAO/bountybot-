@@ -72,15 +72,24 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
     
     await completeBountyMessage(getDbResult.dbBountyResult, completorMessage, submitterMessage, completedByUser, submittedByUser);
 	
-	const creatorCompleteDM = 
+	let creatorCompleteDM = 
         `Thank you for reviewing <${bountyUrl}>\n` +
-        `Please remember to tip <@${submittedByUser.id}>`;
-
+		`This bounty is now complete.\n`;
+        
+	if (!getDbResult.dbBountyResult.paidStatus || getDbResult.dbBountyResult.paidStatus === PaidStatus.unpaid) {
+		creatorCompleteDM = creatorCompleteDM.concat(`Please remember to mark this bounty as paid (💰)and pay <@${submittedByUser.id}>`);
+	}
+	else {
+		creatorCompleteDM = creatorCompleteDM.concat(
+			`No further action is required for this bounty.\n` +
+			`You can search for this bounty at ${process.env.BOUNTY_BOARD_URL} or by running '/bounty list' and selecting completed by me`
+		);
+	}
     
-    const submitterCompleteDM = 
-        `Your bounty has passed review and is now complete!\n<${bountyUrl}>\n` +
-        `<@${completedByUser.id}> should be tipping you with ${getDbResult.dbBountyResult.reward.amount} ${getDbResult.dbBountyResult.reward.currency} soon`;
-	
+    let submitterCompleteDM = `Your bounty has passed review and is now complete!\n<${bountyUrl}>\n`;
+	if (!getDbResult.dbBountyResult.paidStatus || getDbResult.dbBountyResult.paidStatus === PaidStatus.unpaid) {
+		submitterCompleteDM = submitterCompleteDM.concat(`<@${completedByUser.id}> should be paying you with ${getDbResult.dbBountyResult.reward.amount} ${getDbResult.dbBountyResult.reward.currency} soon.`);
+	}
     
     await completedByUser.send({ content: creatorCompleteDM });
     await submittedByUser.send({ content: submitterCompleteDM });
@@ -170,18 +179,26 @@ export const completeBountyMessage = async (completedBounty: BountyCollection, c
 	embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.complete;
 	embedMessage.setColor('#01d212');
 	embedMessage.addField('Completed by', completedByUser.user.tag, true);
-	embedMessage.setFooter({text: ''});
+	let completorReactionFooterText = '';
+	if (!completedBounty.paidStatus || completedBounty.paidStatus === PaidStatus.unpaid) {
+		completorReactionFooterText = completorReactionFooterText.concat('💰 - mark as paid')
+	}
+	
+	embedMessage.setFooter({text: completorReactionFooterText});
 
 	const submittedMessage: Message = await submittedByUser.send({ embeds: [embedMessage] });
-	await addCompleteReactions(submittedMessage);
+	await submittedMessage.react('🔥');
 	const completedMessage: Message = await completedByUser.send({ embeds: [embedMessage] });
-	await addCompleteReactions(completedMessage);
+	await addCompleteReactions(completedMessage, completedBounty);
 
 	await updateMessageStore(completedBounty, submittedMessage, completedMessage);
 };
 
-export const addCompleteReactions = async (message: Message): Promise<any> => {
+export const addCompleteReactions = async (message: Message, bounty: BountyCollection): Promise<any> => {
 	await message.react('🔥');
+	if (!bounty.paidStatus || bounty.paidStatus === PaidStatus.unpaid) {
+		await message.react('💰');
+	}
 };
 
 // Save where we sent the Bounty message embeds for future updates

@@ -80,7 +80,7 @@ const create = async (request: CreateRequest): Promise<void> => {
     if (request.gate && request.assign) {
         throw new ValidationError(
             `Thank you for giving bounties a try!\n` +
-            `Please select either assign-to or gate, but not both.`
+            `Please select either for-user or for-role, but not both.`
         );
     }
 
@@ -101,19 +101,25 @@ const paid = async (request: PaidRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        isIOU: true,
     });
 
     if (!dbBountyResult) {
         throw new ValidationError(
-            `Please select a valid IOU id to mark paid. `
+            `Please select a valid bounty to mark paid. `
         );
     }
 
-    if (dbBountyResult.status && dbBountyResult.status !== BountyStatus.open) {
+    const iouNotPayable = dbBountyResult.status && 
+        dbBountyResult.status !== BountyStatus.open && 
+        dbBountyResult.isIOU;
+    const bountyNotPayable = dbBountyResult.status && 
+        ['Draft', 'Open', 'Deleted'].includes(dbBountyResult.status) &&
+        !dbBountyResult.isIOU;
+    if (dbBountyResult.status && (iouNotPayable || bountyNotPayable)) {
         throw new ValidationError(
-            `The IOU id you have selected is in status ${dbBountyResult.status}\n` +
-            `Currently, only IOUs with status ${BountyStatus.open} can be mark paid.\n` +
+            `The bounty you have selected is in status ${dbBountyResult.status}\n` +
+            `Currently, only bounties that are in status ${BountyStatus.in_progress}, ${BountyStatus.in_review}, or ${BountyStatus.complete} can be mark paid.\n` +
+            `IOUs in status ${BountyStatus.open} may be marked as paid\n` +
             `Please reach out to your favorite Bounty Board representative with any questions!`
             );
     }
@@ -253,7 +259,7 @@ const claim = async (request: ClaimRequest): Promise<void> => {
     if (request.clientSyncRequest && dbBountyResult.evergreen) {
         throw new ValidationError(
             `🚧 🚧 🚧 \n` + 
-            `Reflecting claims for an evergreen bounty in the front end is in development.` +
+            `Reflecting claims for a multi-claimant bounty in the front end is in development.` +
             `Please reach out to your favorite Bounty Board representative with any questions!` +
             `🚧 🚧 🚧 \n`
             );

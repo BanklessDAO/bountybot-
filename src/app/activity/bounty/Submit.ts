@@ -9,6 +9,7 @@ import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import RuntimeError from '../../errors/RuntimeError';
 import { BountyStatus } from '../../constants/bountyStatus';
 import { BountyEmbedFields } from '../../constants/embeds';
+import { PaidStatus } from '../../constants/paidStatus';
 
 
 export const submitBounty = async (request: SubmitRequest): Promise<void> => {
@@ -164,10 +165,18 @@ export const submitBountyMessage = async (submittedBounty: BountyCollection, sub
 	const claimantMessage: Message = await submittedByUser.send({ embeds: [embedMessage] });
 	await claimantMessage.react('🆘');
 
-	embedMessage.setFooter({text: '✅ - complete'});
+	let creatorReactionFooterText = '✅ - complete';
+	if (!submittedBounty.paidStatus || submittedBounty.paidStatus === PaidStatus.unpaid) {
+		creatorReactionFooterText = creatorReactionFooterText.concat(' | 💰 - mark as paid')
+	}
+
+	embedMessage.setFooter({text: creatorReactionFooterText});
 	const creatorMessage: Message = await createdByUser.send({ embeds: [embedMessage] });
 	await creatorMessage.react('✅');
-
+	if (!submittedBounty.paidStatus || submittedBounty.paidStatus === PaidStatus.unpaid) {
+		await creatorMessage.react('💰');
+	}
+	
 
 	await updateMessageStore(submittedBounty, claimantMessage, creatorMessage);
 

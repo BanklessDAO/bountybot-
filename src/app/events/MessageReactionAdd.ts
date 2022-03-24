@@ -93,7 +93,7 @@ export default class implements DiscordEvent {
                 clientSyncRequest: null,
             });
         } else if (reaction.emoji.name === '💰') {
-            Log.info(`${user.tag} attempting to pay an IOU ${bountyId} from the bounty board`);
+            Log.info(`${user.tag} attempting to mark a bounty as paid ${bountyId} from the bounty board`);
             request = new PaidRequest({
                 commandContext: null,
                 messageReactionRequest: {
