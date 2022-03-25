@@ -63,7 +63,7 @@ const create = async (request: CreateRequest): Promise<void> => {
 
     BountyUtils.validateReward(request.reward);
 
-    BountyUtils.validateEvergreen(request.evergreen, request.claimLimit, !!(request.assign || request.gate));
+    BountyUtils.validateEvergreen(request.evergreen, request.claimLimit, !!request.assign);
 
     BountyUtils.validateRequireApplications(request);
 
