@@ -20,6 +20,7 @@ export interface BountyCollection extends Collection {
 	paidStatus: string,
 	statusHistory: Status[],
 	discordMessageId: string,
+	canonicalCard: MessageInfo,
 	creatorMessage: MessageInfo,
 	claimantMessage: MessageInfo,
 	customerId: string,

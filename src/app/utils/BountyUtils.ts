@@ -1,12 +1,17 @@
 import ValidationError from '../errors/ValidationError';
 import Log, { LogUtils } from './Log';
-import { Role } from 'discord.js';
+import { Role, Message, MessageOptions, TextChannel } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
 import { URL } from 'url';
 import { BountyCollection } from '../types/bounty/BountyCollection';
 import { Applicant, Bounty } from '../types/bounty/Bounty';
 import { BountyStatus } from '../constants/bountyStatus';
+import { PaidStatus } from '../constants/paidStatus';
 import { CreateRequest } from '../requests/CreateRequest';
+import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
+import MongoDbUtils  from '../utils/MongoDbUtils';
+
+
 const BountyUtils = {
     TWENTYFOUR_HOURS_IN_SECONDS: 24*60*60,
 
@@ -262,7 +267,146 @@ const BountyUtils = {
         }
         return title;
     
-    }
+    },
+
+    async canonicalCard(bountyId: string): Promise<Message> {
+        Log.debug(`Creating/updating canonical card`);
+
+        // Get the updated bounty
+        const db: Db = await MongoDbUtils.connect('bountyboard');
+        const bountyCollection = db.collection('bounties');
+        const bounty: BountyCollection = await bountyCollection.findOne({
+            _id: new mongo.ObjectId(bountyId)
+        });
+
+        // Build the fields, reactions, and footer based on status
+        const fields = [
+            { name: 'Bounty Id', value: bounty._id.toString(), inline: false },
+            { name: 'Criteria', value: bounty.criteria.toString() },
+            { name: 'Reward', value: bounty.reward.amount + ' ' + bounty.reward.currency, inline: true },
+            { name: 'Status', value: BountyStatus.open, inline: true },
+            { name: 'Deadline', value: BountyUtils.formatDisplayDate(bounty.dueAt), inline: true },
+            { name: 'Created by', value: bounty.createdBy.discordHandle.toString(), inline: true }
+        ];
+        if (bounty.gate) {
+            const role = await DiscordUtils.getRoleFromRoleId(bounty.gate[0], bounty.customerId);
+            fields.push({ name: 'For role', value: role.name, inline: false })
+        }
+        if (bounty.assign) {
+            const assignedUser = await DiscordUtils.getGuildMemberFromUserId(bounty.assign, bounty.customerId);
+            fields.push({ name: 'For user', value: assignedUser.user.tag, inline: false })
+        }
+    
+        let footer = {};
+        let reacts = [];
+        let color = undefined;
+
+        switch (bounty.status) {
+            case BountyStatus.draft:
+                footer = { text: '👍 - publish | ❌ - delete | Please reply within 60 minutes', };
+                reacts.push('👍');
+                reacts.push('❌');
+                break;
+            case BountyStatus.open:
+                if (bounty.requireApplication && (!!bounty.assign)) {
+                    footer = { text: '🙋 - apply | ❌ - delete', };
+                    reacts.push('🙋');
+                } else {
+                    footer = { text: '🏴 - claim | ❌ - delete', };
+                    reacts.push('🏴');
+                }
+                reacts.push('❌');
+                break;
+            case BountyStatus.in_progress:
+                color = '#d39e00';
+                footer = { text: '📮 - submit | ✅ - mark complete | 💰 - mark paid | 🆘 - help', };
+                reacts.push('📮');
+                reacts.push('✅');
+                reacts.push('💰');
+                reacts.push('🆘');
+                fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                break;
+            case BountyStatus.in_review:
+                color = '#d39e00';
+                reacts.push('✅');
+                if (!bounty.paidStatus || bounty.paidStatus === PaidStatus.unpaid) {
+                    footer = { text: '✅ - mark complete | 💰 - mark paid | 🆘 - help', };
+                    reacts.push('💰');
+                } else {
+                    footer = { text: '✅ - mark complete | 🆘 - help', };
+                }
+                reacts.push('🆘');
+                fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                break;
+            case BountyStatus.complete:
+                color = '#01d212';
+                reacts.push('🔥');
+                if (!bounty.paidStatus || bounty.paidStatus === PaidStatus.unpaid) {
+                    footer = { text: '💰 - mark paid', };
+                    reacts.push('💰');
+                }
+                fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                fields.push({ name: 'Reviewed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                break;
+        }
+
+        let cardEmbeds: MessageOptions = {
+            embeds: [{
+                title: await BountyUtils.createPublicTitle(bounty),
+                url: (process.env.BOUNTY_BOARD_URL + bounty._id),
+                author: {
+                    icon_url: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.avatarURL(),
+                    name: `${bounty.createdBy.discordHandle}: ${bounty.customerId}`,
+                },
+                description: bounty.description,
+                fields: fields,
+                timestamp: new Date().getTime(),
+                footer: footer,
+                color: color,
+            }],
+        };
+
+
+        // Update existing card if it exists, otherwise create it
+        let bountyChannel: TextChannel;
+        let cardMessage: Message;
+        if (bounty.canonicalCard) {
+            bountyChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
+            cardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel);
+            await cardMessage.edit(cardEmbeds);
+        } else {
+            //TO DO get channel from where Bounty was created. Default is customer bounty channel
+            bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
+            cardMessage = await bountyChannel.send(cardEmbeds);
+        }
+        cardMessage.reactions.removeAll();
+        reacts.forEach(react => {
+            cardMessage.react(react);
+        });
+
+
+        // TO DO Delete old cards if they exist. Notify user of new card location with link
+         
+        // Store the card location in the bounty, remove the old cards
+        const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(bounty._id) }, {
+            $unset: {
+                claimantMessage: "",
+                creatorMessage: "",
+                discordMessageId: "",
+            },
+            $set: { canonicalCard: {
+                        messageId: cardMessage.id,
+                        channelId: bountyChannel.id,
+                    },
+            },
+        });
+    
+
+        return cardMessage;
+    
+    },
 }
 
 export default BountyUtils;

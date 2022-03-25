@@ -1,10 +1,15 @@
-import { GuildMember, Role, Guild, DMChannel, AwaitMessagesOptions, Message, Collection, Snowflake } from 'discord.js';
+import { GuildMember, Role, Guild, DMChannel, AwaitMessagesOptions, Message, Collection, Snowflake, TextChannel } from 'discord.js';
 import client from '../app';
-import { CommandContext } from 'slash-create';
+import { LogUtils } from './Log';
 import ValidationError from '../errors/ValidationError';
 import { BountyEmbedFields } from '../constants/embeds';
-import Log from './Log';
 import RuntimeError from '../errors/RuntimeError';
+import MongoDbUtils  from '../utils/MongoDbUtils';
+import { Db } from 'mongodb';
+import { CustomerCollection } from '../types/bounty/CustomerCollection';
+
+
+
 
 const DiscordUtils = {
     async getGuildMemberFromUserId(userId: string, guildId: string): Promise<GuildMember> {
@@ -38,6 +43,38 @@ const DiscordUtils = {
             guild: guild,
             guildMember: await guild.members.fetch(userId),
         };
+    },
+
+    async getTextChannelfromChannelId(channelId: string): Promise<TextChannel> {
+        const channel: TextChannel = await client.channels.fetch(channelId).catch(e => {
+            LogUtils.logError(`Could not find channel ${channelId}`, e);
+            throw new RuntimeError(e);
+         }) as TextChannel;
+        return channel;
+    },
+
+    async getMessagefromMessageId(messageId: string, channel: TextChannel): Promise<Message> {
+        const message = await channel.messages.fetch(messageId).catch(e => {
+            LogUtils.logError(`Could not find message ${messageId} in channel ${channel.id} in guild ${channel.guildId}`, e);
+            throw new RuntimeError(e);
+        }) as Message;
+        return message;
+    },
+
+    async getBountyChannelfromCustomerId(customerId: string): Promise<TextChannel> {
+        const db: Db = await MongoDbUtils.connect('bountyboard');
+        const customerCollection = db.collection('customers');
+    
+        const dbCustomerResult: CustomerCollection = await customerCollection.findOne({
+            customerId: customerId,
+        });
+    
+        const channel: TextChannel = await client.channels.fetch(dbCustomerResult.bountyChannel).catch(e => {
+            LogUtils.logError(`Could not find bounty channel ${dbCustomerResult.bountyChannel} in customer ${customerId}`, e);
+            throw new RuntimeError(e);
+        }) as TextChannel;
+        return channel;
+    
     },
 
     // TODO: graceful timeout handling needed
