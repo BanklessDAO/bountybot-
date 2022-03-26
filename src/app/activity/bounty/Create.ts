@@ -19,10 +19,14 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
     const guildMember: GuildMember = guildAndMember.guildMember;
     const guildId: string = guildAndMember.guild.id;
+    const commandChannel = DiscordUtils.getTextChannelfromChannelId(createRequest.commandContext.channelID);
 
     let newBounty: Bounty;
 
     if (!createRequest.isIOU) {
+
+        const gotoDMMessage = 'Go to your DMs to finish creating the bounty...';
+        await createRequest.commandContext.sendFollowUp({ content: gotoDMMessage}, {ephemeral: true});
 
         const createInfoMessage = `Hello <@${guildMember.id}>!\n` +
             `Please respond to the following questions within 5 minutes.\n` +
@@ -105,8 +109,6 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
 
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
 
-    let bountyCard: MessageOptions;
-
     if (createRequest.isIOU) {
         let bountyCard: MessageOptions = {
             embeds: [{
@@ -131,57 +133,24 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
         const message: Message = await guildMember.send(bountyCard);
         await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created. Go to your DMs to see it." } , { ephemeral: true });
 
-        await updateMessageStore(newBounty, message);
+        // TO DO fix: await updateMessageStore(newBounty, message);
     
         await message.react('💰');
         return await message.react('❌');
     
     } else {
 
-        let bountyPreview: MessageOptions = {
-            embeds: [{
-                title: await BountyUtils.createPublicTitle(newBounty),
-                url: (process.env.BOUNTY_BOARD_URL + newBounty._id),
-                author: {
-                    icon_url: guildMember.user.avatarURL(),
-                    name: `${newBounty.createdBy.discordHandle}: ${guildId}`,
-                },
-                description: newBounty.description,
-                fields: [
-                    // TODO: figure out a way to explicitly match order with BountyEmbedFields
-                    // static bountyId = 0;
-                    // static criteria = 1;
-                    // static reward = 2;
-                    // static status = 3;
-                    // static deadline = 4;
-                    // static createdBy = 5;
-                    { name: 'Bounty Id', value: newBounty._id.toString(), inline: false },
-                    { name: 'Criteria', value: newBounty.criteria.toString() },
-                    { name: 'Reward', value: newBounty.reward.amount + ' ' + newBounty.reward.currency, inline: true },
-                    { name: 'Status', value: BountyStatus.open, inline: true },
-                    { name: 'Deadline', value: BountyUtils.formatDisplayDate(newBounty.dueAt), inline: true },
-                    { name: 'Created by', value: newBounty.createdBy.discordHandle.toString(), inline: true },
-                ],
-                timestamp: new Date().getTime(),
-                footer: {
-                    text: '👍 - publish | ❌ - delete | Please reply within 60 minutes',
-                },
-            }],
-        };
-
         const publishOrDeleteMessage = 
             'Thank you! If it looks good, please hit 👍 to publish the bounty.\n' +
             'Once the bounty has been published, others can view and claim the bounty.\n' +
             'If you are not happy with the bounty, hit ❌ to delete it and start over.\n'
         await guildMember.send(publishOrDeleteMessage);
-        const message: Message = await guildMember.send(bountyPreview);
+        await BountyUtils.canonicalCard(newBounty._id);
 
-        await updateMessageStore(newBounty, message);
-
-        await message.react('👍');
-        return await message.react('❌');
+        return;
     }
 }
+
 const createDbHandler = async (
     createRequest: CreateRequest,
     description: string,
@@ -302,22 +271,3 @@ export const generateBountyRecord = (
     return bountyRecord;
 };
 
-// Save where we sent the Bounty message embeds for future updates
-export const updateMessageStore = async (bounty: Bounty, message: Message): Promise<any> => {
-    const db: Db = await MongoDbUtils.connect('bountyboard');
-    const bountyCollection = db.collection('bounties');
-    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(bounty, {
-        $set: {
-            creatorMessage: {
-                messageId: message.id,
-                channelId: message.channel.id,
-            },
-        },
-    });
-
-    if (writeResult.result.ok !== 1) {
-        Log.error('failed to update created bounty with message Id');
-        throw new Error(`Write to database for bounty ${bounty._id} failed. `);
-    }
-
-};

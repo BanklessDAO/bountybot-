@@ -284,7 +284,7 @@ const BountyUtils = {
             { name: 'Bounty Id', value: bounty._id.toString(), inline: false },
             { name: 'Criteria', value: bounty.criteria.toString() },
             { name: 'Reward', value: bounty.reward.amount + ' ' + bounty.reward.currency, inline: true },
-            { name: 'Status', value: BountyStatus.open, inline: true },
+            { name: 'Status', value: bounty.status, inline: true },
             { name: 'Deadline', value: BountyUtils.formatDisplayDate(bounty.dueAt), inline: true },
             { name: 'Created by', value: bounty.createdBy.discordHandle.toString(), inline: true }
         ];
@@ -352,13 +352,14 @@ const BountyUtils = {
                 break;
         }
 
+        const isDraftBounty = (bounty.status == BountyStatus.draft)
         let cardEmbeds: MessageOptions = {
             embeds: [{
                 title: await BountyUtils.createPublicTitle(bounty),
                 url: (process.env.BOUNTY_BOARD_URL + bounty._id),
                 author: {
                     icon_url: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.avatarURL(),
-                    name: `${bounty.createdBy.discordHandle}: ${bounty.customerId}`,
+                    name: `${bounty.createdBy.discordHandle}` + (isDraftBounty ? `: ${bounty.customerId}`: ``),
                 },
                 description: bounty.description,
                 fields: fields,
@@ -377,11 +378,15 @@ const BountyUtils = {
             cardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel);
             await cardMessage.edit(cardEmbeds);
         } else {
-            //TO DO get channel from where Bounty was created. Default is customer bounty channel
-            bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
-            cardMessage = await bountyChannel.send(cardEmbeds);
+            if (isDraftBounty) {  // Drafts are in DMs
+                cardMessage = await ( await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).send(cardEmbeds);
+            } else {
+                //TO DO get channel from where Bounty was created. Default is customer bounty channel
+                bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
+                cardMessage = await bountyChannel.send(cardEmbeds);
+            }
         }
-        cardMessage.reactions.removeAll();
+        if (!isDraftBounty) cardMessage.reactions.removeAll();
         reacts.forEach(react => {
             cardMessage.react(react);
         });
@@ -390,18 +395,20 @@ const BountyUtils = {
         // TO DO Delete old cards if they exist. Notify user of new card location with link
          
         // Store the card location in the bounty, remove the old cards
-        const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(bounty._id) }, {
-            $unset: {
-                claimantMessage: "",
-                creatorMessage: "",
-                discordMessageId: "",
-            },
-            $set: { canonicalCard: {
-                        messageId: cardMessage.id,
-                        channelId: bountyChannel.id,
-                    },
-            },
-        });
+        if (!isDraftBounty) { // Drafts are in DMs
+            const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(bounty._id) }, {
+                $unset: {
+                    claimantMessage: "",
+                    creatorMessage: "",
+                    discordMessageId: "",
+                },
+                $set: { canonicalCard: {
+                            messageId: cardMessage.id,
+                            channelId: bountyChannel.id,
+                        },
+                },
+            });
+        }
     
 
         return cardMessage;

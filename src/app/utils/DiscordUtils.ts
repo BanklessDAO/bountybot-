@@ -105,6 +105,23 @@ const DiscordUtils = {
 		return messageText;
 	},
 
+    // TODO: graceful timeout handling needed
+    async awaitUser(channel: TextChannel, replyOptions: AwaitMessagesOptions): Promise<Message> {
+        let messages: Collection<Snowflake, Message> = null;
+        try {
+            messages = await channel.awaitMessages(replyOptions);
+            // TODO: this is too broad
+            } catch (e) {
+                throw new ValidationError(
+                    'You have timed out!\n' +
+                    'You can run `/bounty create` to create a new bounty. Please respond to my questions within 5 minutes.\n' +
+                    'Please reach out to your favorite Bounty Board representative with any questions.\n'
+                );
+        }
+         return messages.first();
+    },
+    
+
     async hasAllowListedRole(userId: string, guildId: string, roles: string[]): Promise<boolean> {
 		return await DiscordUtils.hasSomeRole(userId, guildId, roles);
 	},
