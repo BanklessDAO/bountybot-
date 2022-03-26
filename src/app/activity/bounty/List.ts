@@ -10,7 +10,7 @@ import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
 import { PaidStatus } from '../../constants/paidStatus';
 
-const DB_RECORD_LIMIT = 7;
+const DB_RECORD_LIMIT = 25;
 
 export const listBounty = async (request: ListRequest): Promise<any> => {
 	Log.debug('In List activity');
@@ -41,36 +41,12 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 
 	switch (listType) { 
 	case 'CREATED_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, isIOU: { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, isIOU: { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
 		listTitle = "Bounties created by me";
 		break;
 	case 'CLAIMED_BY_ME':
-		dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
 		listTitle = "Bounties claimed by me";
-		break;
-    case 'CLAIMED_BY_ME_AND_COMPLETE':
-        dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: 'Completed', 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
-		listTitle = "Bounties claimed by me and complete";
-        break;
-	case 'DRAFTED_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: 'Draft', 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
-		listTitle = "Bounties drafted by me";
-		break;
-	case 'OPEN':
-		dbRecords = bountyCollection.find({ status: BountyStatus.open, isIOU: { $ne: true }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
-		listTitle = "Open bounties";
-		break;
-	case 'IN_PROGRESS':
-		dbRecords = bountyCollection.find({ status: BountyStatus.in_progress, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
-		listTitle = "In progress bounties";
-		break;
-	case 'PAID_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.complete, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
-		IOUList = true;
-		break;
-	case 'UNPAID_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.open, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
-		IOUList = true;
 		break;
 	default: 
 		dbRecords = bountyCollection.find({ $or: [ { status: BountyStatus.open } , { status: BountyStatus.in_progress } ], isIOU: { $ne: true }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
@@ -79,14 +55,11 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 	if (!(await dbRecords.hasNext())) {
 		return await listUser.send({ content: 'We couldn\'t find any bounties!' });
 	}
-	return await sendMultipleMessages(listUser, dbRecords, request.guildId, channel, IOUList, listTitle);
-};
 
-const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, guildId: string, listChannel: TextChannel, IOUList: boolean, listTitle: string): Promise<any> => {
 	if (IOUList) {
 		while (await dbRecords.hasNext()) {
 			const record: BountyCollection = await dbRecords.next();
-			const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.paidStatus, guildId);
+			const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.paidStatus, request.guildId);
 			if (record.paidStatus == PaidStatus.unpaid) {
 				messageOptions.footer = {
 					text: '💰 - paid | ❌ - delete ',
@@ -123,16 +96,27 @@ const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, gu
 			}
 			console.log(JSON.stringify(listOfBounties));
 			console.log(listString);
-			listOfBounties.fields.push({name: '|', value: listString, inline: false});
+			listOfBounties.fields.push({name: '.', value: listString, inline: false});
 		}
 		const currentDate = new Date();
 		const currentDateString = currentDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
 		const currentTimeString = currentDate.toLocaleTimeString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short'});
 		let footerText = `As of ${currentDateString + ', ' + currentTimeString}. \nClick on the bounty name for more detail or to take action.\n`;
-		if (moreRecords) footerText += `There are more bounties than could be displayed. For a full list, click on the list title.\n`;
-		footerText += `🙋 DM my claimed bounties | 📝 DM my created bounties | 🔄 Refresh list`;
+		if (moreRecords) footerText += `Too many bounties to display. For a full list, click on the list title.\n`;
+		if (!listType) footerText += `👷 DM my claimed bounties | 📝 DM my created bounties | 🔄 Refresh list`;
 		listOfBounties.footer = { text: footerText };
-		await (listChannel.send({ embeds: [listOfBounties] } ));
+		if (!listType) {
+			if (!!request.message) {
+				await request.message.edit({ embeds: [listOfBounties] });
+			} else {
+				const listMessage = await channel.send({ embeds: [listOfBounties] });
+				await listMessage.react('👷');
+				await listMessage.react('📝');
+				await listMessage.react('🔄');
+			}
+		} else {
+			await listUser.send({ embeds: [listOfBounties] });
+		}
 	}
 };
 

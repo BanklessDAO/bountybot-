@@ -350,7 +350,9 @@ export default class Bounty extends SlashCommand {
                 break;
             case Activities.list:
                 request = new ListRequest({
-                    commandContext: commandContext
+                    commandContext: commandContext,
+                    messageReactionRequest: null,
+                    listType: null
                 });
                 break;
             case Activities.delete:
