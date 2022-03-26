@@ -234,7 +234,7 @@ export default class Bounty extends SlashCommand {
                                     value: 'IN_PROGRESS',
                                 },
                             ],
-                            required: true,
+                            required: false,
                         },
                     ],
                 },

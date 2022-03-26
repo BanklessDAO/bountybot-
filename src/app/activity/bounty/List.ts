@@ -1,8 +1,8 @@
 import MongoDbUtils  from '../../utils/MongoDbUtils';
 import { Cursor, Db } from 'mongodb';
-import { Message, GuildMember, MessageEmbedOptions, Role } from 'discord.js';
+import { TextChannel, Message, GuildMember, MessageEmbedOptions, Role } from 'discord.js';
 import Log, { LogUtils } from '../../utils/Log';
-import { Bounty } from '../../types/bounty/Bounty';
+import { BountyCollection } from '../../types/bounty/BountyCollection';
 import DiscordUtils from '../../utils/DiscordUtils';
 import { ListRequest } from '../../requests/ListRequest';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
@@ -10,7 +10,7 @@ import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
 import { PaidStatus } from '../../constants/paidStatus';
 
-const DB_RECORD_LIMIT = 10;
+const DB_RECORD_LIMIT = 7;
 
 export const listBounty = async (request: ListRequest): Promise<any> => {
 	Log.debug('In List activity');
@@ -28,7 +28,8 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
         customerId: request.guildId,
     });
 
-    const channel = await listUser.guild.channels.fetch(dbCustomerResult.bountyChannel);
+	// To DO - get channel where command was done.
+    const channel: TextChannel = await DiscordUtils.getTextChannelfromChannelId(dbCustomerResult.bountyChannel);
     const channelName = channel.name;
 
 
@@ -36,25 +37,32 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
     Log.info('Bounty list type: ' + listType);
 
 	let IOUList: boolean = false;
+	let listTitle: string;
 
 	switch (listType) { 
 	case 'CREATED_BY_ME':
 		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, isIOU: { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		listTitle = "Bounties created by me";
 		break;
 	case 'CLAIMED_BY_ME':
 		dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		listTitle = "Bounties claimed by me";
 		break;
     case 'CLAIMED_BY_ME_AND_COMPLETE':
         dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: 'Completed', 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		listTitle = "Bounties claimed by me and complete";
         break;
 	case 'DRAFTED_BY_ME':
 		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: 'Draft', 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		listTitle = "Bounties drafted by me";
 		break;
 	case 'OPEN':
 		dbRecords = bountyCollection.find({ status: BountyStatus.open, isIOU: { $ne: true }, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		listTitle = "Open bounties";
 		break;
 	case 'IN_PROGRESS':
 		dbRecords = bountyCollection.find({ status: BountyStatus.in_progress, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
+		listTitle = "In progress bounties";
 		break;
 	case 'PAID_BY_ME':
 		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.complete, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
@@ -64,17 +72,20 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: BountyStatus.open, isIOU: true, 'customerId': request.guildId }).limit(DB_RECORD_LIMIT);
 		IOUList = true;
 		break;
+	default: 
+		dbRecords = bountyCollection.find({ $or: [ { status: BountyStatus.open } , { status: BountyStatus.in_progress } ], isIOU: { $ne: true }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
+		listTitle =  "Active bounties";
 	}
 	if (!(await dbRecords.hasNext())) {
 		return await listUser.send({ content: 'We couldn\'t find any bounties!' });
 	}
-	return await sendMultipleMessages(listUser, dbRecords, request.guildId, channelName, IOUList);
+	return await sendMultipleMessages(listUser, dbRecords, request.guildId, channel, IOUList, listTitle);
 };
 
-const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, guildId: string, bountyChannelName: string, IOUList: boolean): Promise<any> => {
+const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, guildId: string, listChannel: TextChannel, IOUList: boolean, listTitle: string): Promise<any> => {
 	if (IOUList) {
 		while (await dbRecords.hasNext()) {
-			const record: Bounty = await dbRecords.next();
+			const record: BountyCollection = await dbRecords.next();
 			const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.paidStatus, guildId);
 			if (record.paidStatus == PaidStatus.unpaid) {
 				messageOptions.footer = {
@@ -88,18 +99,51 @@ const sendMultipleMessages = async (listUser: GuildMember, dbRecords: Cursor, gu
 			}
 		}
 	} else {
-		const listOfBounties = [];
-		while (listOfBounties.length < 10 && await dbRecords.hasNext()) {
-			const record: Bounty = await dbRecords.next();
-			const messageOptions: MessageEmbedOptions = await generateListEmbedMessage(record, record.status, guildId);
-			listOfBounties.push(messageOptions);
+		const listOfBounties: MessageEmbedOptions = {
+			title: listTitle,
+			url: process.env.BOUNTY_BOARD_URL,
+			color: 1998388,
+			fields: []
+		};
+		let listCount = 0;
+		let moreRecords = true;
+		while (listCount < DB_RECORD_LIMIT && moreRecords) {
+			let segmentCount = 0;
+			let listString = "";
+			while ((listCount < DB_RECORD_LIMIT) && (segmentCount < 5) && moreRecords) {
+				const record: BountyCollection = await dbRecords.next();
+				let cardMessage: Message;
+				if (record.canonicalCard !== undefined) {  
+					cardMessage = await DiscordUtils.getMessagefromMessageId(record.canonicalCard.messageId, await DiscordUtils.getTextChannelfromChannelId(record.canonicalCard.channelId));
+				}
+				listString += await generateBountyFieldSegment(record, cardMessage);
+				segmentCount++;
+				listCount++;
+				moreRecords = await dbRecords.hasNext();  // Put here because we can only call once otherwise cursor is closed.
+			}
+			console.log(JSON.stringify(listOfBounties));
+			console.log(listString);
+			listOfBounties.fields.push({name: '|', value: listString, inline: false});
 		}
-		await (listUser.send({ embeds: listOfBounties }));
-		await listUser.send({ content: `Please go to ${bountyChannelName} or your DMs to take action.` });
+		const currentDate = new Date();
+		const currentDateString = currentDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
+		const currentTimeString = currentDate.toLocaleTimeString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short'});
+		let footerText = `As of ${currentDateString + ', ' + currentTimeString}. \nClick on the bounty name for more detail or to take action.\n`;
+		if (moreRecords) footerText += `There are more bounties than could be displayed. For a full list, click on the list title.\n`;
+		footerText += `🙋 DM my claimed bounties | 📝 DM my created bounties | 🔄 Refresh list`;
+		listOfBounties.footer = { text: footerText };
+		await (listChannel.send({ embeds: [listOfBounties] } ));
 	}
 };
 
-export const generateListEmbedMessage = async (bountyRecord: Bounty, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
+export const generateBountyFieldSegment = async (bountyRecord: BountyCollection, cardMessage: Message): Promise<any> => {
+	const url = !!cardMessage ? cardMessage.url : process.env.BOUNTY_BOARD_URL + bountyRecord._id
+	return (
+		`> [${bountyRecord.status.toLocaleUpperCase()}] [${bountyRecord.title}](${url}) **${bountyRecord.reward.amount + ' ' + bountyRecord.reward.currency.toUpperCase()}**\n`
+	);
+}
+
+export const generateListEmbedMessage = async (bountyRecord: BountyCollection, newStatus: string, guildID: string): Promise<MessageEmbedOptions> => {
 	let fields = [];
 	if (bountyRecord.isIOU) {
 		fields = [

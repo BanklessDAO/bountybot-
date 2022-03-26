@@ -350,6 +350,8 @@ const list = async (request: ListRequest): Promise<void> => {
             return;
         case 'UNPAID_BY_ME':
             return;
+        case undefined:
+            return;
         default:
             Log.info('invalid list-type');
             throw new ValidationError('Please select a valid list-type from the command menu');
