@@ -353,7 +353,8 @@ const BountyUtils = {
         }
 
         const isDraftBounty = (bounty.status == BountyStatus.draft)
-        let cardEmbeds: MessageOptions = {
+        const createdAt = new Date(bounty.createdAt);
+            let cardEmbeds: MessageOptions = {
             embeds: [{
                 title: await BountyUtils.createPublicTitle(bounty),
                 url: (process.env.BOUNTY_BOARD_URL + bounty._id),
@@ -363,7 +364,7 @@ const BountyUtils = {
                 },
                 description: bounty.description,
                 fields: fields,
-                timestamp: new Date().getTime(),
+                timestamp: createdAt.getTime(),
                 footer: footer,
                 color: color,
             }],

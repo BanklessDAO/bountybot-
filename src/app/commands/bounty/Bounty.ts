@@ -203,40 +203,6 @@ export default class Bounty extends SlashCommand {
                     name: Activities.list,
                     type: CommandOptionType.SUB_COMMAND,
                     description: 'View list of bounties you created or are claimed',
-                    options: [
-                        {
-                            name: 'list-type',
-                            type: CommandOptionType.STRING,
-                            description: 'Which bounties should be displayed?',
-                            choices: [
-                                {
-                                    name: 'created by me',
-                                    value: 'CREATED_BY_ME',
-                                },
-                                {
-                                    name: 'claimed by me',
-                                    value: 'CLAIMED_BY_ME',
-                                },
-                                {
-                                    name: 'drafted by me',
-                                    value: 'DRAFTED_BY_ME',
-                                },
-                                {
-                                    name: 'claimed by me and completed',
-                                    value: 'CLAIMED_BY_ME_AND_COMPLETE',
-                                },
-                                {
-                                    name: 'open',
-                                    value: 'OPEN',
-                                },
-                                {
-                                    name: 'in progress',
-                                    value: 'IN_PROGRESS',
-                                },
-                            ],
-                            required: false,
-                        },
-                    ],
                 },
                 {
                     name: Activities.delete,
