@@ -347,8 +347,9 @@ const BountyUtils = {
                     reacts.push('💰');
                 }
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                fields.push({ name: 'Reviewed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                // Bounty might jump directly to Complete status so these would be null...
+                if (!!bounty.submittedBy) fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                if (!!bounty.reviewedBy) fields.push({ name: 'Reviewed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, bounty.customerId)).user.tag, inline: true });
                 break;
         }
 

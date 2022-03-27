@@ -1,6 +1,7 @@
 import  { CommandContext } from 'slash-create';
 import { Request } from './Request';
 import { Activities } from '../constants/activities';
+import Log from '../utils/Log';
 
 export class CreateRequest extends Request {
     userId: string;
@@ -24,12 +25,15 @@ export class CreateRequest extends Request {
     constructor(args: {
         commandContext: CommandContext, 
     }) {
+        Log.debug(`In CreateRequest`);
+        Log.debug(JSON.stringify(args));
         if (args.commandContext) {
             const commandContext: CommandContext = args.commandContext;
+            const isIOU = commandContext.commandName == 'iou' ? true : false;
+            if (isIOU) commandContext.subcommands[0] = Activities.create;  // iou has no subcommand, CREATE implied
             if (commandContext.subcommands[0] !== Activities.create) {
                 throw new Error('CreateRequest attempted for non Create activity.');
             }
-            const isIOU = commandContext.commandName == 'iou' ? true : false;
             super(commandContext.subcommands[0], commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.userId = commandContext.user.id;
             if (isIOU) {

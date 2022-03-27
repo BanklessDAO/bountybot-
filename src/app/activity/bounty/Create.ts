@@ -23,6 +23,8 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
 
     let newBounty: Bounty;
 
+    let owedTo: GuildMember;
+
     if (!createRequest.isIOU) {
 
         const gotoDMMessage = 'Go to your DMs to finish creating the bounty...';
@@ -109,35 +111,11 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
 
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
 
-    if (createRequest.isIOU) {
-        let bountyCard: MessageOptions = {
-            embeds: [{
-                title: await BountyUtils.createPublicTitle(newBounty),
-                url: (process.env.BOUNTY_BOARD_URL + newBounty._id),
-                author: {
-                    icon_url: guildMember.user.avatarURL(),
-                    name: `${newBounty.createdBy.discordHandle}: ${guildId}`,
-                },
-                description: newBounty.description,
-                fields: [
-                    { name: 'IOU Id', value: newBounty._id.toString(), inline: false },
-                    { name: 'Reward', value: newBounty.reward.amount + ' ' + newBounty.reward.currency, inline: true },
-                    { name: 'Status', value: PaidStatus.unpaid, inline: true },
-                ],
-                timestamp: new Date().getTime(),
-                footer: {
-                    text: '💰 - mark as paid | ❌ - delete ',
-                },
-            }],
-        };
-        const message: Message = await guildMember.send(bountyCard);
-        await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created. Go to your DMs to see it." } , { ephemeral: true });
+    const cardMessage = await BountyUtils.canonicalCard(newBounty._id);
 
-        // TO DO fix: await updateMessageStore(newBounty, message);
-    
-        await message.react('💰');
-        return await message.react('❌');
-    
+    if (createRequest.isIOU) {
+        await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created." } , { ephemeral: true });
+        await owedTo.send({ content: `An IOU was created for you by <@${guildMember.user.id}: [${newBounty.title}](${cardMessage.url})`});
     } else {
 
         const publishOrDeleteMessage = 
@@ -145,7 +123,6 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
             'Once the bounty has been published, others can view and claim the bounty.\n' +
             'If you are not happy with the bounty, hit ❌ to delete it and start over.\n'
         await guildMember.send(publishOrDeleteMessage);
-        await BountyUtils.canonicalCard(newBounty._id);
 
         return;
     }
@@ -201,7 +178,7 @@ export const generateBountyRecord = (
     const currentDate = (new Date()).toISOString();
     let status = BountyStatus.draft;
     if (createRequest.isIOU) {
-        status = BountyStatus.open;
+        status = BountyStatus.complete;
     }
 
     let bountyRecord: Bounty = {
@@ -234,7 +211,7 @@ export const generateBountyRecord = (
             }
         ],
         status: status,
-        paidStatus: createRequest.isIOU ? PaidStatus.unpaid : null,
+        paidStatus: PaidStatus.unpaid,
         dueAt: dueAt ? dueAt.toISOString() : null,
     };
 
@@ -261,7 +238,7 @@ export const generateBountyRecord = (
 
     if (createRequest.isIOU) {
         bountyRecord.isIOU = true;
-        bountyRecord.owedTo = {
+        bountyRecord.claimedBy = {
             discordHandle: owedTo.user.tag,
             discordId: owedTo.user.id,
             iconUrl: owedTo.user.avatarURL(),
