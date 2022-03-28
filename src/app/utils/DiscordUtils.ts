@@ -1,4 +1,4 @@
-import { GuildMember, Role, Guild, DMChannel, AwaitMessagesOptions, Message, Collection, Snowflake, TextChannel } from 'discord.js';
+import { GuildMember, Role, Guild, DMChannel, AwaitMessagesOptions, Message, Collection, Snowflake, TextChannel, Channel } from 'discord.js';
 import client from '../app';
 import { LogUtils } from './Log';
 import ValidationError from '../errors/ValidationError';
@@ -7,6 +7,9 @@ import RuntimeError from '../errors/RuntimeError';
 import MongoDbUtils  from '../utils/MongoDbUtils';
 import { Db } from 'mongodb';
 import { CustomerCollection } from '../types/bounty/CustomerCollection';
+import { CommandContext } from 'slash-create';
+import { BountyCollection } from '../types/bounty/BountyCollection';
+
 
 
 
@@ -74,7 +77,18 @@ const DiscordUtils = {
             throw new RuntimeError(e);
         }) as TextChannel;
         return channel;
-    
+    },
+
+    async getCommandOrBountyChannel(commandContext: CommandContext, bounty: BountyCollection): Promise<TextChannel> {
+        let channel: TextChannel;
+        if (!!commandContext) {  // If they used a command, get that channel
+            channel = await this.getTextChannelfromChannelId(commandContext.channelID);
+        } else if (!!bounty.canonicalCard) { // If they used a reaction from the card, use that channel
+            channel = await this.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
+        } else {  // Punt
+            channel = await this.getBountyChannelfromCustomerId(bounty.customerId);
+        }
+        return channel;
     },
 
     // TODO: graceful timeout handling needed

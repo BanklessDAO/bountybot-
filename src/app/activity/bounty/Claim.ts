@@ -24,7 +24,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
         claimedBounty = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
     }
     
-    const claimedBountyCard = await BountyUtils.canonicalCard(claimedBounty._id);
+    const claimedBountyCard = await BountyUtils.canonicalCard(claimedBounty._id, request.activity);
     
     let creatorClaimDM = 
     `Your bounty has been claimed by <@${claimedByUser.user.id}> <${claimedBountyCard.url}>\n` +
@@ -32,7 +32,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     `Marking a bounty as complete and/or paid may help you with accounting or project status tasks later on.`;
     if (getDbResult.dbBountyResult.evergreen) {
         const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
-        const origBountyCard = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id);
+        const origBountyCard = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
         if (getDbResult.dbBountyResult.status == BountyStatus.open) {
             creatorClaimDM += `\nSince you marked your original bounty as multi-claimant, it will stay on the board as Open. <${origBountyCard.url}>`;
         } else {

@@ -27,8 +27,9 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
 		await writeDbHandler(dbBountyResult);
 	}
 
-	const bountyMessage: Message = await BountyUtils.canonicalCard(dbBountyResult._id);
-	const bountyChannel: TextChannel = await guildMember.client.channels.fetch(dbCustomerResult.bountyChannel) as TextChannel;
+	const bountyChannel: TextChannel = dbBountyResult.createdInChannel ? await DiscordUtils.getTextChannelfromChannelId(dbBountyResult.createdInChannel) :
+		 await guildMember.client.channels.fetch(dbCustomerResult.bountyChannel) as TextChannel;
+	const bountyMessage: Message = await BountyUtils.canonicalCard(dbBountyResult._id, publishRequest.activity, bountyChannel);
     await guildMember.send({ content: `Bounty published to ${bountyChannel.name} <${bountyMessage.url}> and the website! <${process.env.BOUNTY_BOARD_URL}${bountyId}>` });
 	Log.info(`bounty published to ${bountyChannel.name}`);
 

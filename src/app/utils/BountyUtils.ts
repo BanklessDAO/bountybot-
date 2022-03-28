@@ -10,6 +10,7 @@ import { PaidStatus } from '../constants/paidStatus';
 import { CreateRequest } from '../requests/CreateRequest';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils  from '../utils/MongoDbUtils';
+import { Activities } from '../constants/activities';
 
 
 const BountyUtils = {
@@ -251,7 +252,7 @@ const BountyUtils = {
             const role: Role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
             title += `\n(For role ${role.name})`;
         } else if (bountyRecord.isIOU) {
-            title += `\n(IOU owed to ${bountyRecord.owedTo.discordHandle})`;
+            title += `\n(IOU owed to ${bountyRecord.claimedBy.discordHandle})`;
         } else {    
             if (bountyRecord.requireApplication) {
                 title += `\n(Requires application before claiming`;
@@ -269,7 +270,7 @@ const BountyUtils = {
     
     },
 
-    async canonicalCard(bountyId: string): Promise<Message> {
+    async canonicalCard(bountyId: string, activity: string, bountyChannel?: TextChannel): Promise<Message> {
         Log.debug(`Creating/updating canonical card`);
 
         // Get the updated bounty
@@ -308,7 +309,7 @@ const BountyUtils = {
                 reacts.push('❌');
                 break;
             case BountyStatus.open:
-                if (bounty.requireApplication && (!!bounty.assign)) {
+                if (bounty.requireApplication && (!bounty.assign)) {
                     footer = { text: '🙋 - apply | ❌ - delete', };
                     reacts.push('🙋');
                 } else {
@@ -371,24 +372,30 @@ const BountyUtils = {
             }],
         };
 
-
-        // Update existing card if it exists, otherwise create it
-        let bountyChannel: TextChannel;
+        // Create/Update the card
         let cardMessage: Message;
-        if (bounty.canonicalCard) {
-            bountyChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
-            cardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel);
-            await cardMessage.edit(cardEmbeds);
+
+        if (isDraftBounty) {  // If we are in Create (Draft) mode, put the card in the DM channel
+            cardMessage = await ( await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).send(cardEmbeds);
         } else {
-            if (isDraftBounty) {  // Drafts are in DMs
-                cardMessage = await ( await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).send(cardEmbeds);
-            } else {
-                //TO DO get channel from where Bounty was created. Default is customer bounty channel
-                bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
+            if (activity == Activities.publish) {  // Publishing. If the card exists, delete it - it was in a DM}
+                if (!!bounty.canonicalCard) {
+                    const draftChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
+                    const draftCardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, draftChannel);
+                    await draftCardMessage.delete();
+                    bounty.canonicalCard = undefined;
+                }
+            }
+            if (!!bounty.canonicalCard) {  // If we still have an existing card, just edit it, remove old reactions
+                bountyChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
+                cardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel);
+                await cardMessage.edit(cardEmbeds);
+                await cardMessage.reactions.removeAll();
+            } else {  // Otherwise create it. Put it in the passed in channel, or customer channel by default
+                if (!bountyChannel) bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
                 cardMessage = await bountyChannel.send(cardEmbeds);
             }
         }
-        if (!isDraftBounty) cardMessage.reactions.removeAll();
         reacts.forEach(react => {
             cardMessage.react(react);
         });
@@ -397,20 +404,18 @@ const BountyUtils = {
         // TO DO Delete old cards if they exist. Notify user of new card location with link
          
         // Store the card location in the bounty, remove the old cards
-        if (!isDraftBounty) { // Drafts are in DMs
-            const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(bounty._id) }, {
-                $unset: {
-                    claimantMessage: "",
-                    creatorMessage: "",
-                    discordMessageId: "",
-                },
-                $set: { canonicalCard: {
-                            messageId: cardMessage.id,
-                            channelId: bountyChannel.id,
-                        },
-                },
-            });
-        }
+        const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(bounty._id) }, {
+            $unset: {
+                claimantMessage: "",
+                creatorMessage: "",
+                discordMessageId: "",
+            },
+            $set: { canonicalCard: {
+                        messageId: cardMessage.id,
+                        channelId: cardMessage.channelId,
+                    },
+            },
+        });
     
 
         return cardMessage;

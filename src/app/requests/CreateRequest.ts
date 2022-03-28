@@ -17,6 +17,7 @@ export class CreateRequest extends Request {
     requireApplication: boolean;
     owedTo: string;
     isIOU: boolean;
+    createdInChannel: string;
 
     // TODO: remove
     commandContext: CommandContext;
@@ -26,20 +27,20 @@ export class CreateRequest extends Request {
         commandContext: CommandContext, 
     }) {
         Log.debug(`In CreateRequest`);
-        Log.debug(JSON.stringify(args));
         if (args.commandContext) {
             const commandContext: CommandContext = args.commandContext;
             const isIOU = commandContext.commandName == 'iou' ? true : false;
-            if (isIOU) commandContext.subcommands[0] = Activities.create;  // iou has no subcommand, CREATE implied
-            if (commandContext.subcommands[0] !== Activities.create) {
+            if (!isIOU && (commandContext.subcommands[0] !== Activities.create)) {
                 throw new Error('CreateRequest attempted for non Create activity.');
             }
-            super(commandContext.subcommands[0], commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
+            super(Activities.create, commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
+            this.createdInChannel = commandContext.channelID;
             this.userId = commandContext.user.id;
             if (isIOU) {
-                this.title = commandContext.options.create['why'];
-                this.owedTo = commandContext.options.create['owed-to'];
+                this.title = commandContext.options['why'];
+                this.owedTo = commandContext.options['owed-to'];
                 this.isIOU = isIOU;
+                this.reward = commandContext.options['reward'];
             } else {
                 this.title = commandContext.options.create['title'];
                 if (commandContext.options.create['claimants'] !== undefined) {  // Backwards compatible with old evergreen and claim-limit options
@@ -53,9 +54,9 @@ export class CreateRequest extends Request {
                 this.gate = commandContext.options.create['for-role'];
                 this.assign = commandContext.options.create['for-user'];
                 this.requireApplication = commandContext.options.create['require-application'];
+                this.reward = commandContext.options.create['reward'];
                 }
 
-            this.reward = commandContext.options.create['reward'];
             
 
             // TODO: remove

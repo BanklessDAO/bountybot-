@@ -19,7 +19,7 @@ export default class IOU extends SlashCommand {
     constructor(creator: SlashCreator) {
         super(creator, {
             name: 'iou',
-            description: 'Create an IOU - a quick bounty for work already completed.',
+            description: 'Create an IOU, a quick bounty for work already completed.',
             guildIDs: guildIds,
             options: [
                 {

@@ -12,6 +12,7 @@ export interface BountyCollection extends Collection {
 	submittedBy: UserObject,
 	reviewedBy: UserObject,
 	createdAt: string,
+	createdInChannel: string,
 	dueAt: string,
 	submittedAt: string,
 	submissionUrl: string,

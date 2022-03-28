@@ -97,25 +97,27 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
             criteria,
             dueAt,
             guildMember,
-            null);
+            null,
+            createRequest.createdInChannel);
     } else {
-        const owedTo = await DiscordUtils.getGuildMemberFromUserId(createRequest.owedTo, createRequest.guildId);
+        owedTo = await DiscordUtils.getGuildMemberFromUserId(createRequest.owedTo, createRequest.guildId);
         newBounty = await createDbHandler(
             createRequest,
             null,
-            null,
+            'IOU for work already done',
             null,
             guildMember,
-            owedTo);
+            owedTo,
+            createRequest.createdInChannel);
     }
 
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
 
-    const cardMessage = await BountyUtils.canonicalCard(newBounty._id);
+    const cardMessage = await BountyUtils.canonicalCard(newBounty._id, createRequest.activity, (createRequest.isIOU ? await DiscordUtils.getTextChannelfromChannelId(newBounty.createdInChannel) : undefined));
 
     if (createRequest.isIOU) {
-        await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created." } , { ephemeral: true });
-        await owedTo.send({ content: `An IOU was created for you by <@${guildMember.user.id}: [${newBounty.title}](${cardMessage.url})`});
+        // await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created." } , { ephemeral: true });
+        await owedTo.send({ content: `An IOU was created for you by <@${guildMember.user.id}>: ${cardMessage.url}`});
     } else {
 
         const publishOrDeleteMessage = 
@@ -134,7 +136,8 @@ const createDbHandler = async (
     criteria: string,
     dueAt: Date,
     guildMember: GuildMember,
-    owedTo: GuildMember
+    owedTo: GuildMember,
+    createdInChannel: string
 ): Promise<Bounty> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbBounty = db.collection('bounties');
@@ -149,7 +152,8 @@ const createDbHandler = async (
             criteria,
             dueAt,
             guildMember,
-            owedTo);
+            owedTo,
+            createdInChannel);
     
 
     const dbInsertResult = await dbBounty.insertOne(createdBounty);
@@ -168,7 +172,8 @@ export const generateBountyRecord = (
     criteria: string,
     dueAt: Date,
     guildMember: GuildMember,
-    owedTo: GuildMember
+    owedTo: GuildMember,
+    createdInChannel: string
 ): Bounty => {
 
     Log.debug('generating bounty record')
@@ -197,6 +202,7 @@ export const generateBountyRecord = (
             iconUrl: guildMember.user.avatarURL(),
         },
         createdAt: currentDate,
+        createdInChannel: createdInChannel,
         statusHistory: [
             {
                 status: status,
