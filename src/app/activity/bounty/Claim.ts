@@ -43,8 +43,8 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const createdByUser = await DiscordUtils.getGuildMemberFromUserId(getDbResult.dbBountyResult.createdBy.discordId, request.guildId);
     await createdByUser.send({ content: creatorClaimDM });
 
-    const bountyChannel = await DiscordUtils.getTextChannelfromChannelId(claimedBountyCard.channelId);
-    await bountyChannel.send({ content: `<@${claimedByUser.user.id}>, you have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions` });
+    const bountyChannel = await DiscordUtils.getCommandOrBountyChannel(request.commandContext, claimedBounty);
+    await bountyChannel.send({ content: `<@${claimedByUser.user.id}>, you have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions: <${claimedBountyCard.url}>` });
     return;
 };
 
