@@ -320,12 +320,17 @@ const BountyUtils = {
                 break;
             case BountyStatus.in_progress:
                 color = '#d39e00';
-                footer = { text: '📮 - submit | ✅ - mark complete | 💰 - mark paid | 🆘 - help', };
                 reacts.push('📮');
                 reacts.push('✅');
-                reacts.push('💰');
+                if (!bounty.paidStatus || bounty.paidStatus === PaidStatus.unpaid) {
+                    footer = { text: '📮 - submit | ✅ - mark complete | 💰 - mark paid | 🆘 - help', };
+                    reacts.push('💰');
+                } else {
+                    footer = { text: '📮 - submit | ✅ - mark complete | 🆘 - help', };
+                }
                 reacts.push('🆘');
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
                 break;
             case BountyStatus.in_review:
                 color = '#d39e00';
@@ -339,6 +344,7 @@ const BountyUtils = {
                 reacts.push('🆘');
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
                 fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
                 break;
             case BountyStatus.complete:
                 color = '#01d212';
@@ -351,6 +357,7 @@ const BountyUtils = {
                 // Bounty might jump directly to Complete status so these would be null...
                 if (!!bounty.submittedBy) fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
                 if (!!bounty.reviewedBy) fields.push({ name: 'Reviewed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
                 break;
         }
 

@@ -218,7 +218,7 @@ const assign = async (request: AssignRequest): Promise<void> => {
 
     if (!request.assign) {
         throw new ValidationError(
-            `Please speficy the user to assign this bounty to.`
+            `Please specify the user to assign this bounty to.`
         );
     }
 

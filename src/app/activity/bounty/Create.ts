@@ -28,7 +28,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     if (!createRequest.isIOU) {
 
         const gotoDMMessage = 'Go to your DMs to finish creating the bounty...';
-        await createRequest.commandContext.sendFollowUp({ content: gotoDMMessage}, {ephemeral: true});
+        await createRequest.commandContext.send({ content: gotoDMMessage, ephemeral: true});
 
         const createInfoMessage = `Hello <@${guildMember.id}>!\n` +
             `Please respond to the following questions within 5 minutes.\n` +
@@ -128,6 +128,8 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
 
         return;
     }
+
+    await createRequest.commandContext.delete();  // All done
 }
 
 const createDbHandler = async (

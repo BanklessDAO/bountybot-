@@ -41,11 +41,8 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		listTitle = "Bounties claimed by me";
 		break;
 	default: 
-		dbRecords = bountyCollection.find({ $or: [ { status: BountyStatus.open } , { status: BountyStatus.in_progress } ], isIOU: { $ne: true }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
+		dbRecords = bountyCollection.find({ $or: [ { status: BountyStatus.open } , { status: BountyStatus.in_progress }, { status: BountyStatus.in_review } ], isIOU: { $ne: true }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
 		listTitle =  "Active bounties";
-	}
-	if (!(await dbRecords.hasNext())) {
-		return await listUser.send({ content: 'We couldn\'t find any bounties!' });
 	}
 
 	const listOfBounties: MessageEmbedOptions = {
@@ -55,7 +52,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		fields: []
 	};
 	let listCount = 0;
-	let moreRecords = true;
+	let moreRecords = await dbRecords.hasNext();
 	while (listCount < DB_RECORD_LIMIT && moreRecords) {
 		let segmentCount = 0;
 		let listString = "";
@@ -75,6 +72,9 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		console.log(listString);
 		listOfBounties.fields.push({name: '.', value: listString, inline: false});
 	}
+	if (listCount == 0) {
+		listOfBounties.fields.push({name: '.', value: "No bounties found!", inline: false})
+	}
 	const currentDate = new Date();
 	const currentDateString = currentDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
 	const currentTimeString = currentDate.toLocaleTimeString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short'});
@@ -91,6 +91,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		} else {  // List from a slash command
 			const channel = await DiscordUtils.getTextChannelfromChannelId(request.commandContext.channelID);
 			listMessage = await channel.send({ embeds: [listOfBounties] });
+			await request.commandContext.delete();  // We're done
 		}
 		await listMessage.react('👷');
 		await listMessage.react('📝');

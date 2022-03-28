@@ -356,23 +356,23 @@ export default class Bounty extends SlashCommand {
         }
         catch (e) {
             if (e instanceof ValidationError) {
-                await guildMember.send(`<@${commandContext.user.id}>\n` + e.message);
-                await commandContext.delete();
+                await commandContext.send({ content: `<@${commandContext.user.id}>\n` + e.message, ephemeral: true });
+                // await commandContext.delete();
                 return;
             } else if (e instanceof AuthorizationError) {
-                await guildMember.send(`<@${commandContext.user.id}>\n` + e.message);
-                commandContext.delete();
+                await commandContext.send({ content: `<@${commandContext.user.id}>\n` + e.message, ephemeral: true });
+                // commandContext.delete();
                 return;
             }
             else {
                 LogUtils.logError('error', e);
-                await guildMember.send('Sorry something is not working and our devs are looking into it.');
-                await commandContext.delete();
+                await commandContext.send({ content: 'Sorry something is not working and our devs are looking into it.', ephemeral: true });
+                // await commandContext.delete();
                 return;
             }
         }
 
-        return await commandContext.delete();
+        // return await commandContext.delete();
 
     }
 }
