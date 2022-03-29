@@ -31,7 +31,7 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
         `If you haven't already, please remember to tip <@${getDbResult.dbBountyResult.claimedBy.discordId}>`;
 
     
-    await paidByUser.send({ content: creatorPaidDM });
+    await DiscordUtils.actionResponse(request.commandContext, creatorPaidDM, paidByUser);
     return;
 }
 

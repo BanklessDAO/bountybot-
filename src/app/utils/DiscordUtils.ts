@@ -134,6 +134,21 @@ const DiscordUtils = {
         }
          return messages.first();
     },
+
+    // Send a response to a command (use ephemeral) or a reaction (use DM)
+    async actionResponse(commandContext: CommandContext, content: string, toUser: GuildMember): Promise<void> {
+        if (!!commandContext) { // This was a slash command
+            await commandContext.send({ content: content, ephemeral: true });
+            // await commandContext.delete();
+        } else {  // This was a reaction or a DB event
+            await toUser.send(content);
+        }
+    },
+
+    // Send a notification to an interested party (use a DM)
+    async actionNotification(content: string, toUser: GuildMember): Promise<void> {
+        await toUser.send(content);
+    },
     
 
     async hasAllowListedRole(userId: string, guildId: string, roles: string[]): Promise<boolean> {

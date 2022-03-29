@@ -19,7 +19,7 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
     let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 
     const assignedUser: GuildMember = await assigningUser.guild.members.fetch(request.assign);
-    const assignedBounty = await writeDbHandler(request, getDbResult.dbBountyResult, assignedUser);
+    await writeDbHandler(request, getDbResult.dbBountyResult, assignedUser);
     
     let bountyEmbedMessage: Message;
     if (!request.message) {
@@ -32,19 +32,14 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
         bountyEmbedMessage = request.message;
     }
 
-    // Need to refresh original bounty so the messages are correct
-    getDbResult = await getDbHandler(request); 
- 
-
     const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
     
-    const bountyUrl = process.env.BOUNTY_BOARD_URL + assignedBounty._id;
     let assigningContent = `Your bounty has been assigned to <@${assignedUser.user.id}> ${cardMessage.url}`;
+    let assignedContent = `You have been assigned this bounty! Go to the bounty card to claim it. Reach out to <@${assigningUser.id}> with any questions\n` +
+    `<${cardMessage.url}>`;
 
-    await request.commandContext.send({ content: assigningContent, ephemeral: true });
-
-    await assignedUser.send({ content: `You have been assigned this bounty! Go to the bounty card to claim it. Reach out to <@${assigningUser.id}> with any questions\n` +
-                                         `<${cardMessage.url}>`});
+    await DiscordUtils.actionNotification(assignedContent, assignedUser );
+    await DiscordUtils.actionResponse(request.commandContext, assigningContent, assigningUser);
     return;
 };
 
