@@ -1,6 +1,5 @@
 import mongo, { Db, UpdateWriteOpResult } from "mongodb";
 import { TagRequest } from "../../requests/TagRequest";
-import { BountyCollection } from "../../types/bounty/BountyCollection";
 import Log from "../../utils/Log"
 import MongoDbUtils from "../../utils/MongoDbUtils";
 

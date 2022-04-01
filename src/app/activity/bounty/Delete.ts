@@ -1,7 +1,7 @@
 import { DeleteRequest } from '../../requests/DeleteRequest';
 import DiscordUtils from '../../utils/DiscordUtils';
 import Log, { LogUtils } from '../../utils/Log';
-import { GuildMember, Message, TextChannel } from 'discord.js';
+import { GuildMember, TextChannel } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';

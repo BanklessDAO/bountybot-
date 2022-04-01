@@ -1,14 +1,16 @@
 import MongoDbUtils  from '../../utils/MongoDbUtils';
-import { Cursor, Db } from 'mongodb';
-import { Message, MessageEmbedOptions, Role } from 'discord.js';
+import mongo, { Cursor, Db, UpdateWriteOpResult } from 'mongodb';
+import { Message, MessageEmbedOptions } from 'discord.js';
 import Log from '../../utils/Log';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import DiscordUtils from '../../utils/DiscordUtils';
 import { ListRequest } from '../../requests/ListRequest';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import { BountyStatus } from '../../constants/bountyStatus';
+import { ConnectionVisibility } from 'discord-api-types';
 
-const DB_RECORD_LIMIT = 25;
+const TOTAL_BOUNTY_LIMIT = 15;
+const BOUNTY_SEGMENT_LIMIT = 5;
 
 export const listBounty = async (request: ListRequest): Promise<any> => {
 	Log.debug('In List activity');
@@ -28,21 +30,22 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
     Log.debug('Connected to database successfully.');
     Log.info('Bounty list type: ' + listType);
 
-	let IOUList: boolean = false;
 	let listTitle: string;
+	let openTitle = "Open";
 
 	switch (listType) { 
 	case 'CREATED_BY_ME':
-		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, isIOU: { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
-		listTitle = "Bounties created by me";
+		dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
+		listTitle = "📝 Bounties Created by Me";
 		break;
 	case 'CLAIMED_BY_ME':
-		dbRecords = bountyCollection.find({ 'claimedBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
-		listTitle = "Bounties claimed by me";
+		dbRecords = bountyCollection.find({ $or: [ { 'claimedBy.discordId': listUser.user.id }, { applicants: { $elemMatch: { discordId: listUser.user.id }}} ] , status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
+		listTitle = "👷 Bounties Claimed or Applied For by Me";
+		openTitle = "Applied For"
 		break;
 	default: 
 		dbRecords = bountyCollection.find({ $or: [ { status: BountyStatus.open } , { status: BountyStatus.in_progress }, { status: BountyStatus.in_review } ], isIOU: { $ne: true }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
-		listTitle =  "Active bounties";
+		listTitle =  "💰 Active Bounties";
 	}
 
 	const listOfBounties: MessageEmbedOptions = {
@@ -52,35 +55,67 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		fields: []
 	};
 	let listCount = 0;
+	const bountyList = {};
 	let moreRecords = await dbRecords.hasNext();
-	while (listCount < DB_RECORD_LIMIT && moreRecords) {
-		let segmentCount = 0;
-		let listString = "";
-		while ((listCount < DB_RECORD_LIMIT) && (segmentCount < 5) && moreRecords) {
-			const record: BountyCollection = await dbRecords.next();
-			let cardMessage: Message;
-			if (record.canonicalCard !== undefined) {  
-				// TO DO catch error here and rebuild canonical card if channel or message are missing.
+	while (listCount < TOTAL_BOUNTY_LIMIT && moreRecords) {
+		const record: BountyCollection = await dbRecords.next();
+		let cardMessage: Message;
+		if (record.canonicalCard !== undefined) {  
+			// TO DO catch error here and rebuild canonical card if channel or message are missing.
+			try {
 				cardMessage = await DiscordUtils.getMessagefromMessageId(record.canonicalCard.messageId, await DiscordUtils.getTextChannelfromChannelId(record.canonicalCard.channelId));
+			} catch {
+				cardMessage = undefined;
 			}
-			listString += await generateBountyFieldSegment(record, cardMessage);
-			segmentCount++;
-			listCount++;
-			moreRecords = await dbRecords.hasNext();  // Put here because we can only call once otherwise cursor is closed.
 		}
-		console.log(JSON.stringify(listOfBounties));
-		console.log(listString);
-		listOfBounties.fields.push({name: '.', value: listString, inline: false});
+		if (!bountyList[record.status]) {
+			bountyList[record.status] = {};
+			bountyList[record.status]._index = 0;
+		}
+		bountyList[record.status][bountyList[record.status]._index++] = await generateBountyFieldSegment(record, cardMessage);
+		listCount++;
+		moreRecords = await dbRecords.hasNext();  // Put here because we can only call once otherwise cursor is closed.
 	}
+	if (moreRecords) {
+		listOfBounties.description = `Partial list. For a full list, click on the above title.`;
+	} 
+
+	console.log(JSON.stringify(bountyList));
+
 	if (listCount == 0) {
 		listOfBounties.fields.push({name: '.', value: "No bounties found!", inline: false})
+	} else {
+		for (var status of [BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review, BountyStatus.complete]) {
+			console.log(`In loop for ${status}`);
+			if (!!bountyList[status]) {
+				console.log(`Have bounties for ${status}`);
+				let segmentString = '';
+				let sectionTitle = '';
+				for (let statusCount = 0; !!bountyList[status][`${statusCount}`]; statusCount++) {
+					console.log(`For loop count ${statusCount}`);
+					if (statusCount % BOUNTY_SEGMENT_LIMIT == 0) {
+						if (statusCount == 0) {
+							sectionTitle = status == BountyStatus.open ? openTitle: status;
+						} else {
+							listOfBounties.fields.push({ name: sectionTitle, value: segmentString, inline: false });
+							segmentString = '';
+							sectionTitle = '-';
+						}
+					}
+					segmentString += bountyList[status][`${statusCount}`];
+				}
+				if (segmentString != '') {  // Add in leftovers
+					listOfBounties.fields.push({ name: sectionTitle, value: segmentString, inline: false });
+				}
+			}
+		}
 	}
+
 	const currentDate = new Date();
 	const currentDateString = currentDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
 	const currentTimeString = currentDate.toLocaleTimeString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short'});
 	let footerText = `As of ${currentDateString + ', ' + currentTimeString}. \nClick on the bounty name for more detail or to take action.\n`;
-	if (moreRecords) footerText += `Too many bounties to display. For a full list, click on the list title.\n`;
-	if (!listType) footerText += `👷 DM my claimed bounties | 📝 DM my created bounties | 🔄 Refresh list`;
+	if (!listType) footerText += `👷 DM my claimed or applied for bounties | 📝 DM my created bounties | 🔄 Refresh list`;
 	listOfBounties.footer = { text: footerText };
 	let listMessage: Message;
 	if (!listType) {
@@ -91,6 +126,13 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		} else {  // List from a slash command
 			const channel = await DiscordUtils.getTextChannelfromChannelId(request.commandContext.channelID);
 			listMessage = await channel.send({ embeds: [listOfBounties] });
+			if (request.commandContext.channelID == dbCustomerResult.bountyChannel) {
+				const writeResult: UpdateWriteOpResult = await customerCollection.updateOne( {customerId: request.guildId}, {
+					$set: {
+						lastListMessage: listMessage.url,
+					},
+				});
+			}
 			await request.commandContext.delete();  // We're done
 		}
 		await listMessage.react('👷');
@@ -104,7 +146,17 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 
 export const generateBountyFieldSegment = async (bountyRecord: BountyCollection, cardMessage: Message): Promise<any> => {
 	const url = !!cardMessage ? cardMessage.url : process.env.BOUNTY_BOARD_URL + bountyRecord._id
+	let forString = '';
+	if (bountyRecord.gate) {
+		const role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
+		forString = `claimable by role ${role.name}`;
+	} else if (bountyRecord.assign) {
+		const assignedUser = await DiscordUtils.getGuildMemberFromUserId(bountyRecord.assign, bountyRecord.customerId);
+		forString = `claimable by user ${assignedUser.user.tag}`;
+	} else {
+		forString = 'claimable by anyone';
+	}	
 	return (
-		`> [${bountyRecord.status.toLocaleUpperCase()}] [${bountyRecord.title}](${url}) **${bountyRecord.reward.amount + ' ' + bountyRecord.reward.currency.toUpperCase()}**\n`
+		`> [${bountyRecord.title}](${url}) ${forString} **${bountyRecord.reward.amount + ' ' + bountyRecord.reward.currency.toUpperCase()}**\n`
 	);
 };

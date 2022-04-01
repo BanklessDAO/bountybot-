@@ -3,7 +3,6 @@ import Log, { LogUtils } from '../../utils/Log';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
-import { Bounty } from '../../types/bounty/Bounty';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import DiscordUtils from '../../utils/DiscordUtils';
 import BountyUtils from '../../utils/BountyUtils';

@@ -79,18 +79,6 @@ const DiscordUtils = {
         return channel;
     },
 
-    async getCommandOrBountyChannel(commandContext: CommandContext, bounty: BountyCollection): Promise<TextChannel> {
-        let channel: TextChannel;
-        if (!!commandContext) {  // If they used a command, get that channel
-            channel = await this.getTextChannelfromChannelId(commandContext.channelID);
-        } else if (!!bounty.canonicalCard) { // If they used a reaction from the card, use that channel
-            channel = await this.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
-        } else {  // Punt
-            channel = await this.getBountyChannelfromCustomerId(bounty.customerId);
-        }
-        return channel;
-    },
-
     // TODO: graceful timeout handling needed
     async awaitUserDM(dmChannel: DMChannel, replyOptions: AwaitMessagesOptions): Promise<string> {
         let messages: Collection<Snowflake, Message> = null;

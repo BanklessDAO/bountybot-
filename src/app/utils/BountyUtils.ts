@@ -11,6 +11,7 @@ import { CreateRequest } from '../requests/CreateRequest';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils  from '../utils/MongoDbUtils';
 import { Activities } from '../constants/activities';
+import { CustomerCollection } from '../types/bounty/CustomerCollection';
 
 
 const BountyUtils = {
@@ -279,6 +280,10 @@ const BountyUtils = {
         const bounty: BountyCollection = await bountyCollection.findOne({
             _id: new mongo.ObjectId(bountyId)
         });
+        const customerCollection = db.collection('customers');
+        const customer: CustomerCollection = await customerCollection.findOne({
+            customerId: bounty.customerId,
+        });
 
         // Build the fields, reactions, and footer based on status
         const fields = [
@@ -378,6 +383,17 @@ const BountyUtils = {
                 color: color,
             }],
         };
+        if (!isDraftBounty && !!customer.lastListMessage) {
+            cardEmbeds.components =  [{
+                type: 1, //Action Row
+                components: [{
+                    type: 2,
+                    label: "Back to List",
+                    style: 5,
+                    url: customer.lastListMessage,
+                }]
+            }];
+        }
 
         // Create/Update the card
         let cardMessage: Message;

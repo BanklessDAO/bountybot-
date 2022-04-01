@@ -1,4 +1,4 @@
-import { GuildMember, Message, DMChannel, MessageEmbed, TextChannel, AwaitMessagesOptions } from 'discord.js';
+import { GuildMember, Message, DMChannel, AwaitMessagesOptions } from 'discord.js';
 import { ApplyRequest } from '../../requests/ApplyRequest';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import DiscordUtils from '../../utils/DiscordUtils';
