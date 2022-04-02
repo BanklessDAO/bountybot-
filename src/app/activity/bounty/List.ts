@@ -80,19 +80,14 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		listOfBounties.description = `Partial list. For a full list, click on the above title.`;
 	} 
 
-	console.log(JSON.stringify(bountyList));
-
 	if (listCount == 0) {
 		listOfBounties.fields.push({name: '.', value: "No bounties found!", inline: false})
 	} else {
 		for (var status of [BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review, BountyStatus.complete]) {
-			console.log(`In loop for ${status}`);
 			if (!!bountyList[status]) {
-				console.log(`Have bounties for ${status}`);
 				let segmentString = '';
 				let sectionTitle = '';
 				for (let statusCount = 0; !!bountyList[status][`${statusCount}`]; statusCount++) {
-					console.log(`For loop count ${statusCount}`);
 					if (statusCount % BOUNTY_SEGMENT_LIMIT == 0) {
 						if (statusCount == 0) {
 							sectionTitle = status == BountyStatus.open ? openTitle: status;
