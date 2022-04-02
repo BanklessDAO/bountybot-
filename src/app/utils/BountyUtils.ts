@@ -429,10 +429,10 @@ const BountyUtils = {
         if (bounty.discordMessageId) {
             await this.notifyAndRemove(bounty.discordMessageId, await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId), cardMessage.url);
         }
-        if (bounty.creatorMessage.messageId) {
+        if (!!bounty.creatorMessage) {
             await this.notifyAndRemove(bounty.creatorMessage.messageId, await DiscordUtils.getTextChannelfromChannelId(bounty.creatorMessage.channelId), cardMessage.url);
         }
-        if (bounty.claimantMessage.messageId) {
+        if (!!bounty.claimantMessage) {
             await this.notifyAndRemove(bounty.claimantMessage.messageId, await DiscordUtils.getTextChannelfromChannelId(bounty.claimantMessage.channelId), cardMessage.url);
         }
          
@@ -462,7 +462,7 @@ const BountyUtils = {
         } catch {
             Log.error(`Old bounty card message <${messageId}> not found in channel <${channel.id}>`);
         }
-        if (!!message) message.delete;
+        if (!!message) message.delete();
         channel.send(`Bounty card has been moved: ${cardUrl}`);
     }
 }
