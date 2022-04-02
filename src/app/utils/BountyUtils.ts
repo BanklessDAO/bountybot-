@@ -424,7 +424,17 @@ const BountyUtils = {
         });
 
 
-        // TO DO Delete old cards if they exist. Notify user of new card location with link
+        // Delete old cards if they exist. Notify user of new card location with link
+
+        if (bounty.discordMessageId) {
+            await this.notifyAndRemove(bounty.discordMessageId, await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId), cardMessage.url);
+        }
+        if (bounty.creatorMessage.messageId) {
+            await this.notifyAndRemove(bounty.creatorMessage.messageId, await DiscordUtils.getTextChannelfromChannelId(bounty.creatorMessage.channelId), cardMessage.url);
+        }
+        if (bounty.claimantMessage.messageId) {
+            await this.notifyAndRemove(bounty.claimantMessage.messageId, await DiscordUtils.getTextChannelfromChannelId(bounty.claimantMessage.channelId), cardMessage.url);
+        }
          
         // Store the card location in the bounty, remove the old cards
         const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: new mongo.ObjectId(bounty._id) }, {
@@ -444,6 +454,17 @@ const BountyUtils = {
         return cardMessage;
     
     },
+
+    async notifyAndRemove(messageId: string, channel: TextChannel, cardUrl: string): Promise<any> {
+        let message: Message;
+        try {
+            message = await DiscordUtils.getMessagefromMessageId(messageId, channel)
+        } catch {
+            Log.error(`Old bounty card message <${messageId}> not found in channel <${channel.id}>`);
+        }
+        if (!!message) message.delete;
+        channel.send(`Bounty card has been moved: ${cardUrl}`);
+    }
 }
 
 export default BountyUtils;
