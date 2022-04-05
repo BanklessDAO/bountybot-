@@ -327,7 +327,7 @@ const BountyUtils = {
                 color = '#d39e00';
                 reacts.push('📮');
                 reacts.push('✅');
-                if (!bounty.paidStatus || bounty.paidStatus === PaidStatus.unpaid) {
+                if (bounty.paidStatus !== PaidStatus.paid) {
                     footer = { text: '📮 - submit | ✅ - mark complete | 💰 - mark paid | 🆘 - help', };
                     reacts.push('💰');
                 } else {
@@ -340,7 +340,7 @@ const BountyUtils = {
             case BountyStatus.in_review:
                 color = '#d39e00';
                 reacts.push('✅');
-                if (!bounty.paidStatus || bounty.paidStatus === PaidStatus.unpaid) {
+                if (bounty.paidStatus !== PaidStatus.paid) {
                     footer = { text: '✅ - mark complete | 💰 - mark paid | 🆘 - help', };
                     reacts.push('💰');
                 } else {
@@ -354,7 +354,7 @@ const BountyUtils = {
             case BountyStatus.complete:
                 color = '#01d212';
                 reacts.push('🔥');
-                if (!bounty.paidStatus || bounty.paidStatus === PaidStatus.unpaid) {
+                if (bounty.paidStatus !== PaidStatus.paid) {
                     footer = { text: '💰 - mark paid', };
                     reacts.push('💰');
                 }
@@ -462,8 +462,8 @@ const BountyUtils = {
         } catch {
             Log.error(`Old bounty card message <${messageId}> not found in channel <${channel.id}>`);
         }
-        if (!!message) message.delete();
-        channel.send(`Bounty card has been moved: ${cardUrl}`);
+        if (!!message) await message.delete();
+        await channel.send(`Bounty card has been moved: ${cardUrl}`);
     }
 }
 
