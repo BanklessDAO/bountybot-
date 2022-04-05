@@ -94,22 +94,6 @@ const writeDbHandler = async (request: PaidRequest, paidByUser: GuildMember): Pr
 			resolutionNote: request.resolutionNote,
 		},
 	}
-	if (dbBountyResult.isIOU) {
-		writeObject.$set.addField({
-			status: BountyStatus.complete,
-			reviewedBy: {
-				discordHandle: paidByUser.user.tag,
-				discordId: paidByUser.user.id,
-				iconUrl: paidByUser.user.avatarURL(),
-			}
-		})
-		writeObject.$push = {
-			statusHistory: {
-				status: BountyStatus.complete,
-				setAt: currentDate,
-			},
-		}
-	}
 	const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, writeObject);
 
     if (writeResult.result.ok !== 1) {

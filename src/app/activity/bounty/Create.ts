@@ -249,7 +249,12 @@ export const generateBountyRecord = (
             discordHandle: owedTo.user.tag,
             discordId: owedTo.user.id,
             iconUrl: owedTo.user.avatarURL(),
-        }
+        };
+        bountyRecord.reviewedBy = {
+            discordHandle: guildMember.user.tag,
+            discordId: guildMember.user.id,
+            iconUrl: guildMember.user.avatarURL(),
+        };
     }
 
     return bountyRecord;
