@@ -124,7 +124,7 @@ const DiscordUtils = {
     },
 
     // Send a response to a command (use ephemeral) or a reaction (use DM)
-    async actionResponse(commandContext: CommandContext, content: string, toUser: GuildMember): Promise<void> {
+    async activityResponse(commandContext: CommandContext, content: string, toUser: GuildMember): Promise<void> {
         if (!!commandContext) { // This was a slash command
             await commandContext.send({ content: content, ephemeral: true });
             // await commandContext.delete();
@@ -134,7 +134,7 @@ const DiscordUtils = {
     },
 
     // Send a notification to an interested party (use a DM)
-    async actionNotification(content: string, toUser: GuildMember): Promise<void> {
+    async activityNotification(content: string, toUser: GuildMember): Promise<void> {
         await toUser.send(content);
     },
     

@@ -27,7 +27,6 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
         customerId: request.guildId,
     });
 
-    Log.debug('Connected to database successfully.');
     Log.info('Bounty list type: ' + listType);
 
 	let listTitle: string;
@@ -48,7 +47,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		listTitle =  "💰 Active Bounties";
 	}
 
-	const listOfBounties: MessageEmbedOptions = {
+	const listCard: MessageEmbedOptions = {
 		title: listTitle,
 		url: process.env.BOUNTY_BOARD_URL,
 		color: 1998388,
@@ -77,13 +76,13 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		moreRecords = await dbRecords.hasNext();  // Put here because we can only call once otherwise cursor is closed.
 	}
 	if (moreRecords) {
-		listOfBounties.description = `Partial list. For a full list, click on the above title.`;
+		listCard.description = `Partial list. For a full list, click on the above title.`;
 	} 
 
 	if (listCount == 0) {
-		listOfBounties.fields.push({name: '.', value: "No bounties found!", inline: false})
+		listCard.fields.push({name: '.', value: "No bounties found!", inline: false})
 	} else {
-		for (var status of [BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review, BountyStatus.complete]) {
+		for (const status of [BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review, BountyStatus.complete]) {
 			if (!!bountyList[status]) {
 				let segmentString = '';
 				let sectionTitle = '';
@@ -92,7 +91,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 						if (statusCount == 0) {
 							sectionTitle = status == BountyStatus.open ? openTitle: status;
 						} else {
-							listOfBounties.fields.push({ name: sectionTitle, value: segmentString, inline: false });
+							listCard.fields.push({ name: sectionTitle, value: segmentString, inline: false });
 							segmentString = '';
 							sectionTitle = '-';
 						}
@@ -100,7 +99,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 					segmentString += bountyList[status][`${statusCount}`];
 				}
 				if (segmentString != '') {  // Add in leftovers
-					listOfBounties.fields.push({ name: sectionTitle, value: segmentString, inline: false });
+					listCard.fields.push({ name: sectionTitle, value: segmentString, inline: false });
 				}
 			}
 		}
@@ -111,16 +110,16 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 	const currentTimeString = currentDate.toLocaleTimeString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short'});
 	let footerText = `As of ${currentDateString + ', ' + currentTimeString}. \nClick on the bounty name for more detail or to take action.\n`;
 	if (!listType) footerText += `👷 DM my claimed or applied for bounties | 📝 DM my created bounties | 🔄 Refresh list`;
-	listOfBounties.footer = { text: footerText };
+	listCard.footer = { text: footerText };
 	let listMessage: Message;
 	if (!listType) {
 		if (!!request.message) {  // List from a refresh reaction
 			listMessage = request.message;
-			await listMessage.edit({ embeds: [listOfBounties] });
+			await listMessage.edit({ embeds: [listCard] });
 			await listMessage.reactions.removeAll();
 		} else {  // List from a slash command
 			const channel = await DiscordUtils.getTextChannelfromChannelId(request.commandContext.channelID);
-			listMessage = await channel.send({ embeds: [listOfBounties] });
+			listMessage = await channel.send({ embeds: [listCard] });
 			if (request.commandContext.channelID == dbCustomerResult.bountyChannel) {
 				const writeResult: UpdateWriteOpResult = await customerCollection.updateOne( {customerId: request.guildId}, {
 					$set: {
@@ -135,7 +134,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		await listMessage.react('🔄');
 
 	} else {  // List from a DM reaction
-		await listUser.send({ embeds: [listOfBounties] });
+		await listUser.send({ embeds: [listCard] });
 	}
 };
 

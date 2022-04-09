@@ -38,8 +38,8 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
     let assignedContent = `You have been assigned this bounty! Go to the bounty card to claim it. Reach out to <@${assigningUser.id}> with any questions\n` +
     `<${cardMessage.url}>`;
 
-    await DiscordUtils.actionNotification(assignedContent, assignedUser );
-    await DiscordUtils.actionResponse(request.commandContext, assigningContent, assigningUser);
+    await DiscordUtils.activityNotification(assignedContent, assignedUser );
+    await DiscordUtils.activityResponse(request.commandContext, assigningContent, assigningUser);
     return;
 };
 

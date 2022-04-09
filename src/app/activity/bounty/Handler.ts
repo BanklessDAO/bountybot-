@@ -12,7 +12,7 @@ import Log from '../../utils/Log';
  * @returns an empty Promise for error handling and async calls
  */
 export const handler = async (request: any): Promise<void> => {
-    Log.debug(`In Handler`);
+    Log.debug(`In Handler: Bounty ID: ${request.bountyId} Actvity: ${request.activity}`);
 
     await ValidationModule.run(request);
 

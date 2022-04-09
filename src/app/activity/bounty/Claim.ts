@@ -26,7 +26,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     
     const claimedBountyCard = await BountyUtils.canonicalCard(claimedBounty._id, request.activity);
     
-    let creatorClaimDM = 
+    let creatorNotification = 
     `Your bounty has been claimed by <@${claimedByUser.user.id}> <${claimedBountyCard.url}>\n` +
     `You are free to complete this bounty and/or to mark it as paid at any time.\n` +
     `Marking a bounty as complete and/or paid may help you with accounting or project status tasks later on.`;
@@ -34,16 +34,17 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
         const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
         const origBountyCard = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
         if (getDbResult.dbBountyResult.status == BountyStatus.open) {
-            creatorClaimDM += `\nSince you marked your original bounty as multi-claimant, it will stay on the board as Open. <${origBountyCard.url}>`;
+            creatorNotification += `\nSince you marked your original bounty as multi-claimant, it will stay on the board as Open. <${origBountyCard.url}>`;
         } else {
-            creatorClaimDM += `\nYour multi-claimant bounty has reached its claim limit and has been marked deleted. <${origBountyUrl}>`;
+            creatorNotification += `\nYour multi-claimant bounty has reached its claim limit and has been marked deleted. <${origBountyUrl}>`;
         }
     }
 
     const createdByUser = await DiscordUtils.getGuildMemberFromUserId(getDbResult.dbBountyResult.createdBy.discordId, request.guildId);
-    await DiscordUtils.actionNotification(creatorClaimDM, createdByUser );
+    await DiscordUtils.activityNotification(creatorNotification, createdByUser );
 
-    await DiscordUtils.actionResponse(request.commandContext, `<@${claimedByUser.user.id}>, you have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions: <${claimedBountyCard.url}>`, claimedByUser);
+    const claimaintResponse = `<@${claimedByUser.user.id}>, you have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions: <${claimedBountyCard.url}>`;
+    await DiscordUtils.activityResponse(request.commandContext, claimaintResponse , claimedByUser);
     
     return;
 };

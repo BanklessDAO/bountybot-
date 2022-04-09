@@ -35,8 +35,8 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
 	if (request.notes) {
 		creatorSubmitDM += `\nPlease review these notes:\n${request.notes}`
 	}
-	await DiscordUtils.actionNotification(creatorSubmitDM, createdByUser);
-	await DiscordUtils.actionResponse(request.commandContext, `Bounty in review! Expect a message from <@${createdByUser.id}>: <${cardMessage.url}>`, submittedByUser);
+	await DiscordUtils.activityNotification(creatorSubmitDM, createdByUser);
+	await DiscordUtils.activityResponse(request.commandContext, `Bounty in review! Expect a message from <@${createdByUser.id}>: <${cardMessage.url}>`, submittedByUser);
     return;
 }
 
