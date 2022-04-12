@@ -20,23 +20,29 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 
     let claimedBounty = getDbResult.dbBountyResult;
+    let parentBounty: BountyCollection;
     if (!request.clientSyncRequest) {
-        claimedBounty = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
+        const writeResult = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
+        claimedBounty = writeResult.claimedBounty;
+        parentBounty = writeResult.parentBounty;
     }
-    
-    const claimedBountyCard = await BountyUtils.canonicalCard(claimedBounty._id, request.activity);
-    
+
+    // If we are dealing with a multi-claimant, make sure child card goes in correct channel
+    const parentBountyChannel = !!parentBounty ? await DiscordUtils.getTextChannelfromChannelId(parentBounty.canonicalCard.channelId) : undefined;
+    const claimedBountyCard = await BountyUtils.canonicalCard(claimedBounty._id, request.activity, parentBountyChannel);
+
     let creatorNotification = 
     `Your bounty has been claimed by <@${claimedByUser.user.id}> <${claimedBountyCard.url}>\n` +
     `You are free to complete this bounty and/or to mark it as paid at any time.\n` +
     `Marking a bounty as complete and/or paid may help you with accounting or project status tasks later on.`;
     if (getDbResult.dbBountyResult.evergreen) {
-        const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
-        const origBountyCard = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
-        if (getDbResult.dbBountyResult.status == BountyStatus.open) {
-            creatorNotification += `\nSince you marked your original bounty as multi-claimant, it will stay on the board as Open. <${origBountyCard.url}>`;
+        const parentBountyUrl = process.env.BOUNTY_BOARD_URL + parentBounty._id;
+        const parentBountyCard = await BountyUtils.canonicalCard(parentBounty._id, request.activity);
+        if (parentBounty.status == BountyStatus.open) {
+            creatorNotification += `\nSince you marked your original bounty as multi-claimant, it will stay on the board as Open. <${parentBountyCard.url}>`;
         } else {
-            creatorNotification += `\nYour multi-claimant bounty has reached its claim limit and has been marked deleted. <${origBountyUrl}>`;
+            creatorNotification += `\nYour multi-claimant bounty has reached its claim limit and has been marked deleted. <${parentBountyUrl}>`;
+            await parentBountyCard.delete();
         }
     }
 
@@ -75,10 +81,11 @@ const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: Bou
     }
 }
 
-const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyCollection, claimedByUser: GuildMember): Promise<BountyCollection> => {
+const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyCollection, claimedByUser: GuildMember): Promise<{claimedBounty: BountyCollection, parentBounty: BountyCollection}> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
     let claimedBounty: BountyCollection;
+    let parentBounty: BountyCollection;
     const currentDate = (new Date()).toISOString();
 
     // If claiming an evergreen bounty, create a copy and use that
@@ -89,6 +96,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
         delete childBounty.isParent;
         delete childBounty.childrenIds;
         delete childBounty.claimLimit;
+        delete childBounty.canonicalCard;
         const claimedInsertResult = await bountyCollection.insertOne(childBounty);
         if (claimedInsertResult == null) {
             Log.error('failed to create claimed bounty from evergreen');
@@ -104,12 +112,6 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
             Log.error('failed to update evergreen bounty with claimed Id');
             throw new Error('Sorry something is not working, our devs are looking into it.');
         }
-
-        // Pull it back for second update
-        // dbBountyResult = await bountyCollection.findOne({
-        //    _id: new mongo.ObjectId(dbBountyResult._id)
-        // });
-    
 
         // If we have hit the claim limit, close this bounty
         if (dbBountyResult.claimLimit !== undefined) {
@@ -135,6 +137,13 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
                 }
             }
         }
+
+        // Pull it back to refresh our copy
+        parentBounty = await bountyCollection.findOne({
+            _id: new mongo.ObjectId(dbBountyResult._id)
+         });
+    
+
     } else {
         claimedBounty = dbBountyResult;
     }
@@ -167,6 +176,6 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
         throw new Error(`Write to database for bounty ${request.bountyId} failed for ${request.activity} `);
     }
 
-    return claimedBounty;
+    return { claimedBounty, parentBounty };
 }
 
