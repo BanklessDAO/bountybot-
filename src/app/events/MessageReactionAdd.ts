@@ -14,6 +14,7 @@ import { BountyEmbedFields } from '../constants/embeds';
 import { PublishRequest } from '../requests/PublishRequest';
 import { PaidRequest } from '../requests/PaidRequest';
 import { ApplyRequest } from '../requests/ApplyRequest';
+import { ListRequest } from '../requests/ListRequest';
 import { Activities } from '../constants/activities';
 
 export default class implements DiscordEvent {
@@ -155,6 +156,39 @@ export default class implements DiscordEvent {
             Log.info(`${user.tag} attempting to mark bounty ${bountyId} complete`);
             request = new CompleteRequest({
                 commandContext: null,
+                messageReactionRequest: {
+                    user: user,
+                    message: message
+                },
+            });
+
+        } else if (reaction.emoji.name === '👷') {
+            Log.info(`${user.tag} attempting to list my claimed bounties`);
+            request = new ListRequest({
+                commandContext: null,
+                listType: 'CLAIMED_BY_ME',
+                messageReactionRequest: {
+                    user: user,
+                    message: message
+                },
+            });
+
+        } else if (reaction.emoji.name === '📝') {
+            Log.info(`${user.tag} attempting to list my created bounties`);
+            request = new ListRequest({
+                commandContext: null,
+                listType: 'CREATED_BY_ME',
+                messageReactionRequest: {
+                    user: user,
+                    message: message
+                },
+            });
+
+        } else if (reaction.emoji.name === '🔄') {
+            Log.info(`${user.tag} attempting to refresh the list`);
+            request = new ListRequest({
+                commandContext: null,
+                listType: undefined,
                 messageReactionRequest: {
                     user: user,
                     message: message

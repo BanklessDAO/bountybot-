@@ -1,6 +1,7 @@
 import AuthorizationModule from "../../auth/commandAuth";
 import ValidationModule from "../../validation/commandValidation";
 import { BountyActivityHandler } from "./ActivityHandler";
+import Log from '../../utils/Log';
 
 /**
  * handler is responsible for the flow of any activity request.
@@ -11,6 +12,8 @@ import { BountyActivityHandler } from "./ActivityHandler";
  * @returns an empty Promise for error handling and async calls
  */
 export const handler = async (request: any): Promise<void> => {
+    Log.debug(`In Handler: Bounty ID: ${request.bountyId} Actvity: ${request.activity}`);
+
     await ValidationModule.run(request);
 
     await AuthorizationModule.run(request);

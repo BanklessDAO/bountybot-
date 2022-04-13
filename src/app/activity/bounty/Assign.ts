@@ -1,16 +1,13 @@
-import { GuildMember, Message, DMChannel, MessageEmbed, TextChannel, AwaitMessagesOptions, GuildEmoji } from 'discord.js';
+import { GuildMember, Message, MessageEmbed, TextChannel } from 'discord.js';
 import { AssignRequest } from '../../requests/AssignRequest';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import { Bounty } from '../../types/bounty/Bounty';
 import DiscordUtils from '../../utils/DiscordUtils';
-import ValidationError from '../../errors/ValidationError';
 import Log, { LogUtils } from '../../utils/Log';
-import mongo, { Cursor, Db, UpdateWriteOpResult } from 'mongodb';
+import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import RuntimeError from '../../errors/RuntimeError';
-import { BountyEmbedFields } from '../../constants/embeds';
-import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
 
 export const assignBounty = async (request: AssignRequest): Promise<any> => {
@@ -22,7 +19,7 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
     let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 
     const assignedUser: GuildMember = await assigningUser.guild.members.fetch(request.assign);
-    const assignedBounty = await writeDbHandler(request, getDbResult.dbBountyResult, assignedUser);
+    await writeDbHandler(request, getDbResult.dbBountyResult, assignedUser);
     
     let bountyEmbedMessage: Message;
     if (!request.message) {
@@ -35,19 +32,14 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
         bountyEmbedMessage = request.message;
     }
 
-    // Need to refresh original bounty so the messages are correct
-    getDbResult = await getDbHandler(request); 
- 
-
-    await assignedBountyMessage(bountyEmbedMessage, getDbResult.dbBountyResult);
+    const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
     
-    const bountyUrl = process.env.BOUNTY_BOARD_URL + assignedBounty._id;
-    let assigningDM = `Your bounty has been assigned to <@${assignedUser.user.id}> ${bountyUrl}`;
+    let assigningContent = `Your bounty has been assigned to <@${assignedUser.user.id}> ${cardMessage.url}`;
+    let assignedContent = `You have been assigned this bounty! Go to the bounty card to claim it. Reach out to <@${assigningUser.id}> with any questions\n` +
+    `<${cardMessage.url}>`;
 
-    await assigningUser.send({ content: assigningDM });
-
-    await assignedUser.send({ content: `You have been assigned this bounty! Go to the #bounty-board channel to claim it. Reach out to <@${assigningUser.id}> with any questions\n` +
-                                         `<${bountyUrl}>`});
+    await DiscordUtils.activityNotification(assignedContent, assignedUser );
+    await DiscordUtils.activityResponse(request.commandContext, assigningContent, assigningUser);
     return;
 };
 

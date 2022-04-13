@@ -1,15 +1,14 @@
 import { CompleteRequest } from '../../requests/CompleteRequest';
 import DiscordUtils from '../../utils/DiscordUtils';
-import Log, { LogUtils } from '../../utils/Log';
-import { GuildMember, MessageEmbed, Message, TextChannel } from 'discord.js';
+import Log from '../../utils/Log';
+import { GuildMember } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
-import RuntimeError from '../../errors/RuntimeError';
 import { BountyStatus } from '../../constants/bountyStatus';
-import { BountyEmbedFields } from '../../constants/embeds';
 import { PaidStatus } from '../../constants/paidStatus';
+import BountyUtils from '../../utils/BountyUtils';
 
 
 export const completeBounty = async (request: CompleteRequest): Promise<void> => {
@@ -26,42 +25,6 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 	
     await writeDbHandler(request, completedByUser);
 
-    let submitterMessage: Message;
-	let completorMessage: Message;
-	let channelId: string;
-	let messageId: string;
-
-	if (!request.message) {
-		// If we put the bounty in a DM using the new flow, find it. If not, find it in the bounty board channel
-
-		if (getDbResult.dbBountyResult.creatorMessage !== undefined) {
-			channelId = getDbResult.dbBountyResult.creatorMessage.channelId;
-			messageId = getDbResult.dbBountyResult.creatorMessage.messageId;
-		} else {
-			channelId = getDbResult.bountyChannel;
-			messageId = getDbResult.dbBountyResult.discordMessageId;
-		}
-		const bountyChannel = await completedByUser.client.channels.fetch(channelId) as TextChannel;
-		completorMessage = await bountyChannel.messages.fetch(messageId).catch(e => {
-			LogUtils.logError(`could not find bounty ${request.bountyId} in channel ${channelId} in guild ${request.guildId}`, e);
-			throw new RuntimeError(e);
-		});
-    } else {
-        completorMessage = request.message;
-    }
-
-	// This logic works for both claim -> submit -> complete and claim -> complete
-	// TODO: submitterMessage is now a naming issue, as claimantMessage is also valid
-	if (getDbResult.dbBountyResult.claimantMessage !== undefined) {
-		const bountyChannel: TextChannel = await completedByUser.client.channels.fetch(getDbResult.dbBountyResult.claimantMessage.channelId) as TextChannel;
-		submitterMessage = await bountyChannel.messages.fetch(getDbResult.dbBountyResult.claimantMessage.messageId).catch(e => {
-			LogUtils.logError(`could not find bounty ${request.bountyId} in DM channel ${bountyChannel.id} in guild ${request.guildId}`, e);
-			throw new RuntimeError(e);
-		});
-	}
-
-	const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
-	
 	let submittedByUserId: string;
 	if (bountyCompletedFromInProgress) {
 		submittedByUserId = getDbResult.dbBountyResult.claimedBy.discordId;
@@ -70,10 +33,10 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 	}
 	const submittedByUser = await completedByUser.guild.members.fetch(submittedByUserId);
     
-    await completeBountyMessage(getDbResult.dbBountyResult, completorMessage, submitterMessage, completedByUser, submittedByUser);
+    const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
 	
 	let creatorCompleteDM = 
-        `Thank you for reviewing <${bountyUrl}>\n` +
+        `Thank you for reviewing <${cardMessage.url}>\n` +
 		`This bounty is now complete.\n`;
         
 	if (!getDbResult.dbBountyResult.paidStatus || getDbResult.dbBountyResult.paidStatus === PaidStatus.unpaid) {
@@ -81,18 +44,16 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 	}
 	else {
 		creatorCompleteDM = creatorCompleteDM.concat(
-			`No further action is required for this bounty.\n` +
-			`You can search for this bounty at ${process.env.BOUNTY_BOARD_URL} or by running '/bounty list' and selecting completed by me`
+			`No further action is required for this bounty.`
 		);
 	}
     
-    let submitterCompleteDM = `Your bounty has passed review and is now complete!\n<${bountyUrl}>\n`;
+    let submitterCompleteDM = `Your bounty has passed review and is now complete!\n<${cardMessage.url}>\n`;
 	if (!getDbResult.dbBountyResult.paidStatus || getDbResult.dbBountyResult.paidStatus === PaidStatus.unpaid) {
 		submitterCompleteDM = submitterCompleteDM.concat(`<@${completedByUser.id}> should be paying you with ${getDbResult.dbBountyResult.reward.amount} ${getDbResult.dbBountyResult.reward.currency} soon.`);
 	}
-    
-    await completedByUser.send({ content: creatorCompleteDM });
-    await submittedByUser.send({ content: submitterCompleteDM });
+	await DiscordUtils.activityNotification(submitterCompleteDM, submittedByUser );
+    await DiscordUtils.activityResponse(request.commandContext, creatorCompleteDM, completedByUser);
     return;
 }
 
@@ -152,7 +113,6 @@ const writeDbHandler = async (request: CompleteRequest, completedByUser: GuildMe
             // note that createdAt, claimedAt are not part of the BountyCollection type
 			reviewedAt: currentDate,
 			status: BountyStatus.complete,
-			paidStatus: dbBountyResult.isIOU ? PaidStatus.paid: null,
 			resolutionNote: request.resolutionNote,
 		},
 		$push: {
@@ -169,59 +129,3 @@ const writeDbHandler = async (request: CompleteRequest, completedByUser: GuildMe
     }
 }
 
-export const completeBountyMessage = async (completedBounty: BountyCollection, completorMessage: Message, submitterMessage: Message, completedByUser: GuildMember, submittedByUser: GuildMember): Promise<any> => {
-	Log.debug('fetching bounty message for complete')
-
-	let embedMessage: MessageEmbed = new MessageEmbed(completorMessage.embeds[0]);
-	
-	await completorMessage.delete();
-	if (submitterMessage) await submitterMessage.delete();
-	embedMessage.fields[BountyEmbedFields.status].value = BountyStatus.complete;
-	embedMessage.setColor('#01d212');
-	embedMessage.addField('Completed by', completedByUser.user.tag, true);
-	let completorReactionFooterText = '';
-	if (!completedBounty.paidStatus || completedBounty.paidStatus === PaidStatus.unpaid) {
-		completorReactionFooterText = completorReactionFooterText.concat('💰 - mark as paid')
-	}
-	
-	embedMessage.setFooter({text: completorReactionFooterText});
-
-	const submittedMessage: Message = await submittedByUser.send({ embeds: [embedMessage] });
-	await submittedMessage.react('🔥');
-	const completedMessage: Message = await completedByUser.send({ embeds: [embedMessage] });
-	await addCompleteReactions(completedMessage, completedBounty);
-
-	await updateMessageStore(completedBounty, submittedMessage, completedMessage);
-};
-
-export const addCompleteReactions = async (message: Message, bounty: BountyCollection): Promise<any> => {
-	await message.react('🔥');
-	if (!bounty.paidStatus || bounty.paidStatus === PaidStatus.unpaid) {
-		await message.react('💰');
-	}
-};
-
-// Save where we sent the Bounty message embeds for future updates
-export const updateMessageStore = async (bounty: BountyCollection, submittedMessage: Message, completedMessage: Message): Promise<any> => {
-    const db: Db = await MongoDbUtils.connect('bountyboard');
-    const bountyCollection = db.collection('bounties');
-    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: bounty._id }, {
-        $set: {
-            claimantMessage: {
-                messageId: submittedMessage.id,
-                channelId: submittedMessage.channelId,
-            },
-            creatorMessage: {
-                messageId: completedMessage.id,
-                channelId: completedMessage.channelId,
-            },
-        },
-        $unset: { discordMessageId: "" },
-    });
-
-    if (writeResult.result.ok !== 1) {
-        Log.error('failed to update completed bounty with message Id');
-        throw new Error(`Write to database for bounty ${bounty._id} failed. `);
-    }
-
-};

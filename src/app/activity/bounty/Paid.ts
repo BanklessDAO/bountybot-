@@ -1,15 +1,14 @@
 import { PaidRequest } from '../../requests/PaidRequest';
 import DiscordUtils from '../../utils/DiscordUtils';
-import Log, { LogUtils } from '../../utils/Log';
-import { GuildMember, MessageEmbed, Message, TextChannel, Collection, MessageReaction } from 'discord.js';
+import Log from '../../utils/Log';
+import { GuildMember } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
-import RuntimeError from '../../errors/RuntimeError';
 import { BountyStatus } from '../../constants/bountyStatus';
-import { BountyEmbedFields, IOUEmbedFields } from '../../constants/embeds';
 import { PaidStatus } from '../../constants/paidStatus';
+import BountyUtils from '../../utils/BountyUtils';
 
 
 export const paidBounty = async (request: PaidRequest): Promise<void> => {
@@ -25,45 +24,14 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
 	
     await writeDbHandler(request, paidByUser);
 
-	let payerMessage: Message;
-	let channelId: string;
-	let messageId: string;
-
-	if (!request.message) {
-		// If we put the bounty in a DM using the new flow, find it. If not, find it in the bounty board channel (might not be needed,
-		// but leaving for future use with web campatibility)
-
-		if (getDbResult.dbBountyResult.creatorMessage !== undefined) {
-			channelId = getDbResult.dbBountyResult.creatorMessage.channelId;
-			messageId = getDbResult.dbBountyResult.creatorMessage.messageId;
-		} else {
-			channelId = getDbResult.bountyChannel;
-			messageId = getDbResult.dbBountyResult.discordMessageId;
-		}
-		const bountyChannel = await paidByUser.client.channels.fetch(channelId) as TextChannel;
-		payerMessage = await bountyChannel.messages.fetch(messageId).catch(e => {
-			LogUtils.logError(`could not find IOU ${request.bountyId} in channel ${channelId} in guild ${request.guildId}`, e);
-			throw new RuntimeError(e);
-		});
-    } else {
-        payerMessage = request.message;
-    }
-
-	const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
-	const owedToDiscordId = getDbResult.dbBountyResult.isIOU ? 
-		getDbResult.dbBountyResult.owedTo.discordId :
-		getDbResult.dbBountyResult.claimedBy.discordId;
-	const owedToUser: GuildMember = await paidByUser.guild.members.fetch(owedToDiscordId);
-
-    
-    await paidBountyMessage(getDbResult.dbBountyResult, payerMessage, paidByUser, owedToUser);
+    const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
 	
 	const creatorPaidDM = 
-        `Thank you for marking your bounty as paid <${bountyUrl}>\n` +
-        `If you haven't already, please remember to tip <@${owedToUser.id}>`;
+        `Thank you for marking your bounty as paid <${cardMessage.url}>\n` +
+        `If you haven't already, please remember to tip <@${getDbResult.dbBountyResult.claimedBy.discordId}>`;
 
     
-    await paidByUser.send({ content: creatorPaidDM });
+    await DiscordUtils.activityResponse(request.commandContext, creatorPaidDM, paidByUser);
     return;
 }
 
@@ -126,22 +94,6 @@ const writeDbHandler = async (request: PaidRequest, paidByUser: GuildMember): Pr
 			resolutionNote: request.resolutionNote,
 		},
 	}
-	if (dbBountyResult.isIOU) {
-		writeObject.$set.addField({
-			status: BountyStatus.complete,
-			reviewedBy: {
-				discordHandle: paidByUser.user.tag,
-				discordId: paidByUser.user.id,
-				iconUrl: paidByUser.user.avatarURL(),
-			}
-		})
-		writeObject.$push = {
-			statusHistory: {
-				status: BountyStatus.complete,
-				setAt: currentDate,
-			},
-		}
-	}
 	const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, writeObject);
 
     if (writeResult.result.ok !== 1) {
@@ -149,70 +101,3 @@ const writeDbHandler = async (request: PaidRequest, paidByUser: GuildMember): Pr
         throw new Error(`Write to database for bounty ${request.bountyId} failed for Paid `);
     }
 }
-
-export const paidBountyMessage = async (paidBounty: BountyCollection, payerMessage: Message, paidByUser: GuildMember, submittedByUser: GuildMember): Promise<any> => {
-	Log.debug('fetching bounty message for paid')
-
-	let embedMessage: MessageEmbed = new MessageEmbed(payerMessage.embeds[0]);
-	let reactions = payerMessage.reactions.cache;
-	let reactionFooterText = '';
-	await payerMessage.delete();
-	// TODO: Figure out better way to find fields to modify
-	if (paidBounty.isIOU) {
-		embedMessage.fields[IOUEmbedFields.paidStatus].value = PaidStatus.paid;
-	} else {
-		embedMessage.addField('Paid Status', 'Paid', false);
-		if (paidBounty.status !== BountyStatus.complete) {
-			reactionFooterText = '✅ - complete';
-		}
-		else {
-			reactionFooterText = 'Bounty Complete and Paid. No futher action required.'
-		}
-	}
-	embedMessage.setColor('#01d212');
-	embedMessage.addField('Paid by', paidByUser.user.tag, true);
-	if (paidBounty.resolutionNote) {
-		embedMessage.addField('Notes', paidBounty.resolutionNote, false);
-	}
-
-	embedMessage.setFooter({text: reactionFooterText});
-
-	const paidMessage: Message = await paidByUser.send({ embeds: [embedMessage] });
-	await addPaidReactions(paidMessage, paidBounty, reactions);
-
-	await updateMessageStore(paidBounty, paidMessage);
-};
-
-export const addPaidReactions = async (message: Message, bounty: BountyCollection, previousReactions: Collection<String, MessageReaction>): Promise<any> => {
-	if (bounty.isIOU) {
-		await message.react('🔥');
-	}
-	else {
-		for (const [key, value] of previousReactions) {
-			if (value.me && value.emoji.name !== '💰') {
-				await message.react(value.emoji.name);
-			}
-		}
-	}
-};
-
-// Save where we sent the Bounty message embeds for future updates
-export const updateMessageStore = async (bounty: BountyCollection, paidMessage: Message): Promise<any> => {
-    const db: Db = await MongoDbUtils.connect('bountyboard');
-    const bountyCollection = db.collection('bounties');
-    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne({ _id: bounty._id }, {
-        $set: {
-            creatorMessage: {
-                messageId: paidMessage.id,
-                channelId: paidMessage.channelId,
-            },
-        },
-        $unset: { discordMessageId: "" },
-    });
-
-    if (writeResult.result.ok !== 1) {
-        Log.error('failed to update paid bounty with message Id');
-        throw new Error(`Write to database for bounty ${bounty._id} failed. `);
-    }
-
-};

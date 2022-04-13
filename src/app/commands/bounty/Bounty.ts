@@ -203,40 +203,6 @@ export default class Bounty extends SlashCommand {
                     name: Activities.list,
                     type: CommandOptionType.SUB_COMMAND,
                     description: 'View list of bounties you created or are claimed',
-                    options: [
-                        {
-                            name: 'list-type',
-                            type: CommandOptionType.STRING,
-                            description: 'Which bounties should be displayed?',
-                            choices: [
-                                {
-                                    name: 'created by me',
-                                    value: 'CREATED_BY_ME',
-                                },
-                                {
-                                    name: 'claimed by me',
-                                    value: 'CLAIMED_BY_ME',
-                                },
-                                {
-                                    name: 'drafted by me',
-                                    value: 'DRAFTED_BY_ME',
-                                },
-                                {
-                                    name: 'claimed by me and completed',
-                                    value: 'CLAIMED_BY_ME_AND_COMPLETE',
-                                },
-                                {
-                                    name: 'open',
-                                    value: 'OPEN',
-                                },
-                                {
-                                    name: 'in progress',
-                                    value: 'IN_PROGRESS',
-                                },
-                            ],
-                            required: true,
-                        },
-                    ],
                 },
                 {
                     name: Activities.delete,
@@ -350,7 +316,9 @@ export default class Bounty extends SlashCommand {
                 break;
             case Activities.list:
                 request = new ListRequest({
-                    commandContext: commandContext
+                    commandContext: commandContext,
+                    messageReactionRequest: null,
+                    listType: null
                 });
                 break;
             case Activities.delete:
@@ -388,23 +356,23 @@ export default class Bounty extends SlashCommand {
         }
         catch (e) {
             if (e instanceof ValidationError) {
-                await guildMember.send(`<@${commandContext.user.id}>\n` + e.message);
-                await commandContext.delete();
+                await commandContext.send({ content: `<@${commandContext.user.id}>\n` + e.message, ephemeral: true });
+                // await commandContext.delete();
                 return;
             } else if (e instanceof AuthorizationError) {
-                await guildMember.send(`<@${commandContext.user.id}>\n` + e.message);
-                commandContext.delete();
+                await commandContext.send({ content: `<@${commandContext.user.id}>\n` + e.message, ephemeral: true });
+                // commandContext.delete();
                 return;
             }
             else {
                 LogUtils.logError('error', e);
-                await guildMember.send('Sorry something is not working and our devs are looking into it.');
-                await commandContext.delete();
+                await commandContext.send({ content: 'Sorry something is not working and our devs are looking into it.', ephemeral: true });
+                // await commandContext.delete();
                 return;
             }
         }
 
-        return await commandContext.delete();
+        // return await commandContext.delete();
 
     }
 }

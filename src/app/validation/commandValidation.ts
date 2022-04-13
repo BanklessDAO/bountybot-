@@ -1,7 +1,7 @@
 import ValidationError from '../errors/ValidationError';
 import BountyUtils from '../utils/BountyUtils';
 import WalletUtils from '../utils/WalletUtils';
-import Log, { LogUtils } from '../utils/Log';
+import Log from '../utils/Log';
 import mongo, { Db } from 'mongodb';
 import MongoDbUtils from '../utils/MongoDbUtils';
 import { BountyCollection } from '../types/bounty/BountyCollection';
@@ -109,17 +109,12 @@ const paid = async (request: PaidRequest): Promise<void> => {
         );
     }
 
-    const iouNotPayable = dbBountyResult.status && 
-        dbBountyResult.status !== BountyStatus.open && 
-        dbBountyResult.isIOU;
     const bountyNotPayable = dbBountyResult.status && 
-        ['Draft', 'Open', 'Deleted'].includes(dbBountyResult.status) &&
-        !dbBountyResult.isIOU;
-    if (dbBountyResult.status && (iouNotPayable || bountyNotPayable)) {
+        ['Draft', 'Open', 'Deleted'].includes(dbBountyResult.status);
+    if (dbBountyResult.status && bountyNotPayable) {
         throw new ValidationError(
             `The bounty you have selected is in status ${dbBountyResult.status}\n` +
             `Currently, only bounties that are in status ${BountyStatus.in_progress}, ${BountyStatus.in_review}, or ${BountyStatus.complete} can be mark paid.\n` +
-            `IOUs in status ${BountyStatus.open} may be marked as paid\n` +
             `Please reach out to your favorite Bounty Board representative with any questions!`
             );
     }
@@ -223,7 +218,7 @@ const assign = async (request: AssignRequest): Promise<void> => {
 
     if (!request.assign) {
         throw new ValidationError(
-            `Please speficy the user to assign this bounty to.`
+            `Please specify the user to assign this bounty to.`
         );
     }
 
@@ -349,6 +344,8 @@ const list = async (request: ListRequest): Promise<void> => {
         case 'PAID_BY_ME':
             return;
         case 'UNPAID_BY_ME':
+            return;
+        case undefined:
             return;
         default:
             Log.info('invalid list-type');

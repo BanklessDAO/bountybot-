@@ -13,6 +13,7 @@ export interface Bounty {
 	submittedBy?: UserObject,
 	reviewedBy?: UserObject,
 	createdAt: string,
+	createdInChannel?: string,
 	dueAt?: string,
 	status?: string,
 	paidStatus?: string,

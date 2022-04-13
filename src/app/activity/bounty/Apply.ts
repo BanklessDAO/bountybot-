@@ -1,16 +1,12 @@
-import { GuildMember, Message, DMChannel, MessageEmbed, TextChannel, AwaitMessagesOptions } from 'discord.js';
+import { GuildMember, Message, DMChannel, AwaitMessagesOptions } from 'discord.js';
 import { ApplyRequest } from '../../requests/ApplyRequest';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
-import { Bounty } from '../../types/bounty/Bounty';
 import DiscordUtils from '../../utils/DiscordUtils';
 import ValidationError from '../../errors/ValidationError';
-import Log, { LogUtils } from '../../utils/Log';
-import mongo, { Cursor, Db, UpdateWriteOpResult } from 'mongodb';
+import Log from '../../utils/Log';
+import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
-import RuntimeError from '../../errors/RuntimeError';
-import { BountyEmbedFields } from '../../constants/embeds';
-import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
 
 export const applyBounty = async (request: ApplyRequest): Promise<any> => {
@@ -43,32 +39,15 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
 
     const appliedForBounty = await writeDbHandler(request, getDbResult.dbBountyResult, applyingUser, pitch);
     
-    let bountyEmbedMessage: Message;
-    if (!request.message) {
-        const bountyChannel: TextChannel = await applyingUser.guild.channels.fetch(getDbResult.bountyChannel) as TextChannel;
-        bountyEmbedMessage = await bountyChannel.messages.fetch(getDbResult.dbBountyResult.discordMessageId).catch(e => {
-            LogUtils.logError(`could not find bounty ${request.bountyId} in discord #bounty-board channel ${bountyChannel.id} in guild ${request.guildId}`, e);
-            throw new RuntimeError(e);
-        });
-    } else {
-        bountyEmbedMessage = request.message;
-    }
-
-    // Need to refresh original bounty so the messages are correct
-    getDbResult = await getDbHandler(request); 
-
-    await applyBountyMessage(bountyEmbedMessage, getDbResult.dbBountyResult);
+    const cardMessage = await BountyUtils.canonicalCard(appliedForBounty._id, request.activity);
     
-    const bountyUrl = process.env.BOUNTY_BOARD_URL + appliedForBounty._id;
-    const origBountyUrl = process.env.BOUNTY_BOARD_URL + getDbResult.dbBountyResult._id;
-    const createdByUser: GuildMember = await applyingUser.guild.members.fetch(getDbResult.dbBountyResult.createdBy.discordId);
-    let creatorDM = `Your bounty has been applied for by <@${applyingUser.id}> <${bountyUrl}> \n` +
+    const createdByUser: GuildMember = await applyingUser.guild.members.fetch(appliedForBounty.createdBy.discordId);
+    let creatorDM = `Your bounty has been applied for by <@${applyingUser.id}> <${cardMessage.url}> \n` +
                         `Their pitch: ${pitch ? pitch : '<none given>'} \n` +
-                        'Use the "/bounty assign" command in the #bounty-board channel to select an applicant who can claim.';
+                        'Use the "/bounty assign" command to select an applicant who can claim.';
 
-    await createdByUser.send({ content: creatorDM });
-
-    await applyingUser.send({ content: `You have applied for this bounty! Reach out to <@${createdByUser.id}> with any questions` });
+    await DiscordUtils.activityNotification(creatorDM, createdByUser );
+    await DiscordUtils.activityResponse(request.commandContext, `<@${applyingUser.user.id}>, You have applied for this bounty! Reach out to <@${createdByUser.id}> with any questions: ${cardMessage.url}`, applyingUser);
     return;
 };
 
@@ -119,13 +98,5 @@ const writeDbHandler = async (request: ApplyRequest, appliedForBounty: BountyCol
     }
 
     return appliedForBounty;
-}
-
-export const applyBountyMessage = async (message: Message, appliedForBounty: BountyCollection): Promise<any> => {
-    Log.debug(`fetching bounty message for apply`)
-    
-    const embedOrigMessage: MessageEmbed = message.embeds[0];
-    embedOrigMessage.setTitle(await BountyUtils.createPublicTitle(<Bounty>appliedForBounty));
-    await message.edit({ embeds: [embedOrigMessage] });
 };
 

@@ -1,10 +1,18 @@
-import { GuildMember, Role, Guild, DMChannel, AwaitMessagesOptions, Message, Collection, Snowflake } from 'discord.js';
+import { GuildMember, Role, Guild, DMChannel, AwaitMessagesOptions, Message, Collection, Snowflake, TextChannel, Channel } from 'discord.js';
 import client from '../app';
-import { CommandContext } from 'slash-create';
+import { LogUtils } from './Log';
 import ValidationError from '../errors/ValidationError';
 import { BountyEmbedFields } from '../constants/embeds';
-import Log from './Log';
 import RuntimeError from '../errors/RuntimeError';
+import MongoDbUtils  from '../utils/MongoDbUtils';
+import { Db } from 'mongodb';
+import { CustomerCollection } from '../types/bounty/CustomerCollection';
+import { CommandContext } from 'slash-create';
+import { BountyCollection } from '../types/bounty/BountyCollection';
+
+
+
+
 
 const DiscordUtils = {
     async getGuildMemberFromUserId(userId: string, guildId: string): Promise<GuildMember> {
@@ -40,6 +48,37 @@ const DiscordUtils = {
         };
     },
 
+    async getTextChannelfromChannelId(channelId: string): Promise<TextChannel> {
+        const channel: TextChannel = await client.channels.fetch(channelId).catch(e => {
+            LogUtils.logError(`Could not find channel ${channelId}`, e);
+            throw new RuntimeError(e);
+         }) as TextChannel;
+        return channel;
+    },
+
+    async getMessagefromMessageId(messageId: string, channel: TextChannel): Promise<Message> {
+        const message = await channel.messages.fetch(messageId).catch(e => {
+            LogUtils.logError(`Could not find message ${messageId} in channel ${channel.id} in guild ${channel.guildId}`, e);
+            throw new RuntimeError(e);
+        }) as Message;
+        return message;
+    },
+
+    async getBountyChannelfromCustomerId(customerId: string): Promise<TextChannel> {
+        const db: Db = await MongoDbUtils.connect('bountyboard');
+        const customerCollection = db.collection('customers');
+    
+        const dbCustomerResult: CustomerCollection = await customerCollection.findOne({
+            customerId: customerId,
+        });
+    
+        const channel: TextChannel = await client.channels.fetch(dbCustomerResult.bountyChannel).catch(e => {
+            LogUtils.logError(`Could not find bounty channel ${dbCustomerResult.bountyChannel} in customer ${customerId}`, e);
+            throw new RuntimeError(e);
+        }) as TextChannel;
+        return channel;
+    },
+
     // TODO: graceful timeout handling needed
     async awaitUserDM(dmChannel: DMChannel, replyOptions: AwaitMessagesOptions): Promise<string> {
         let messages: Collection<Snowflake, Message> = null;
@@ -67,6 +106,38 @@ const DiscordUtils = {
 
 		return messageText;
 	},
+
+    // TODO: graceful timeout handling needed
+    async awaitUser(channel: TextChannel, replyOptions: AwaitMessagesOptions): Promise<Message> {
+        let messages: Collection<Snowflake, Message> = null;
+        try {
+            messages = await channel.awaitMessages(replyOptions);
+            // TODO: this is too broad
+            } catch (e) {
+                throw new ValidationError(
+                    'You have timed out!\n' +
+                    'You can run `/bounty create` to create a new bounty. Please respond to my questions within 5 minutes.\n' +
+                    'Please reach out to your favorite Bounty Board representative with any questions.\n'
+                );
+        }
+         return messages.first();
+    },
+
+    // Send a response to a command (use ephemeral) or a reaction (use DM)
+    async activityResponse(commandContext: CommandContext, content: string, toUser: GuildMember): Promise<void> {
+        if (!!commandContext) { // This was a slash command
+            await commandContext.send({ content: content, ephemeral: true });
+            // await commandContext.delete();
+        } else {  // This was a reaction or a DB event
+            await toUser.send(content);
+        }
+    },
+
+    // Send a notification to an interested party (use a DM)
+    async activityNotification(content: string, toUser: GuildMember): Promise<void> {
+        await toUser.send(content);
+    },
+    
 
     async hasAllowListedRole(userId: string, guildId: string, roles: string[]): Promise<boolean> {
 		return await DiscordUtils.hasSomeRole(userId, guildId, roles);

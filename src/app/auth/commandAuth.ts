@@ -207,8 +207,8 @@ const paid = async (request: PaidRequest): Promise<void> => {
     if (request.userId !== dbBountyResult.createdBy.discordId) {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
-            `It looks like you don't have permission to mark this IOU as paid.\n` +
-            `This IOU can only be paid by <@${dbBountyResult.createdBy.discordId}>.\n ` +
+            `It looks like you don't have permission to mark this bounty as paid.\n` +
+            `This bounty can only be paid by <@${dbBountyResult.createdBy.discordId}>.\n ` +
             `Please reach out to your favorite bounty board representative with any questions!` 
             );
     }

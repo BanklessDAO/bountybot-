@@ -1,7 +1,7 @@
 import { DeleteRequest } from '../../requests/DeleteRequest';
 import DiscordUtils from '../../utils/DiscordUtils';
 import Log, { LogUtils } from '../../utils/Log';
-import { GuildMember, Message, TextChannel } from 'discord.js';
+import { GuildMember, TextChannel } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
@@ -19,26 +19,13 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
     const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
     await writeDbHandler(request, deletedByUser);
 
-    let bountyEmbedMessage: Message;
-    if (!request.message) {
-        if (getDbResult.dbBountyResult.discordMessageId !== undefined) {
-            const bountyChannel: TextChannel = await deletedByUser.guild.channels.fetch(getDbResult.bountyChannel) as TextChannel;
-            bountyEmbedMessage = await bountyChannel.messages.fetch(getDbResult.dbBountyResult.discordMessageId).catch(e => {
+    const bountyChannel: TextChannel = await DiscordUtils.getTextChannelfromChannelId(getDbResult.dbBountyResult.canonicalCard.channelId);
+    const bountyEmbedMessage = await DiscordUtils.getMessagefromMessageId(getDbResult.dbBountyResult.canonicalCard.messageId, bountyChannel).catch(e => {
                 LogUtils.logError(`could not find bounty ${request.bountyId} in discord #bounty-board channel ${bountyChannel.id} in guild ${request.guildId}`, e);
                 throw new RuntimeError(e);
             });
-        } else {
-            const bountyChannel: TextChannel = await deletedByUser.client.channels.fetch(getDbResult.dbBountyResult.creatorMessage.channelId) as TextChannel;
-            bountyEmbedMessage = await bountyChannel.messages.fetch(getDbResult.dbBountyResult.creatorMessage.messageId).catch(e => {
-                LogUtils.logError(`could not find bounty ${request.bountyId} in DM channel ${bountyChannel.id} in guild ${request.guildId}`, e);
-                throw new RuntimeError(e);
-            });
-        }
-    } else {
-        bountyEmbedMessage = request.message;
-    }
    
-    await deleteBountyMessage(bountyEmbedMessage);
+    await bountyEmbedMessage.delete();
 	
 	const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
 	let creatorDeleteDM = 
@@ -48,8 +35,7 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
         getDbResult.dbBountyResult.childrenIds !== undefined && getDbResult.dbBountyResult.childrenIds.length > 0) {
         creatorDeleteDM += 'Children bounties created from this multi-claimant bounty will remain.\n';
     }
-
-    await deletedByUser.send({ content: creatorDeleteDM });
+    await DiscordUtils.activityResponse(request.commandContext, creatorDeleteDM, deletedByUser);
     return;
 }
 
@@ -124,7 +110,3 @@ const writeDbHandler = async (request: DeleteRequest, deletedByUser: GuildMember
         throw new Error(`Write to database for bounty ${request.bountyId} failed for Delete `);
     }
 }
-
-export const deleteBountyMessage = async (message: Message): Promise<void> => {
-    await message.delete();
-};
