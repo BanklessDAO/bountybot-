@@ -143,10 +143,10 @@ export const generateBountyFieldSegment = async (bountyRecord: BountyCollection,
 	let forString = '';
 	if (bountyRecord.gate) {
 		const role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
-		forString = `claimable by role ${role.name}`;
+		forString = `claimable by role ${role ? role.name : "<missing role>"}`;
 	} else if (bountyRecord.assign) {
 		const assignedUser = await DiscordUtils.getGuildMemberFromUserId(bountyRecord.assign, bountyRecord.customerId);
-		forString = `claimable by user ${assignedUser.user.tag}`;
+		forString = `claimable by user ${assignedUser ? assignedUser.user.tag : "<missing user>"}`;
 	} else {
 		forString = 'claimable by anyone';
 	}	
