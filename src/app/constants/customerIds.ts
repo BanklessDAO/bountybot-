@@ -9,6 +9,7 @@ const customers = {
 	DIMO: '892438668453740634',
 	banklessBrasil: '875424808194691113',
 	banklessDAOProductSupportCenter: '895442799971942410',
+	eco: '768556386404794448',
 };
 
 // Allow adding a test customer from the environment
