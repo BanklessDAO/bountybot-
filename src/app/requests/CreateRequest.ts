@@ -12,8 +12,7 @@ export class CreateRequest extends Request {
     claimLimit: number;
     copies: number;
     gate: string;
-    assign: string;
-    assignedName: string;
+    assign: string; 
     requireApplication: boolean;
     owedTo: string;
     isIOU: boolean;

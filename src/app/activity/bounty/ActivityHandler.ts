@@ -1,4 +1,3 @@
-import { CommandContext } from 'slash-create'
 import { createBounty } from './Create'
 import { publishBounty } from './Publish'
 import { applyBounty } from './Apply'
@@ -14,8 +13,6 @@ import { upsertUserWallet } from '../user/RegisterWallet';
 import { tagBounty } from './Tag';
 
 
-import { Guild, GuildMember } from 'discord.js';
-import client from '../../app';
 import Log from '../../utils/Log';
 
 import { CreateRequest } from '../../requests/CreateRequest'
@@ -48,6 +45,8 @@ export const BountyActivityHandler = {
 
         Log.debug('Reached Activity Handler')
         Log.debug(request.activity)
+     
+
         // TODO in all activities, replace any use of request.commandContext with cherry picked fields 
         //      from the commandContext object as top level fields of the [Activity]Request class
         switch (request.activity) {
@@ -99,13 +98,4 @@ export const BountyActivityHandler = {
         }
         return;
     },
-
-
-    async getGuildAndMember(ctx: CommandContext): Promise<{ guild: Guild, guildMember: GuildMember }> {
-        const guild = await client.guilds.fetch(ctx.guildID);
-        return {
-            guild: guild,
-            guildMember: await guild.members.fetch(ctx.user.id),
-        };
-    }
 }

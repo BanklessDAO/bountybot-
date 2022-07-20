@@ -1,6 +1,6 @@
 import MongoDbUtils  from '../../utils/MongoDbUtils';
 import mongo, { Cursor, Db, UpdateWriteOpResult } from 'mongodb';
-import { Message, MessageEmbedOptions } from 'discord.js';
+import { Message, MessageActionRow, MessageButton, MessageEmbedOptions } from 'discord.js';
 import Log from '../../utils/Log';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import DiscordUtils from '../../utils/DiscordUtils';
@@ -8,6 +8,7 @@ import { ListRequest } from '../../requests/ListRequest';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import { BountyStatus } from '../../constants/bountyStatus';
 import { ConnectionVisibility } from 'discord-api-types';
+import DMPermissionError from '../../errors/DMPermissionError';
 
 const TOTAL_BOUNTY_LIMIT = 15;
 const BOUNTY_SEGMENT_LIMIT = 5;
@@ -71,7 +72,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 			bountyList[record.status] = {};
 			bountyList[record.status]._index = 0;
 		}
-		bountyList[record.status][bountyList[record.status]._index++] = await generateBountyFieldSegment(record, cardMessage);
+		bountyList[record.status][bountyList[record.status]._index++] = await generateBountyFieldSegment(record, cardMessage, listType);
 		listCount++;
 		moreRecords = await dbRecords.hasNext();  // Put here because we can only call once otherwise cursor is closed.
 	}
@@ -113,13 +114,16 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 	listCard.footer = { text: footerText };
 	let listMessage: Message;
 	if (!listType) {
+		const componentActions = new MessageActionRow().addComponents(['👷', '📝', '🔄'].map(a => 
+			new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
+		))
 		if (!!request.message) {  // List from a refresh reaction
 			listMessage = request.message;
-			await listMessage.edit({ embeds: [listCard] });
-			await listMessage.reactions.removeAll();
+			await listMessage.edit({ embeds: [listCard], components: [componentActions] });
+			await DiscordUtils.activityResponse(null, request.buttonInteraction, 'Bounty list refreshed successfully');
 		} else {  // List from a slash command
 			const channel = await DiscordUtils.getTextChannelfromChannelId(request.commandContext.channelID);
-			listMessage = await channel.send({ embeds: [listCard] });
+			listMessage = await channel.send({ embeds: [listCard], components: [componentActions] });
 			if (request.commandContext.channelID == dbCustomerResult.bountyChannel) {
 				const writeResult: UpdateWriteOpResult = await customerCollection.updateOne( {customerId: request.guildId}, {
 					$set: {
@@ -129,28 +133,51 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 			}
 			await request.commandContext.delete();  // We're done
 		}
-		await listMessage.react('👷');
-		await listMessage.react('📝');
-		await listMessage.react('🔄');
-
 	} else {  // List from a DM reaction
-		await listUser.send({ embeds: [listCard] });
+		try {
+			await listUser.send({ embeds: [listCard] });
+		} catch (e) {
+			throw new DMPermissionError(e);
+		}
+		await DiscordUtils.activityResponse(null, request.buttonInteraction, 'Please check your DM for bounty list');
+
 	}
 };
 
-export const generateBountyFieldSegment = async (bountyRecord: BountyCollection, cardMessage: Message): Promise<any> => {
+export const generateBountyFieldSegment = async (bountyRecord: BountyCollection, cardMessage: Message, listType: string): Promise<any> => {
 	const url = !!cardMessage ? cardMessage.url : process.env.BOUNTY_BOARD_URL + bountyRecord._id
 	let forString = '';
-	if (bountyRecord.gate) {
-		const role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
-		forString = `claimable by role ${role ? role.name : "<missing role>"}`;
-	} else if (bountyRecord.assign) {
-		const assignedUser = await DiscordUtils.getGuildMemberFromUserId(bountyRecord.assign, bountyRecord.customerId);
-		forString = `claimable by user ${assignedUser ? assignedUser.user.tag : "<missing user>"}`;
+
+	if (bountyRecord.claimedBy) {
+		let claimedByMeMetadata = getClaimedByMeMetadata(bountyRecord, listType);
+		forString = claimedByMeMetadata ?  claimedByMeMetadata : `claimed by @${bountyRecord.claimedBy.discordHandle}`;
 	} else {
-		forString = 'claimable by anyone';
-	}	
+	  if (bountyRecord.gate) {
+			const role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
+			forString = `claimable by role ${role ? role.name : "<missing role>"}`;
+		} else if (bountyRecord.assign) {
+			const assignedUser = await DiscordUtils.getGuildMemberFromUserId(bountyRecord.assign, bountyRecord.customerId);
+			forString = `claimable by user ${assignedUser ? assignedUser.user.tag : "<missing user>"}`;
+		} else {
+			forString = 'claimable by anyone';
+		}	
+	}
+	
 	return (
 		`> [${bountyRecord.title}](${url}) ${forString} **${bountyRecord.reward.amount + ' ' + bountyRecord.reward.currency.toUpperCase()}**\n`
 	);
+};
+
+const getClaimedByMeMetadata = (record: BountyCollection, listType: string) => {
+	let text = '';
+	
+	if (listType === 'CLAIMED_BY_ME') {
+		  if (record.status === BountyStatus.complete) {
+				text = `payment is ${record.paidStatus.toUpperCase()}`;
+			} else if (record.status === BountyStatus.in_progress || record.status === BountyStatus.in_review) {
+				text = `is due on ${new Date (record.dueAt).toLocaleDateString()}`;
+			}
+		}
+		
+	return text;
 };

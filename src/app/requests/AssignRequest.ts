@@ -2,7 +2,7 @@ import { CommandContext } from 'slash-create';
 import { Request } from './Request';
 import { MessageReactionRequest } from '../types/discord/MessageReactionRequest';
 import { Activities } from '../constants/activities';
-import { Message } from 'discord.js';
+import { ButtonInteraction, Message } from 'discord.js';
 
 export class AssignRequest extends Request {
     bountyId: string;
@@ -10,10 +10,12 @@ export class AssignRequest extends Request {
     
     commandContext: CommandContext;
     message: Message;
+    buttonInteraction: ButtonInteraction;
 
     constructor(args: {
         commandContext: CommandContext, 
-        messageReactionRequest: MessageReactionRequest
+        messageReactionRequest: MessageReactionRequest,
+        buttonInteraction: ButtonInteraction,
     }) {
         if (args.commandContext) {
 

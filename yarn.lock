@@ -13,11 +13,6 @@
     tslib "^2.3.1"
     zod "^3.11.6"
 
-"@discordjs/collection@^0.3.2":
-  version "0.3.2"
-  resolved "https://registry.yarnpkg.com/@discordjs/collection/-/collection-0.3.2.tgz#3c271dd8a93dad89b186d330e24dbceaab58424a"
-  integrity sha512-dMjLl60b2DMqObbH1MQZKePgWhsNe49XkKBZ0W5Acl5uVV43SN414i2QfZwRI7dXAqIn8pEWD2+XXQFn9KWxqg==
-
 "@discordjs/collection@^0.4.0":
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/@discordjs/collection/-/collection-0.4.0.tgz#b6488286a1cc7b41b644d7e6086f25a1c1e6f837"
@@ -1532,11 +1527,6 @@ registry-url@^5.0.0:
   dependencies:
     rc "^1.2.8"
 
-require-all@^3.0.0:
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/require-all/-/require-all-3.0.0.tgz#473d49704be310115ce124f77383b1ebd8671312"
-  integrity sha1-Rz1JcEvjEBFc4ST3c4Ox69hnExI=
-
 require-at@^1.0.6:
   version "1.0.6"
   resolved "https://registry.yarnpkg.com/require-at/-/require-at-1.0.6.tgz#9eb7e3c5e00727f5a4744070a7f560d4de4f6e6a"
@@ -1631,15 +1621,13 @@ signal-exit@^3.0.2:
   resolved "https://registry.yarnpkg.com/signal-exit/-/signal-exit-3.0.6.tgz#24e630c4b0f03fea446a2bd299e62b4a6ca8d0af"
   integrity sha512-sDl4qMFpijcGw22U5w63KmD3cZJfBuFlVNbVMKje2keoKML7X2UzWbc4XrmEbDwg0NXJc3yv4/ox7b+JWb57kQ==
 
-slash-create@^4.4.0:
-  version "4.4.2"
-  resolved "https://registry.yarnpkg.com/slash-create/-/slash-create-4.4.2.tgz#00fb98cc0fca54dde10aef263835fd129ae96408"
-  integrity sha512-FC0Xb1dH24EiFbuhbqJZyeMcAbrS/fvXZ9sQjUhzg+InY5KUJYCDq84xhTRuRadWmabpo1s4lreUviCc1EEuaA==
+slash-create@^5.6.1:
+  version "5.6.1"
+  resolved "https://registry.yarnpkg.com/slash-create/-/slash-create-5.6.1.tgz#5fd3822285df962b6dbc4945e0e7067085ae3047"
+  integrity sha512-XlnVw7FleyUa4ruaXFmGeKMVYHnVH9xKVjtIDX9bKONnQXeRiHFNEU6pn+Jgn6/ft49Tu5VBBytJ0on4sg4MZA==
   dependencies:
-    "@discordjs/collection" "^0.3.2"
     eventemitter3 "^4.0.7"
     lodash.isequal "^4.5.0"
-    require-all "^3.0.0"
     tweetnacl "^1.0.3"
 
 slash@^3.0.0:

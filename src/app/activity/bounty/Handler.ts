@@ -2,6 +2,7 @@ import AuthorizationModule from "../../auth/commandAuth";
 import ValidationModule from "../../validation/commandValidation";
 import { BountyActivityHandler } from "./ActivityHandler";
 import Log from '../../utils/Log';
+import BountyUtils from "../../utils/BountyUtils";
 
 /**
  * handler is responsible for the flow of any activity request.
@@ -14,9 +15,19 @@ import Log from '../../utils/Log';
 export const handler = async (request: any): Promise<void> => {
     Log.debug(`In Handler: Bounty ID: ${request.bountyId} Actvity: ${request.activity}`);
 
+    setTimeout(async ()=> {
+        if (request.buttonInteraction && !(request.buttonInteraction.replied || request.buttonInteraction.deferred)) {
+            await request.buttonInteraction.deferReply({ ephemeral: true }).catch(e => Log.debug(`Error: ${e.message}`));
+        } else if (request.commandContext && !request.commandContext.initiallyResponded) {
+            await request.commandContext.defer();
+        }
+    }, 2000);
+
     await ValidationModule.run(request);
 
     await AuthorizationModule.run(request);
 
     await BountyActivityHandler.run(request);
+
+    if (request.bountyId) await BountyUtils.bountyCleanUp(request.bountyId);
 }

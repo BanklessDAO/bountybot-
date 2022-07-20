@@ -57,6 +57,8 @@ const ValidationModule = {
                 return registerWallet(request as UpsertUserWalletRequest);
             case Activities.tag:
                 return tag(request as TagRequest);
+            case Activities.refresh:
+                return;
             case 'gm':
                 return;
             default:
@@ -129,7 +131,6 @@ const publish = async (request: PublishRequest): Promise<void> => {
     const dbCollectionBounties = db.collection('bounties');
     const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
         _id: new mongo.ObjectId(request.bountyId),
-        isIOU: { $ne: true },
     });
 
     if (!dbBountyResult) {
@@ -137,14 +138,6 @@ const publish = async (request: PublishRequest): Promise<void> => {
             `Please select a valid bounty id to ${request.activity}. ` +
             `Check your previous DMs from bountybot for the correct id.`
         );
-    }
-
-    if (!request.clientSyncRequest && dbBountyResult.status && dbBountyResult.status !== BountyStatus.draft) {
-        throw new ValidationError(
-            `The bounty id you have selected is in status ${dbBountyResult.status}\n` +
-            `Currently, only bounties with status draft can be published to the bounty channel.\n` +
-            `Please reach out to your favorite Bounty Board representative with any questions!`
-            );
     }
 }
 

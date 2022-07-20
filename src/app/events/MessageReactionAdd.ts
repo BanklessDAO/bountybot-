@@ -1,21 +1,14 @@
-import { DMChannel, Message, MessageReaction, PartialUser, TextChannel, User } from 'discord.js';
-import Log, { LogUtils } from '../utils/Log';
-import ValidationError from '../errors/ValidationError';
-import DiscordUtils from '../utils/DiscordUtils';
-import { DiscordEvent } from '../types/discord/DiscordEvent';
-import { DeleteRequest } from '../requests/DeleteRequest';
-import { SubmitRequest } from '../requests/SubmitRequest';
-import { CompleteRequest } from '../requests/CompleteRequest';
-import { HelpRequest } from '../requests/HelpRequest';
-import { ClaimRequest } from '../requests/ClaimRequest';
+import { Message, MessageReaction, PartialUser, User } from 'discord.js';
 import { handler } from '../activity/bounty/Handler';
-import AuthorizationError from '../errors/AuthorizationError';
 import { BountyEmbedFields } from '../constants/embeds';
+import AuthorizationError from '../errors/AuthorizationError';
+import ValidationError from '../errors/ValidationError';
 import { PublishRequest } from '../requests/PublishRequest';
-import { PaidRequest } from '../requests/PaidRequest';
-import { ApplyRequest } from '../requests/ApplyRequest';
-import { ListRequest } from '../requests/ListRequest';
+import { DiscordEvent } from '../types/discord/DiscordEvent';
+import DiscordUtils from '../utils/DiscordUtils';
+import Log, { LogUtils } from '../utils/Log';
 import { Activities } from '../constants/activities';
+
 
 export default class implements DiscordEvent {
     name = 'messageReactionAdd';
@@ -54,7 +47,7 @@ export default class implements DiscordEvent {
     async messageReactionHandler(reaction: MessageReaction, user: User) {
         let message: Message = await reaction.message.fetch();
         Log.info(`Processing reaction ${reaction.emoji.name} to message ${message.id}`)
-
+    
         if (message === null) {
             Log.debug('message not found');
             return;
@@ -65,11 +58,14 @@ export default class implements DiscordEvent {
         }
 
         const bountyId: string = DiscordUtils.getBountyIdFromEmbedMessage(message);
+        if (!bountyId) return;
+
+        const guildId = message.guildId ? message.guildId : message.embeds[0].author.name.split(': ')[1];
+
         let request: any;
 
-        if (reaction.emoji.name === '👍') {
-            Log.info(`${user.tag} attempting to publish bounty ${bountyId}`);
-            const guildId = message.embeds[0].author.name.split(': ')[1];
+        if (reaction.emoji.name === '🔄') {
+            Log.info(`${user.tag} attempting to refresh the bounty`);
 
             request = new PublishRequest({
                 commandContext: null,
@@ -82,127 +78,7 @@ export default class implements DiscordEvent {
                     bot: user.bot
                 },
                 clientSyncRequest: null,
-            });
-        } else if (reaction.emoji.name === '🏴') {
-            Log.info(`${user.tag} attempting to claim a bounty ${bountyId} from the bounty board`);
-            request = new ClaimRequest({
-                commandContext: null,
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                },
-                clientSyncRequest: null,
-            });
-        } else if (reaction.emoji.name === '💰') {
-            Log.info(`${user.tag} attempting to mark a bounty as paid ${bountyId} from the bounty board`);
-            request = new PaidRequest({
-                commandContext: null,
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                }
-            });
-        } else if (reaction.emoji.name === '🙋') {
-            Log.info(`${user.tag} attempting to apply for a bounty ${bountyId} from the bounty board`);
-            request = new ApplyRequest({
-                commandContext: null,
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                },
-            });
-
-        } else if (reaction.emoji.name === '❌') {
-            Log.info(`${user.tag} attempting to delete bounty ${bountyId}`);
-            const guildId = message.embeds[0].author.name.split(': ')[1];
-
-            if (message.channel instanceof DMChannel) {
-                request = new DeleteRequest({
-                    commandContext: null,
-                    messageReactionRequest: null,
-                    directRequest: {
-                        bountyId: bountyId,
-                        guildId: guildId,
-                        userId: user.id,
-                        resolutionNote: null,
-                        activity: Activities.delete,
-                        bot: user.bot
-                    },
-                })
-            }
-            else if (message.channel instanceof TextChannel) {
-                request = new DeleteRequest({
-                    commandContext: null,
-                    messageReactionRequest: {
-                        user: user,
-                        message: message
-                    },
-                    directRequest: null,
-                });
-        }
-
-        } else if (reaction.emoji.name === '📮') {
-            Log.info(`${user.tag} attempting to submit bounty ${bountyId}`);
-            // TODO: have bot ask user for details
-            request = new SubmitRequest({
-                commandContext: null,
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                },
-            });
-
-        } else if (reaction.emoji.name === '✅') {
-            Log.info(`${user.tag} attempting to mark bounty ${bountyId} complete`);
-            request = new CompleteRequest({
-                commandContext: null,
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                },
-            });
-
-        } else if (reaction.emoji.name === '👷') {
-            Log.info(`${user.tag} attempting to list my claimed bounties`);
-            request = new ListRequest({
-                commandContext: null,
-                listType: 'CLAIMED_BY_ME',
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                },
-            });
-
-        } else if (reaction.emoji.name === '📝') {
-            Log.info(`${user.tag} attempting to list my created bounties`);
-            request = new ListRequest({
-                commandContext: null,
-                listType: 'CREATED_BY_ME',
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                },
-            });
-
-        } else if (reaction.emoji.name === '🔄') {
-            Log.info(`${user.tag} attempting to refresh the list`);
-            request = new ListRequest({
-                commandContext: null,
-                listType: undefined,
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                },
-            });
-
-        } else if (reaction.emoji.name === '🆘') {
-            Log.info(`${user.tag} attempting to seek help for bounty ${bountyId}`);
-            request = new HelpRequest({
-                commandContext: null,
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                }
+                buttonInteraction: null,
             });
         } else {
             return;

@@ -2,7 +2,7 @@ import { CommandContext } from 'slash-create'
 import { Request } from './Request'
 import { MessageReactionRequest } from '../types/discord/MessageReactionRequest';
 import { Activities } from '../constants/activities';
-import { Message } from 'discord.js';
+import { ButtonInteraction, Message } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
 
 export class DeleteRequest extends Request {
@@ -11,6 +11,7 @@ export class DeleteRequest extends Request {
     commandContext: CommandContext;
 
     message: Message;
+    buttonInteraction: ButtonInteraction;
     
     constructor(args: {
         commandContext: CommandContext, 
@@ -22,7 +23,8 @@ export class DeleteRequest extends Request {
             activity: string,
             resolutionNote: string,
             bot: boolean 
-        }
+        },
+        buttonInteraction: ButtonInteraction,
     }) {
         if (args.commandContext) {
             let commandContext: CommandContext = args.commandContext;
@@ -42,11 +44,13 @@ export class DeleteRequest extends Request {
         else if (args.messageReactionRequest) {
             let messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
             super(Activities.delete, messageReactionRequest.message.guildId, messageReactionRequest.user.id, messageReactionRequest.user.bot);
+            this.buttonInteraction = args.buttonInteraction;
             this.bountyId = DiscordUtils.getBountyIdFromEmbedMessage(messageReactionRequest.message);
         }
         else if (args.directRequest) {
             super(args.directRequest.activity, args.directRequest.guildId, args.directRequest.userId, args.directRequest.bot);
             this.bountyId = args.directRequest.bountyId;
+            this.buttonInteraction = args.buttonInteraction;
             this.resolutionNote = args.directRequest.resolutionNote;
 
         }

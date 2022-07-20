@@ -2,7 +2,7 @@ import { CommandContext } from 'slash-create'
 import { Request } from './Request'
 import { Activities } from '../constants/activities';
 import { MessageReactionRequest } from '../types/discord/MessageReactionRequest';
-import { Message } from 'discord.js';
+import { ButtonInteraction, Message } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
 
 export class HelpRequest extends Request {
@@ -10,9 +10,12 @@ export class HelpRequest extends Request {
     commandContext: CommandContext;
 
     message: Message;
+    buttonInteraction: ButtonInteraction;
+
     constructor(args: {
         commandContext: CommandContext, 
-        messageReactionRequest: MessageReactionRequest
+        messageReactionRequest: MessageReactionRequest,
+        buttonInteraction: ButtonInteraction,
     }) {
         if (args.commandContext) {
             if (args.commandContext.subcommands[0] !== Activities.help) {
@@ -27,6 +30,7 @@ export class HelpRequest extends Request {
             let messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
             super(Activities.help, messageReactionRequest.message.guildId, messageReactionRequest.user.id, messageReactionRequest.user.bot);
             this.message = messageReactionRequest.message;
+            this.buttonInteraction = args.buttonInteraction;
             this.bountyId = DiscordUtils.getBountyIdFromEmbedMessage(messageReactionRequest.message);
         }
 

@@ -40,7 +40,7 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 		`This bounty is now complete.\n`;
         
 	if (!getDbResult.dbBountyResult.paidStatus || getDbResult.dbBountyResult.paidStatus === PaidStatus.unpaid) {
-		creatorCompleteDM = creatorCompleteDM.concat(`Please remember to mark this bounty as paid (💰)and pay <@${submittedByUser.id}>`);
+		creatorCompleteDM = creatorCompleteDM.concat(`Please remember to mark this bounty as paid (💰) and pay <@${submittedByUser.id}>`);
 	}
 	else {
 		creatorCompleteDM = creatorCompleteDM.concat(
@@ -52,8 +52,8 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 	if (!getDbResult.dbBountyResult.paidStatus || getDbResult.dbBountyResult.paidStatus === PaidStatus.unpaid) {
 		submitterCompleteDM = submitterCompleteDM.concat(`<@${completedByUser.id}> should be paying you with ${getDbResult.dbBountyResult.reward.amount} ${getDbResult.dbBountyResult.reward.currency} soon.`);
 	}
-	await DiscordUtils.activityNotification(submitterCompleteDM, submittedByUser );
-    await DiscordUtils.activityResponse(request.commandContext, creatorCompleteDM, completedByUser);
+	await DiscordUtils.activityNotification(submitterCompleteDM, submittedByUser);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorCompleteDM);
     return;
 }
 

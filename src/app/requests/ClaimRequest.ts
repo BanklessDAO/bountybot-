@@ -2,7 +2,7 @@ import { CommandContext } from 'slash-create';
 import { Request } from './Request';
 import { MessageReactionRequest } from '../types/discord/MessageReactionRequest';
 import { Activities } from '../constants/activities';
-import { Message } from 'discord.js';
+import { ButtonInteraction, Message } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
 import { ChangeStreamEvent } from '../types/mongo/ChangeStream';
 
@@ -11,11 +11,13 @@ export class ClaimRequest extends Request {
     
     commandContext: CommandContext;
     message: Message;
+    buttonInteraction: ButtonInteraction;
 
     constructor(args: {
         commandContext: CommandContext, 
         messageReactionRequest: MessageReactionRequest,
         clientSyncRequest: ChangeStreamEvent,
+        buttonInteraction: ButtonInteraction,
     }) {
         if (args.commandContext) {
             if (args.commandContext.subcommands[0] !== Activities.claim) {
@@ -29,6 +31,7 @@ export class ClaimRequest extends Request {
             const messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
             super(Activities.claim, messageReactionRequest.message.guildId, messageReactionRequest.user.id, messageReactionRequest.user.bot);
             this.message = messageReactionRequest.message;
+            this.buttonInteraction = args.buttonInteraction;
             this.bountyId = DiscordUtils.getBountyIdFromEmbedMessage(messageReactionRequest.message);
         } 
         else if (args.clientSyncRequest) {

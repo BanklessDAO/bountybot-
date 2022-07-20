@@ -61,6 +61,8 @@ const AuthorizationModule = {
                 return;
             case Activities.tag:
                 return tag(request as TagRequest)
+            case Activities.refresh:
+                return;
 			case 'gm':
                 return;
         }
@@ -89,7 +91,7 @@ const publish = async (request: PublishRequest): Promise<void> => {
         _id: new mongo.ObjectId(request.bountyId),
     });
 
-    if (request.userId !== dbBountyResult.createdBy.discordId) {
+    if ((dbBountyResult.status == BountyStatus.draft ) && (request.userId !== dbBountyResult.createdBy.discordId)) {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
@@ -105,7 +107,12 @@ const publish = async (request: PublishRequest): Promise<void> => {
         _id: new mongo.ObjectId(request.bountyId),
     });
 
-    if (dbBountyResult.gate && !(await DiscordUtils.hasAllowListedRole(request.userId, request.guildId, dbBountyResult.gate))) {
+    // Backwards campatibility with .gate usage
+    // If .gate is set, return that (it will be an array with a single value: [discordId])
+    // Otherwise, if .gateTo exists, return the discordIds from the contained objects ([discordId, discordId, discordId]). There should always be a discord Id in each object.
+    const gate = (dbBountyResult.gate || (dbBountyResult.gateTo && dbBountyResult.gateTo.map( g => g.discordId)));
+
+    if (gate && !(await DiscordUtils.hasAllowListedRole(request.userId, request.guildId, gate))) {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +
@@ -132,7 +139,8 @@ const publish = async (request: PublishRequest): Promise<void> => {
         }
     }
 
-    if (dbBountyResult.requireApplication && (!dbBountyResult.assign || (request.userId !== dbBountyResult.assign))) {
+    const assignedTo = (dbBountyResult.assign || dbBountyResult.assignTo?.discordId);
+    if (dbBountyResult.requireApplication && (!assignedTo || (request.userId !== assignedTo))) {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             'This bounty requires you to apply for it first, and the bounty creator\n' + 
@@ -140,7 +148,7 @@ const publish = async (request: PublishRequest): Promise<void> => {
         )
     }
     
-    if (dbBountyResult.assign && (request.userId !== dbBountyResult.assign)) {
+    if (assignedTo && (request.userId !== assignedTo)) {
         throw new AuthorizationError(
             `Thank you for giving bounty commands a try!\n` +
             `It looks like you don't have permission to ${request.activity} this bounty.\n` +

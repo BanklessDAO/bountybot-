@@ -13,6 +13,9 @@ import { CreateRequest } from '../../requests/CreateRequest';
 import AuthorizationError from '../../errors/AuthorizationError';
 import DiscordUtils from '../../utils/DiscordUtils';
 import { guildIds } from '../../constants/customerIds';
+import NotificationPermissionError from '../../errors/NotificationPermissionError';
+import DMPermissionError from '../../errors/DMPermissionError';
+import ErrorUtils from '../../utils/ErrorUtils';
 
 
 export default class IOU extends SlashCommand {
@@ -69,7 +72,7 @@ export default class IOU extends SlashCommand {
         Log.debug(`Slash command triggered for iou`);
         let request: any;
         request = new CreateRequest({
-            commandContext: commandContext 
+            commandContext: commandContext
         });
         const { guildMember } = await DiscordUtils.getGuildAndMember((request as Request).guildId, (request as Request).userId);
 
@@ -78,20 +81,21 @@ export default class IOU extends SlashCommand {
         }
         catch (e) {
             if (e instanceof ValidationError) {
-                await guildMember.send(`<@${commandContext.user.id}>\n` + e.message);
-                await commandContext.delete();
-                return;
+                await DiscordUtils.activityResponse(commandContext, null, `<@${commandContext.user.id}>\n` + e.message);
             } else if (e instanceof AuthorizationError) {
-                await guildMember.send(`<@${commandContext.user.id}>\n` + e.message);
-                commandContext.delete();
-                return;
+                await DiscordUtils.activityResponse(commandContext, null, `<@${commandContext.user.id}>\n` + e.message);
+            } else if (e instanceof NotificationPermissionError) {
+                await ErrorUtils.sendToDefaultChannel(e.message, request);
+            } else if (e instanceof DMPermissionError) {
+                await ErrorUtils.sendIOUToDefaultChannel(e.message, request);
+                await commandContext.send({ content: 'Failed to DM. The notification is publised to default channel instead', ephemeral: true });
             }
             else {
                 LogUtils.logError('error', e);
                 await guildMember.send('Sorry something is not working and our devs are looking into it.');
                 await commandContext.delete();
-                return;
             }
+            return;
         }
 
         return await commandContext.delete();

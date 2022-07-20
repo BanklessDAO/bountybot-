@@ -56,6 +56,7 @@ const creator = new SlashCreator({
 	applicationID: process.env.DISCORD_BOT_APPLICATION_ID,
 	publicKey: process.env.DISCORD_BOT_PUBLIC_KEY,
 	token: process.env.DISCORD_BOT_TOKEN,
+	disableTimeouts: true,
 });
 
 creator
@@ -67,6 +68,7 @@ creator
 	.registerCommandsIn(path.join(__dirname, 'commands/bounty'))
 	.syncCommands();
 
+creator.on('componentInteraction', () => true);
 // When the client is ready, run this code (only once)
 client.once('ready', () => {
 	console.log('Ready!');

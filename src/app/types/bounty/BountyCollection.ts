@@ -1,5 +1,6 @@
 import { Collection, Double, Int32, ObjectId } from 'mongodb';
 
+// assign and assignedName are deprecated, replaced by assignTo
 export interface BountyCollection extends Collection {
 	_id: ObjectId,
 	season: string,
@@ -26,6 +27,7 @@ export interface BountyCollection extends Collection {
 	claimantMessage: MessageInfo,
 	customerId: string,
 	gate: string[],
+	gateTo: RoleObject[],
 	evergreen: boolean,
 	claimLimit: Int32,
 	isParent: boolean,
@@ -33,6 +35,7 @@ export interface BountyCollection extends Collection {
 	childrenIds: ObjectId[]
 	assign: string,
 	assignedName: string,
+	assignTo: UserObject,
 	requireApplication: boolean,
 	applicants: Applicant[],
 	activityHistory: ClientInteraction[],
@@ -55,8 +58,15 @@ export type MessageInfo = {
 export type Applicant = {
 	discordId: string,
 	discordHandle: string,
+	iconUrl: string,
 	pitch: string,
-}
+};
+
+export type RoleObject = {
+	discordId: string,
+	discordName: string,
+	iconUrl: string,
+};
 
 export type Reward = {
 	currency: string,

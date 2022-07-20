@@ -25,6 +25,9 @@ import AuthorizationError from '../../errors/AuthorizationError';
 import DiscordUtils from '../../utils/DiscordUtils';
 import { guildIds } from '../../constants/customerIds';
 import { TagRequest } from '../../requests/TagRequest';
+import NotificationPermissionError from '../../errors/NotificationPermissionError';
+import DMPermissionError from '../../errors/DMPermissionError';
+import ErrorUtils from '../../utils/ErrorUtils';
 
 
 export default class Bounty extends SlashCommand {
@@ -288,62 +291,73 @@ export default class Bounty extends SlashCommand {
                     commandContext: commandContext,
                     messageReactionRequest: null,
                     clientSyncRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case Activities.apply:
                 request = new ApplyRequest({
                     commandContext: commandContext,
-                    messageReactionRequest: null
+                    messageReactionRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case Activities.assign:
                 request = new AssignRequest({
                     commandContext: commandContext,
-                    messageReactionRequest: null
+                    messageReactionRequest: null,
+                    buttonInteraction: null,
+
                 });
                 break;
             case Activities.apply:
                 request = new ApplyRequest({
                     commandContext: commandContext,
-                    messageReactionRequest: null
+                    messageReactionRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case Activities.assign:
                 request = new AssignRequest({
                     commandContext: commandContext,
-                    messageReactionRequest: null
+                    messageReactionRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case Activities.submit:
                 request = new SubmitRequest({
                     commandContext: commandContext,
-                    messageReactionRequest: null
+                    messageReactionRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case Activities.complete:
                 request = new CompleteRequest({
                     commandContext: commandContext,
-                    messageReactionRequest: null
+                    messageReactionRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case Activities.list:
                 request = new ListRequest({
                     commandContext: commandContext,
                     messageReactionRequest: null,
-                    listType: null
+                    listType: null,
+                    buttonInteraction: null,
                 });
                 break;
             case Activities.delete:
                 request = new DeleteRequest({
                     commandContext: commandContext,
                     messageReactionRequest: null,
-                    directRequest: null
+                    directRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case Activities.help:
                 request = new HelpRequest({
                     commandContext: commandContext,
-                    messageReactionRequest: null
+                    messageReactionRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case Activities.tag:
@@ -375,6 +389,13 @@ export default class Bounty extends SlashCommand {
                 await commandContext.send({ content: `<@${commandContext.user.id}>\n` + e.message, ephemeral: true });
                 // commandContext.delete();
                 return;
+            } else if (e instanceof NotificationPermissionError) {
+                await ErrorUtils.sendToDefaultChannel(e.message, request)
+            } else if (e instanceof DMPermissionError) {
+                const message = `It looks like bot does not have permission to DM you.\n \n` +
+                                '**Message** \n' +
+                                e.message;
+                await commandContext.send({ content: message, ephemeral: true });
             }
             else {
                 LogUtils.logError('error', e);

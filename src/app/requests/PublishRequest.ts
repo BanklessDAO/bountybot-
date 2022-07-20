@@ -6,9 +6,13 @@ import { MessageReactionRequest } from '../types/discord/MessageReactionRequest'
 import { Activities } from '../constants/activities';
 import DiscordUtils from '../utils/DiscordUtils';
 import { ChangeStreamEvent } from '../types/mongo/ChangeStream';
+import { ButtonInteraction } from 'discord.js';
 
 export class PublishRequest extends Request {
     bountyId: string;
+    commandContext: CommandContext;
+
+    buttonInteraction: ButtonInteraction;
     
     constructor(args: {
         commandContext: CommandContext, 
@@ -21,6 +25,7 @@ export class PublishRequest extends Request {
             bot: boolean 
         }
         clientSyncRequest: ChangeStreamEvent,
+        buttonInteraction?: ButtonInteraction,
     }) {
         if (args.commandContext) {
             let commandContext: CommandContext = args.commandContext;
@@ -29,15 +34,18 @@ export class PublishRequest extends Request {
             }
             super(commandContext.subcommands[0], commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.bountyId = commandContext.options.publish['bounty-id'];
+            this.commandContext = commandContext;
         }
         else if (args.messageReactionRequest) {
             let messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
             super(Activities.publish, messageReactionRequest.message.guildId, messageReactionRequest.user.id, messageReactionRequest.user.bot);
             this.bountyId = DiscordUtils.getBountyIdFromEmbedMessage(messageReactionRequest.message);
+            this.buttonInteraction = args.buttonInteraction;
         }
         else if (args.directRequest) {
             super(args.directRequest.activity, args.directRequest.guildId, args.directRequest.userId, args.directRequest.bot);
             this.bountyId = args.directRequest.bountyId;
+            this.buttonInteraction = args.buttonInteraction;
         }
         else if (args.clientSyncRequest) {
             const upsertedBountyRecord = args.clientSyncRequest.fullDocument;

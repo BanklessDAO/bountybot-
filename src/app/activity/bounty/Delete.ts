@@ -35,7 +35,7 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
         getDbResult.dbBountyResult.childrenIds !== undefined && getDbResult.dbBountyResult.childrenIds.length > 0) {
         creatorDeleteDM += 'Children bounties created from this multi-claimant bounty will remain.\n';
     }
-    await DiscordUtils.activityResponse(request.commandContext, creatorDeleteDM, deletedByUser);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorDeleteDM);
     return;
 }
 

@@ -74,6 +74,7 @@ const changeStreamEventHandler= async (event: ChangeStreamEvent): Promise<void> 
                 commandContext: null,
                 messageReactionRequest: null,
                 clientSyncRequest: event,
+                buttonInteraction: null,
             });
             break;
         case Activities.submit:

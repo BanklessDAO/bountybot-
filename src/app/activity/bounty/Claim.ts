@@ -11,6 +11,9 @@ import BountyUtils from '../../utils/BountyUtils';
 import { Activities } from '../../constants/activities';
 import { Clients } from '../../constants/clients';
 import { UserCollection } from '../../types/user/UserCollection';
+import ValidationError from '../../errors/ValidationError';
+import TimeoutError from '../../errors/TimeoutError';
+import DMPermissionError from '../../errors/DMPermissionError';
 
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.debug('In Claim activity');
@@ -18,19 +21,29 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
 
-    if (! (await isUserWalletRegistered(request))) {
-        if (request.commandContext) {
-            const gotoDMMessage = 'Go to your DMs to finish claiming the bounty...';
-            await request.commandContext.send({ content: gotoDMMessage, ephemeral: true});
-        }
-    
+    if (! (await BountyUtils.isUserWalletRegistered(request.userId))) {
+        const gotoDMMessage = 'Go to your DMs to finish claiming the bounty...';
+        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, gotoDMMessage);
+        
+        const durationMinutes = 2;
         const claimWalletMessage = `Hello <@${request.userId}>!\n` +
             `Please respond within 2 minutes.\n` +
             `To claim this bounty, please enter the ethereum wallet address (non-ENS) to receive the reward amount for this bounty`;
-        const walletNeededMessage: Message = await claimedByUser.send({ content: claimWalletMessage });
+        const walletNeededMessage: Message = await claimedByUser.send({ content: claimWalletMessage }).catch(() => { throw new DMPermissionError(claimWalletMessage) });
         const dmChannel: DMChannel = await walletNeededMessage.channel.fetch() as DMChannel;
-    
-        await BountyUtils.userInputWalletAddress(dmChannel, request.userId, request.guildId);
+        
+        try {
+            await BountyUtils.userInputWalletAddress(dmChannel, request.userId, durationMinutes*60*1000);
+        }
+        catch (e) {
+            if (e instanceof TimeoutError || e instanceof ValidationError) {
+                throw new ValidationError(                
+                    `Unable to complete this operation.\n` +
+                    'Please try entering your wallet address with the slash command `/register wallet` and then try claiming the bounty again.\n\n' +
+                    `Return to Bounty list: ${(await BountyUtils.getLatestCustomerList(request.guildId))}`
+                    );
+            }
+        }
     }
 
     let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
@@ -49,7 +62,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
 
     let creatorNotification = 
     `Your bounty has been claimed by <@${claimedByUser.user.id}> <${claimedBountyCard.url}>\n` +
-    `You are free to complete this bounty and/or to mark it as paid at any time.\n` +
+    `You are free to mark this bounty as complete and/or paid at any time.\n` +
     `Marking a bounty as complete and/or paid may help you with accounting or project status tasks later on.`;
     if (getDbResult.dbBountyResult.evergreen) {
         const parentBountyUrl = process.env.BOUNTY_BOARD_URL + parentBounty._id;
@@ -63,25 +76,13 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     }
 
     const createdByUser = await DiscordUtils.getGuildMemberFromUserId(getDbResult.dbBountyResult.createdBy.discordId, request.guildId);
-    await DiscordUtils.activityNotification(creatorNotification, createdByUser );
+    await DiscordUtils.activityNotification(creatorNotification, createdByUser);
 
     const claimaintResponse = `<@${claimedByUser.user.id}>, you have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions: <${claimedBountyCard.url}>`;
-    await DiscordUtils.activityResponse(request.commandContext, claimaintResponse , claimedByUser);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, claimaintResponse);
     
     return;
 };
-
-const isUserWalletRegistered = async (request: ClaimRequest): Promise<boolean> => {
-    const db: Db = await MongoDbUtils.connect('bountyboard');
-    const userCollection = db.collection('user');
-
-    const dbUserResult: UserCollection = await userCollection.findOne({
-        userDiscordId: request.userId
-    });
-
-    if (dbUserResult && dbUserResult.walletAddress) return true;
-    return false;
-}
 
 const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: BountyCollection, bountyChannel: string}> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');

@@ -1,44 +1,52 @@
-import { TextChannel, Message, MessageEmbedOptions } from 'discord.js'
-import Log, { LogUtils } from '../../utils/Log';
+import { TextChannel, Message } from 'discord.js'
+import Log from '../../utils/Log';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import DiscordUtils from '../../utils/DiscordUtils';
 import BountyUtils from '../../utils/BountyUtils';
-import RuntimeError from '../../errors/RuntimeError';
 import { PublishRequest } from '../../requests/PublishRequest';
 import { BountyStatus } from '../../constants/bountyStatus';
 import { Activities } from '../../constants/activities';
 import { Clients } from '../../constants/clients';
+import Bounty from '../../commands/bounty/Bounty';
 
 export const publishBounty = async (publishRequest: PublishRequest): Promise<any> => {
 	Log.debug('In Publish activity');
 
-    Log.info(`starting to finalize bounty: ${publishRequest.bountyId} from guild: ${publishRequest.guildId}`);
-    const bountyId = publishRequest.bountyId;
-    const guildId = publishRequest.guildId;
-    const { guildMember } = await DiscordUtils.getGuildAndMember(publishRequest.guildId, publishRequest.userId);
+	const bountyId = publishRequest.bountyId;
+	const guildId = publishRequest.guildId;
 
-    const [dbBountyResult, dbCustomerResult] = await getDbHandler(bountyId, guildId, publishRequest);
+	Log.info(`starting to finalize bounty: ${bountyId} from guild: ${guildId}`);
 
-    if (!publishRequest.clientSyncRequest) {
+	const { guildMember } = await DiscordUtils.getGuildAndMember(publishRequest.guildId, publishRequest.userId);
+
+	const [dbBountyResult, dbCustomerResult] = await getDbHandler(bountyId, guildId, publishRequest);
+
+	if (!publishRequest.clientSyncRequest && dbBountyResult.status == BountyStatus.draft) {
 		await writeDbHandler(dbBountyResult);
 	}
 
-	const bountyChannel: TextChannel = dbBountyResult.createdInChannel ? await DiscordUtils.getTextChannelfromChannelId(dbBountyResult.createdInChannel) :
-		 await guildMember.client.channels.fetch(dbCustomerResult.bountyChannel) as TextChannel;
-	const bountyMessage: Message = await BountyUtils.canonicalCard(dbBountyResult._id, publishRequest.activity, bountyChannel);
-    await guildMember.send({ content: `Bounty published to ${bountyChannel.name} <${bountyMessage.url}> and the website! <${process.env.BOUNTY_BOARD_URL}${bountyId}>` });
-	Log.info(`bounty published to ${bountyChannel.name}`);
+	let bountyChannel: TextChannel;
+	// Possible channel was deleted prior to publish or refresh
+	try {
+	    bountyChannel = dbBountyResult.createdInChannel ? await DiscordUtils.getTextChannelfromChannelId(dbBountyResult.createdInChannel) :
+		await guildMember.client.channels.fetch(dbCustomerResult.bountyChannel) as TextChannel;
+	} catch(e) {
+		bountyChannel = undefined;
+	}
+	const bountyMessage: Message = await BountyUtils.canonicalCard(dbBountyResult._id, publishRequest.activity, bountyChannel, guildMember);
+	if (dbBountyResult.status == BountyStatus.draft || publishRequest.commandContext) {
+		await DiscordUtils.activityResponse(publishRequest.commandContext, publishRequest.buttonInteraction,  `Bounty published to \`${(bountyMessage.channel as any).name || bountyChannel.name}\` <${bountyMessage.url}> and the website! <${process.env.BOUNTY_BOARD_URL}${bountyId}>`);
+	}
+
+	Log.info(`bounty published to ${(bountyMessage.channel as any).name || bountyChannel.name}`);
 
 	// Remove old publish preview
 	if (dbBountyResult.creatorMessage !== undefined) {
 		const dmChannel = await guildMember.client.channels.fetch(dbBountyResult.creatorMessage.channelId) as TextChannel;
-		const previewMessage = await dmChannel.messages.fetch(dbBountyResult.creatorMessage.messageId).catch(e => {
-			LogUtils.logError(`could not find bounty ${dbBountyResult._id} in channel ${dmChannel.id} in guild ${guildId}`, e);
-			throw new RuntimeError(e);
-		});
+		const previewMessage = await dmChannel.messages.fetch(dbBountyResult.creatorMessage.messageId);
 		await previewMessage.delete();
 	}
 
@@ -46,29 +54,29 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
 }
 
 const getDbHandler = async (bountyId: string, guildId: string, request: PublishRequest): Promise<[BountyCollection, CustomerCollection]> => {
-    Log.debug(`Entered get DbHandler for publish`);
-    const db: Db = await MongoDbUtils.connect('bountyboard');
+	Log.debug(`Entered get DbHandler for publish`);
+	const db: Db = await MongoDbUtils.connect('bountyboard');
 	const dbCollectionBounties = db.collection('bounties');
-    const dbCollectionCustomers = db.collection('customers');
+	const dbCollectionCustomers = db.collection('customers');
 
-	const status = request.clientSyncRequest ? 'Open' : 'Draft';
+	let search = { _id: new mongo.ObjectId(bountyId) };
 
-    const dbCustomerResult: CustomerCollection = await dbCollectionCustomers.findOne({
+	// If we are syncing from web, status should be Open
+	if (request.clientSyncRequest) search["status"] = 'Open';
+
+	const dbCustomerResult: CustomerCollection = await dbCollectionCustomers.findOne({
 		customerId: guildId
 	});
-    const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne({
-		_id: new mongo.ObjectId(bountyId),
-		status: status,
-	});
+	const dbBountyResult: BountyCollection = await dbCollectionBounties.findOne(search);
 
-    return [dbBountyResult, dbCustomerResult];
+	return [dbBountyResult, dbCustomerResult];
 
 }
 
 const writeDbHandler = async (dbBountyResult: BountyCollection): Promise<any> => {
-    const db: Db = await MongoDbUtils.connect('bountyboard');
+	const db: Db = await MongoDbUtils.connect('bountyboard');
 	const dbCollectionBounties = db.collection('bounties');
-    const currentDate = (new Date()).toISOString();
+	const currentDate = (new Date()).toISOString();
 	const writeResult: UpdateWriteOpResult = await dbCollectionBounties.updateOne(dbBountyResult, {
 		$set: {
 			status: BountyStatus.open,

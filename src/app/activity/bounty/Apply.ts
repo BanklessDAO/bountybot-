@@ -8,6 +8,7 @@ import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import BountyUtils from '../../utils/BountyUtils';
+import DMPermissionError from '../../errors/DMPermissionError';
 
 export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     Log.debug('In Apply activity');
@@ -17,7 +18,7 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     const pitchMessageText = `Hello @${applyingUser.displayName}!\n` +
         `Please respond to the following within 5 minutes.\n` +
         `Please tell the bounty creator why you should be chosen to claim this bounty (your pitch)`;
-    const pitchMessage: Message = await applyingUser.send({ content: pitchMessageText });
+    const pitchMessage: Message = await applyingUser.send({ content: pitchMessageText }).catch(() => { throw new DMPermissionError(pitchMessageText) });
     const dmChannel: DMChannel = await pitchMessage.channel.fetch() as DMChannel;
     const replyOptions: AwaitMessagesOptions = {
         max: 1,
@@ -25,6 +26,9 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
         time: 300000,
         errors: ['time'],
     };
+
+    const gotoDMMessage = 'Go to your DMs to finish appplying for the bounty...';
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, gotoDMMessage);
 
     const pitch = await DiscordUtils.awaitUserDM(dmChannel, replyOptions);
     try {
@@ -40,14 +44,16 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     const appliedForBounty = await writeDbHandler(request, getDbResult.dbBountyResult, applyingUser, pitch);
     
     const cardMessage = await BountyUtils.canonicalCard(appliedForBounty._id, request.activity);
-    
+
     const createdByUser: GuildMember = await applyingUser.guild.members.fetch(appliedForBounty.createdBy.discordId);
     let creatorDM = `Your bounty has been applied for by <@${applyingUser.id}> <${cardMessage.url}> \n` +
                         `Their pitch: ${pitch ? pitch : '<none given>'} \n` +
                         'Use the "/bounty assign" command to select an applicant who can claim.';
 
-    await DiscordUtils.activityNotification(creatorDM, createdByUser );
-    await DiscordUtils.activityResponse(request.commandContext, `<@${applyingUser.user.id}>, You have applied for this bounty! Reach out to <@${createdByUser.id}> with any questions: ${cardMessage.url}`, applyingUser);
+    await DiscordUtils.activityNotification(creatorDM, createdByUser);
+    const activityMessage = `<@${applyingUser.user.id}>, You have applied for this bounty! Reach out to <@${createdByUser.id}> with any questions: ${cardMessage.url}`;
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage);
+    await applyingUser.send({ content: activityMessage })
     return;
 };
 
@@ -87,6 +93,7 @@ const writeDbHandler = async (request: ApplyRequest, appliedForBounty: BountyCol
             applicants: {
                 discordId: applyingUser.user.id,
                 discordHandle: applyingUser.user.tag,
+                iconUrl: applyingUser.user.avatarURL(),
                 pitch: pitch,
             },
         },

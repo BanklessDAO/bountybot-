@@ -2,17 +2,19 @@ import { CommandContext } from 'slash-create'
 import { Request } from './Request'
 import { Activities } from '../constants/activities';
 import { MessageReactionRequest } from '../types/discord/MessageReactionRequest';
-import { Message } from 'discord.js';
+import { ButtonInteraction, Message } from 'discord.js';
 
 export class ListRequest extends Request {
     listType: string;
     commandContext: CommandContext;
     message: Message;
+    buttonInteraction: ButtonInteraction;
 
     constructor(args: {
         commandContext: CommandContext, 
         messageReactionRequest: MessageReactionRequest,
         listType: string,
+        buttonInteraction: ButtonInteraction,
     }) {
         if (args.commandContext) {
             if (args.commandContext.subcommands[0] !== Activities.list) {
@@ -25,6 +27,7 @@ export class ListRequest extends Request {
             const messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
             super(Activities.list, messageReactionRequest.message.guildId, messageReactionRequest.user.id, messageReactionRequest.user.bot);
             this.message = messageReactionRequest.message;
+            this.buttonInteraction = args.buttonInteraction;
             this.listType = args.listType;
         } 
 

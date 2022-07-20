@@ -1,4 +1,4 @@
-import { GuildMember, Message, MessageEmbed, TextChannel } from 'discord.js';
+import { GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, TextChannel } from 'discord.js';
 import { AssignRequest } from '../../requests/AssignRequest';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import { Bounty } from '../../types/bounty/Bounty';
@@ -33,13 +33,13 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
     }
 
     const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
-    
+
     let assigningContent = `Your bounty has been assigned to <@${assignedUser.user.id}> ${cardMessage.url}`;
     let assignedContent = `You have been assigned this bounty! Go to the bounty card to claim it. Reach out to <@${assigningUser.id}> with any questions\n` +
     `<${cardMessage.url}>`;
 
-    await DiscordUtils.activityNotification(assignedContent, assignedUser );
-    await DiscordUtils.activityResponse(request.commandContext, assigningContent, assigningUser);
+    await DiscordUtils.activityNotification(assignedContent, assignedUser);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, assigningContent);
     return;
 };
 
@@ -75,8 +75,11 @@ const writeDbHandler = async (request: AssignRequest, assignedBounty: BountyColl
     
     const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(assignedBounty, {
         $set: {
-            assign: request.assign,
-            assignedName: assignedUser.user.tag
+            assignTo: {
+                discordId: request.assign,
+                discordHandle: assignedUser.user.tag,
+                iconUrl: assignedUser.user.avatarURL(),
+            },
         },
     });
 
@@ -94,10 +97,10 @@ export const assignedBountyMessage = async (message: Message, appliedForBounty: 
     const embedOrigMessage: MessageEmbed = message.embeds[0];
     embedOrigMessage.setTitle(await BountyUtils.createPublicTitle(<Bounty>appliedForBounty));
     embedOrigMessage.setFooter({text: '🏴 - claim | ❌ - delete'});
-    await message.edit({ embeds: [embedOrigMessage] });
-	await message.reactions.removeAll();
-	await message.react('🏴');
-	await message.react('❌');
+    const componentActions = new MessageActionRow().addComponents(['👷', '📝', '🔄'].map(a => 
+        new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
+    ))
+    await message.edit({ embeds: [embedOrigMessage], components: [componentActions] });
 
 };
 
