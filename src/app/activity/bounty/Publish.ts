@@ -50,6 +50,8 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
 		await previewMessage.delete();
 	}
 
+	await DiscordUtils.refreshLastList(dbCustomerResult.customerId, publishRequest);
+	
 	return;
 }
 

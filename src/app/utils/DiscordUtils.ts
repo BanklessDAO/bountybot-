@@ -1,6 +1,7 @@
-import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, Message, Role, Snowflake, TextChannel } from 'discord.js';
+import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, Message, MessageActionRow, MessageButton, Role, Snowflake, TextChannel } from 'discord.js';
 import { Db } from 'mongodb';
 import { CommandContext } from 'slash-create';
+import { listBounty } from '../activity/bounty/List';
 import client from '../app';
 import { BountyEmbedFields } from '../constants/embeds';
 import ConflictingMessageException from '../errors/ConflictingMessageException';
@@ -8,8 +9,10 @@ import NotificationPermissionError from '../errors/NotificationPermissionError';
 import RuntimeError from '../errors/RuntimeError';
 import TimeoutError from '../errors/TimeoutError';
 import ValidationError from '../errors/ValidationError';
+import { ListRequest } from '../requests/ListRequest';
 import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import MongoDbUtils from '../utils/MongoDbUtils';
+import BountyUtils from './BountyUtils';
 import { LogUtils } from './Log';
 
 
@@ -168,9 +171,15 @@ const DiscordUtils = {
     },
 
     // Send a notification to an interested party (use a DM)
-    async activityNotification(content: string, toUser: GuildMember): Promise<void> {
+    async activityNotification(content: string, toUser: GuildMember, link: string): Promise<void> {
         try {
-            await toUser.send(content);
+            const componentActions = new MessageActionRow().addComponents(
+                new MessageButton()
+                    .setLabel('View Bounty')
+                    .setStyle('LINK')
+                    .setURL(link || '')
+            );
+            await toUser.send({ content, components: link && [componentActions] });
         } catch (e) {
             throw new NotificationPermissionError(content);
         }
@@ -199,6 +208,36 @@ const DiscordUtils = {
         if (message.embeds[0].fields[BountyEmbedFields.bountyId].name !== 'Bounty Id') return null;
         return message.embeds[0].fields[BountyEmbedFields.bountyId].value;
     },
+
+    async refreshLastList(customerId, request) {
+        const discordRegex = /https:\/\/discord.com\/channels\/(.*)\/(.*)\/(.*)/;
+        const backToListLink = await BountyUtils.getLatestCustomerList(customerId);
+
+        if (!backToListLink) return;
+
+        const [_, guildId, channelId, messageId] = backToListLink.match(discordRegex);
+
+        if (!guildId || !channelId || !messageId) return;
+
+        try {
+            const guild = await client.guilds.cache.get(guildId);
+            const channel = await guild.channels.cache.get(channelId) as TextChannel;
+            const message = await channel.messages.fetch(messageId);
+            await listBounty(new ListRequest({
+                commandContext: request.commandContext,
+                listType: undefined,
+                messageReactionRequest: {
+                    user: request.buttonInteraction.user,
+                    message: message
+                },
+                buttonInteraction: request.buttonInteraction,
+            }), true);
+        } catch (e) {
+            console.log("Could not refresh the bounty list", backToListLink, e);
+        }
+
+        return;
+    }
 }
 
 export default DiscordUtils;

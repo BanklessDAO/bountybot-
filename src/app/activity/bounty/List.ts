@@ -13,7 +13,7 @@ import DMPermissionError from '../../errors/DMPermissionError';
 const TOTAL_BOUNTY_LIMIT = 15;
 const BOUNTY_SEGMENT_LIMIT = 5;
 
-export const listBounty = async (request: ListRequest): Promise<any> => {
+export const listBounty = async (request: ListRequest, preventResponse ?: boolean): Promise<any> => {
 	Log.debug('In List activity');
 
     const listUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId)
@@ -120,7 +120,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		if (!!request.message) {  // List from a refresh reaction
 			listMessage = request.message;
 			await listMessage.edit({ embeds: [listCard], components: [componentActions] });
-			await DiscordUtils.activityResponse(null, request.buttonInteraction, 'Bounty list refreshed successfully');
+			!preventResponse && await DiscordUtils.activityResponse(null, request.buttonInteraction, 'Bounty list refreshed successfully');
 		} else {  // List from a slash command
 			const channel = await DiscordUtils.getTextChannelfromChannelId(request.commandContext.channelID);
 			listMessage = await channel.send({ embeds: [listCard], components: [componentActions] });
@@ -135,7 +135,13 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		}
 	} else {  // List from a DM reaction
 		try {
-			await listUser.send({ embeds: [listCard] });
+			const componentActions = new MessageActionRow().addComponents(
+				new MessageButton()
+					.setLabel('Back to List')
+					.setStyle('LINK')
+					.setURL(dbCustomerResult.lastListMessage)
+			);
+			await listUser.send({ embeds: [listCard], components: [componentActions] });
 		} catch (e) {
 			throw new DMPermissionError(e);
 		}

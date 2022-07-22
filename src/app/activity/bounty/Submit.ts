@@ -26,7 +26,7 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
 
     const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
 
-	let creatorSubmitDM = `Please reach out to <@${submittedByUser.user.id}>. They are ready for bounty review <${cardMessage.url}>`
+	let creatorSubmitDM = `Please reach out to <@${submittedByUser.user.id}>. They are ready for bounty review`
 
 	if (request.url) {
 		creatorSubmitDM += `\nPlease review this URL:\n${request.url}`
@@ -35,7 +35,7 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
 	if (request.notes) {
 		creatorSubmitDM += `\nPlease review these notes:\n${request.notes}`
 	}
-	await DiscordUtils.activityNotification(creatorSubmitDM, createdByUser);
+	await DiscordUtils.activityNotification(creatorSubmitDM, createdByUser, cardMessage.url);
 	await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Bounty in review! Expect a message from <@${createdByUser.id}>: <${cardMessage.url}>`);
     return;
 }
