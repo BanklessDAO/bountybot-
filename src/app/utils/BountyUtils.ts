@@ -102,9 +102,9 @@ const BountyUtils = {
         }
     },
 
-    validateEvergreen(evergreen: boolean, claimLimit: number, gateOrAssign: boolean) {
-        if (evergreen && gateOrAssign) {
-            throw new ValidationError('Cannot use for-role or for-user with multiple-claimant bounties');
+    validateEvergreen(evergreen: boolean, claimLimit: number, assign: boolean) {
+        if (evergreen && assign) {
+            throw new ValidationError('Cannot use for-user with multiple-claimant bounties');
         }
         if (claimLimit !== undefined && (claimLimit < 0 || claimLimit > 100)) {
             throw new ValidationError('claimants should be from 0 (meaning infinite) to 100');
@@ -116,9 +116,8 @@ const BountyUtils = {
             throw new ValidationError('Cannot require applications on multi-claimant bounties.');
         }
 
-        // TODO Allow requireApplications on gated bounties
-        if (request.requireApplication && (request.assign || request.gate)) {
-            throw new ValidationError('Cannot require applications on bounties gated to users or roles.');
+        if (request.requireApplication && request.assign) {
+            throw new ValidationError('Cannot require applications on bounties assigned to a user.');
         }
     },
 
