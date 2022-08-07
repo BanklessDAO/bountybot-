@@ -47,9 +47,9 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 		// Make sure "in_review" bounties don't exhaust the list limit before "in_progress" are fetched
 		const statusOrder = [ BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review ];
 		const m = { "$match" : { "status" : { "$in" : statusOrder } } };
-    	const a = { "$addFields" : { "__order" : { "$indexOfArray" : [ statusOrder, "$status" ] } } };
-    	const s = { "$sort" : { "__order" : 1, "createdAt" : -1 } };
-    	dbRecords = bountyCollection.aggregate( [ m, a, s ] );
+		const a = { "$addFields" : { "__order" : { "$indexOfArray" : [ statusOrder, "$status" ] } } };
+		const s = { "$sort" : { "__order" : 1, "createdAt" : -1 } };
+		dbRecords = bountyCollection.aggregate( [ m, a, s ] );
 		// dbRecords = bountyCollection.find({ $or: [ { status: BountyStatus.open } , { status: BountyStatus.in_progress }, { status: BountyStatus.in_review } ], isIOU: { $ne: true }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
 		listTitle =  "💰 Active Bounties";
 	}
