@@ -188,6 +188,17 @@ const apply = async (request: ApplyRequest): Promise<void> => {
             `Please reach out to your favorite bounty board representative with any questions!` 
         );
     }
+
+    const gate = (dbBountyResult.gateTo && dbBountyResult.gateTo.map( g => g.discordId));
+
+    if (gate && !(await DiscordUtils.hasAllowListedRole(request.userId, request.guildId, gate))) {
+        throw new AuthorizationError(
+            `Thank you for giving bounty commands a try!\n` +
+            `It looks like you don't have permission to apply for this bounty.\n` +
+            `The creator of this bounty gated it to specific role holders. Check the "for-role" value of the bounty to see which role you would need to apply for it.`
+        );
+    }
+
 }
 
 const assign = async (request: AssignRequest): Promise<void> => {
