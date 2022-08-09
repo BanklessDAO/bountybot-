@@ -46,7 +46,7 @@ export const listBounty = async (request: ListRequest): Promise<any> => {
 	default: 
 		// Make sure "in_review" bounties don't exhaust the list limit before "in_progress" are fetched
 		const statusOrder = [ BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review ];
-		const m = { "$match" : { "status" : { "$in" : statusOrder }, isIOU: { $ne: true }, 'customerId': request.guildId } };
+		const m = { "$match" : { "$and" : [{ "status" : { "$in" : statusOrder } }, { isIOU: { $ne: true } }, { 'customerId': request.guildId }] } };
 		const a = { "$addFields" : { "__order" : { "$indexOfArray" : [ statusOrder, "$status" ] } } };
 		const s = { "$sort" : { "__order" : 1, "createdAt" : -1 } };
 		dbRecords = bountyCollection.aggregate( [ m, a, s ] );
