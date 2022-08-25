@@ -53,12 +53,14 @@ const changeStreamEventHandler= async (event: ChangeStreamEvent): Promise<void> 
     const lastClientActivity = activityHistory[activityHistory.length - 1];
     const activity = lastClientActivity.activity;
     Log.info(`Processing ${activity} activity event. Origination: ${Clients.bountyboardweb}`);
+
     switch (activity) {
         case Activities.create:
             // no-op
             break;
         case Activities.publish:
-            Log.info('verify new bounty received');
+        case Activities.edit:
+            Log.info('Republish existing bounty | verify new bounty received');
             // TODO: add field to front end
             event.fullDocument.requireApplication = false;
             request = new PublishRequest({
