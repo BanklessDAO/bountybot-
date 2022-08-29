@@ -46,13 +46,13 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     const cardMessage = await BountyUtils.canonicalCard(appliedForBounty._id, request.activity);
 
     const createdByUser: GuildMember = await applyingUser.guild.members.fetch(appliedForBounty.createdBy.discordId);
-    let creatorDM = `Your bounty has been applied for by <@${applyingUser.id}> <${cardMessage.url}> \n` +
+    let creatorDM = `Your bounty has been applied for by <@${applyingUser.id}> \n` +
                         `Their pitch: ${pitch ? pitch : '<none given>'} \n` +
                         'Use the "/bounty assign" command to select an applicant who can claim.';
 
-    await DiscordUtils.activityNotification(creatorDM, createdByUser);
-    const activityMessage = `<@${applyingUser.user.id}>, You have applied for this bounty! Reach out to <@${createdByUser.id}> with any questions: ${cardMessage.url}`;
-    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage);
+    await DiscordUtils.activityNotification(creatorDM, createdByUser, cardMessage.url);
+    const activityMessage = `<@${applyingUser.user.id}>, You have applied for this bounty! Reach out to <@${createdByUser.id}> with any questions.`;
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage, cardMessage.url);
     await applyingUser.send({ content: activityMessage })
     return;
 };

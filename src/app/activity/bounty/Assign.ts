@@ -34,12 +34,11 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
 
     const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
 
-    let assigningContent = `Your bounty has been assigned to <@${assignedUser.user.id}> ${cardMessage.url}`;
-    let assignedContent = `You have been assigned this bounty! Go to the bounty card to claim it. Reach out to <@${assigningUser.id}> with any questions\n` +
-    `<${cardMessage.url}>`;
+    let assigningContent = `Your bounty has been assigned to <@${assignedUser.user.id}>`;
+    let assignedContent = `You have been assigned this bounty! Go to the bounty card to claim it. Reach out to <@${assigningUser.id}> with any questions.\n`;
 
-    await DiscordUtils.activityNotification(assignedContent, assignedUser);
-    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, assigningContent);
+    await DiscordUtils.activityNotification(assignedContent, assignedUser, cardMessage.url);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, assigningContent, cardMessage.url);
     return;
 };
 

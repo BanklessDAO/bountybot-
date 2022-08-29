@@ -36,7 +36,7 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
     const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
 	
 	let creatorCompleteDM = 
-        `Thank you for reviewing <${cardMessage.url}>\n` +
+        `Thank you for reviewing the bounty.\n` +
 		`This bounty is now complete.\n`;
         
 	if (!getDbResult.dbBountyResult.paidStatus || getDbResult.dbBountyResult.paidStatus === PaidStatus.unpaid) {
@@ -48,12 +48,12 @@ export const completeBounty = async (request: CompleteRequest): Promise<void> =>
 		);
 	}
     
-    let submitterCompleteDM = `Your bounty has passed review and is now complete!\n<${cardMessage.url}>\n`;
+    let submitterCompleteDM = `Your bounty has passed review and is now complete!\n`;
 	if (!getDbResult.dbBountyResult.paidStatus || getDbResult.dbBountyResult.paidStatus === PaidStatus.unpaid) {
 		submitterCompleteDM = submitterCompleteDM.concat(`<@${completedByUser.id}> should be paying you with ${getDbResult.dbBountyResult.reward.amount} ${getDbResult.dbBountyResult.reward.currency} soon.`);
 	}
-	await DiscordUtils.activityNotification(submitterCompleteDM, submittedByUser);
-    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorCompleteDM);
+	await DiscordUtils.activityNotification(submitterCompleteDM, submittedByUser, cardMessage.url);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorCompleteDM, cardMessage.url);
     return;
 }
 
