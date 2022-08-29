@@ -27,11 +27,11 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
     const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
 	
 	const creatorPaidDM = 
-        `Thank you for marking your bounty as paid <${cardMessage.url}>\n` +
+        `Thank you for marking your bounty as paid.\n` +
         `If you haven't already, please remember to tip <@${getDbResult.dbBountyResult.claimedBy.discordId}>`;
 
     
-    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorPaidDM);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorPaidDM, cardMessage.url);
     return;
 }
 

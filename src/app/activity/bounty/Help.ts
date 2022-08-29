@@ -26,16 +26,14 @@ export const helpBounty = async (request: HelpRequest): Promise<void> => {
         
         const bountyUrl = (request.message && request.message.url) || (process.env.BOUNTY_BOARD_URL + request.bountyId);
         const creatorHelpDM = 
-            `<@${helpRequestedUser.id}> has requested help with the following bounty:\n` +
-            `<${bountyUrl}>\n` + 
+            `<@${helpRequestedUser.id}> has requested help with the a bounty.\n` +
             `Don't hesitate to reach out to your favorite Bounty Board representative with any questions!`;
 
         const userHelpDM = 
-            `<@${bountyCreator.id}> has been notified of your request for help with the following bounty:\n` +
-            `<${bountyUrl}>`;
+            `<@${bountyCreator.id}> has been notified of your request for help with the following bounty.\n`;
         
-        await bountyCreator.send({ content: creatorHelpDM });
-        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, userHelpDM);
+        await DiscordUtils.activityNotification(creatorHelpDM, bountyCreator, bountyUrl);
+        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, userHelpDM, bountyUrl);
     } else {
         const bountyChannel: TextChannel = await client.channels.fetch(request.commandContext.channelID) as TextChannel;
     
