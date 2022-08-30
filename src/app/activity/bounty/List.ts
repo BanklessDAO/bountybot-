@@ -9,6 +9,7 @@ import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import { BountyStatus } from '../../constants/bountyStatus';
 import { ConnectionVisibility } from 'discord-api-types';
 import DMPermissionError from '../../errors/DMPermissionError';
+import { PaidStatus } from '../../constants/paidStatus';
 
 const TOTAL_BOUNTY_LIMIT = 15;
 const BOUNTY_SEGMENT_LIMIT = 5;
@@ -185,7 +186,7 @@ const getClaimedByMeMetadata = (record: BountyCollection, listType: string) => {
 	
 	if (listType === 'CLAIMED_BY_ME') {
 		  if (record.status === BountyStatus.complete) {
-				text = `payment is ${record.paidStatus.toUpperCase()}`;
+				text = `payment is ${(record.paidStatus ? record.paidStatus : PaidStatus.unpaid).toUpperCase()}`;
 			} else if (record.status === BountyStatus.in_progress || record.status === BountyStatus.in_review) {
 				text = `is due on ${new Date (record.dueAt).toLocaleDateString()}`;
 			}
