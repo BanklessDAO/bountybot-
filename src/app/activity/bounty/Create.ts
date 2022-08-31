@@ -1,6 +1,6 @@
 import { Bounty } from '../../types/bounty/Bounty';
 import Log from '../../utils/Log';
-import { Message, GuildMember, DMChannel, AwaitMessagesOptions, Role } from 'discord.js';
+import { Message, GuildMember, DMChannel, Role } from 'discord.js';
 import DiscordUtils from '../../utils/DiscordUtils';
 import BountyUtils from '../../utils/BountyUtils';
 import MongoDbUtils from '../../utils/MongoDbUtils';
@@ -13,20 +13,78 @@ import { PaidStatus } from '../../constants/paidStatus';
 import { Activities } from '../../constants/activities';
 import TimeoutError from '../../errors/TimeoutError';
 import ConflictingMessageException from '../../errors/ConflictingMessageException';
-import AuthorizationError from '../../errors/AuthorizationError';
 import DMPermissionError from '../../errors/DMPermissionError';
+import { ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
+import { RequestCollection } from '../../types/request/RequestCollection';
+import mongo from 'mongodb';
+
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
     Log.debug('In Create activity');
 
-    const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
-    const guildMember: GuildMember = guildAndMember.guildMember;
+    if (createRequest.isIOU) {
+        await finishCreate(createRequest, 'IOU for work already done', null, new Date());
+    } else {
+        const db: Db = await MongoDbUtils.connect('bountyboard');
+        const dbRequest = db.collection('requests');
 
-    let newBounty: Bounty;
+        let createRequestSlimmed = Object.assign({}, createRequest);
+        delete createRequestSlimmed.commandContext;
+        const requestCollection = {
+            requestJSON: JSON.stringify(createRequestSlimmed)
+        };
 
-    let owedTo: GuildMember;
+        const dbInsertResult = await dbRequest.insertOne(requestCollection);
+        if (dbInsertResult == null) {
+            Log.error('failed to insert create info into the cache');
+            throw new Error('Sorry something is not working, our devs are looking into it.');
+        }    
 
-    if (!createRequest.isIOU) {
+        createRequest.commandContext.sendModal(      {
+            title: 'New Bounty Detail',
+            custom_id: dbInsertResult.insertedId,
+            components: [
+              {
+                type: ComponentType.ACTION_ROW,
+                components: [
+                  {
+                    type: ComponentType.TEXT_INPUT,
+                    label: 'Description',
+                    style: TextInputStyle.PARAGRAPH,
+                    custom_id: 'description',
+                    placeholder: 'Description of your bounty'
+                  }
+                ]
+              },
+              {
+                type: ComponentType.ACTION_ROW,
+                components: [
+                  {
+                    type: ComponentType.TEXT_INPUT,
+                    label: 'Criteria',
+                    style: TextInputStyle.PARAGRAPH,
+                    custom_id: 'criteria',
+                    placeholder: 'What needs to be done for this bounty to be completed'
+                  }
+                ]
+              },
+              {
+                type: ComponentType.ACTION_ROW,
+                components: [
+                  {
+                    type: ComponentType.TEXT_INPUT,
+                    label: 'Due Date',
+                    style: TextInputStyle.SHORT,
+                    custom_id: 'dueAt',
+                    placeholder: 'Due date - yyyy-mm-dd. Type \'no\' or \'skip\' for 3 months from today'
+                  }
+                ]
+              }
+            ]
+          },async (mctx) => { await modalCallback(mctx) })
+    }
+
+/*     if (!createRequest.isIOU) {
 
         const gotoDMMessage = 'Go to your DMs to finish creating the bounty...';
         await createRequest.commandContext.send({ content: gotoDMMessage, ephemeral: true });
@@ -101,26 +159,91 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
             }
         } while (convertedDueDateFromMessage.toString() === 'Invalid Date');
         const dueAt = convertedDueDateFromMessage ? convertedDueDateFromMessage : BountyUtils.threeMonthsFromNow();
-
-        newBounty = await createDbHandler(
-            createRequest,
-            description,
-            criteria,
-            dueAt,
-            guildMember,
-            null,
-            createRequest.createdInChannel);
-    } else {
-        owedTo = await DiscordUtils.getGuildMemberFromUserId(createRequest.owedTo, createRequest.guildId);
-        newBounty = await createDbHandler(
-            createRequest,
-            null,
-            'IOU for work already done',
-            new Date(),
-            guildMember,
-            owedTo,
-            createRequest.createdInChannel);
     }
+ */
+
+}
+
+export const modalCallback = async (modalContext: ModalInteractionContext) => {
+    const db: Db = await MongoDbUtils.connect('bountyboard');
+    const dbRequest = db.collection('requests');
+
+    const dbRequestResult: RequestCollection = await dbRequest.findOne({
+        _id: new mongo.ObjectId(modalContext.customID)
+    });
+
+    if (!dbRequestResult) {
+        Log.error('failed to get create info from the cache');
+        throw new Error('Sorry something is not working, our devs are looking into it.');
+    }
+
+    // ToDo: Delete Request Cache
+
+    const createRequest = JSON.parse(dbRequestResult.requestJSON);
+    const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
+    const guildMember: GuildMember = guildAndMember.guildMember;
+
+    const description = modalContext.values.description;
+    try {
+        BountyUtils.validateDescription(description);
+    } catch (e) {
+        if (e instanceof ValidationError) {
+            guildMember.send({ content: `<@${guildMember.user.id}>\n` + e.message })
+        }
+    }
+
+    const criteria = modalContext.values.criteria;
+    try {
+        BountyUtils.validateCriteria(criteria);
+    } catch (e) {
+        if (e instanceof ValidationError) {
+            guildMember.send({ content: `<@${guildMember.user.id}>\n` + e.message });
+            return;
+        }
+    }
+
+    const dueAt = modalContext.values.dueAt;
+    let convertedDueDateFromMessage: Date;
+    if (!(dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip')) {
+        try {
+            convertedDueDateFromMessage = BountyUtils.validateDate(dueAt);
+        } catch (e) {
+            Log.warn('user entered invalid date for bounty');
+            await guildMember.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
+            return;
+        }
+    } else if (dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip') {
+        convertedDueDateFromMessage = BountyUtils.threeMonthsFromNow();
+    }
+
+    if (convertedDueDateFromMessage.toString() === 'Invalid Date') {
+        Log.warn('user entered invalid date for bounty');
+        await guildMember.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
+        return;
+    }
+
+    await modalContext.defer(true);
+
+    await finishCreate(createRequest, description, criteria, convertedDueDateFromMessage);
+
+    await modalContext.send("Go to your DMs to see your draft Bounty");
+
+}
+
+export const finishCreate = async (createRequest: CreateRequest, description: string, criteria: string, dueAt: Date) => {
+
+    const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
+    const guildMember: GuildMember = guildAndMember.guildMember;
+    const owedTo = createRequest.isIOU ? await DiscordUtils.getGuildMemberFromUserId(createRequest.owedTo, createRequest.guildId) : null;
+
+    const newBounty = await createDbHandler(
+        createRequest,
+        description,
+        criteria,
+        dueAt,
+        guildMember,
+        owedTo,
+        createRequest.createdInChannel);
 
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
 
