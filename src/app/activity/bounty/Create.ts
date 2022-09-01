@@ -17,13 +17,14 @@ import DMPermissionError from '../../errors/DMPermissionError';
 import { ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
 import { RequestCollection } from '../../types/request/RequestCollection';
 import mongo from 'mongodb';
+import { isJSDocNullableType } from 'typescript';
 
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
     Log.debug('In Create activity');
 
     if (createRequest.isIOU) {
-        await finishCreate(createRequest, 'IOU for work already done', null, new Date());
+        await finishCreate(createRequest, null, 'IOU for work already done', new Date());
     } else {
         const db: Db = await MongoDbUtils.connect('bountyboard');
         const dbRequest = db.collection('requests');
@@ -51,6 +52,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                     type: ComponentType.TEXT_INPUT,
                     label: 'Description',
                     style: TextInputStyle.PARAGRAPH,
+                    max_length: 4000,
                     custom_id: 'description',
                     placeholder: 'Description of your bounty'
                   }
@@ -63,6 +65,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                     type: ComponentType.TEXT_INPUT,
                     label: 'Criteria',
                     style: TextInputStyle.PARAGRAPH,
+                    max_length: 1000,
                     custom_id: 'criteria',
                     placeholder: 'What needs to be done for this bounty to be completed'
                   }
@@ -76,7 +79,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                     label: 'Due Date',
                     style: TextInputStyle.SHORT,
                     custom_id: 'dueAt',
-                    placeholder: 'Due date - yyyy-mm-dd. Type \'no\' or \'skip\' for 3 months from today'
+                    placeholder: 'yyyy-mm-dd, or \'no\' or \'skip\' for 3 months from today'
                   }
                 ]
               }
@@ -165,6 +168,9 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
 }
 
 export const modalCallback = async (modalContext: ModalInteractionContext) => {
+
+    await modalContext.defer(true);
+
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbRequest = db.collection('requests');
 
@@ -188,7 +194,8 @@ export const modalCallback = async (modalContext: ModalInteractionContext) => {
         BountyUtils.validateDescription(description);
     } catch (e) {
         if (e instanceof ValidationError) {
-            guildMember.send({ content: `<@${guildMember.user.id}>\n` + e.message })
+            await modalContext.send({ content: `<@${guildMember.user.id}>\n` + e.message })
+            return;
         }
     }
 
@@ -197,7 +204,7 @@ export const modalCallback = async (modalContext: ModalInteractionContext) => {
         BountyUtils.validateCriteria(criteria);
     } catch (e) {
         if (e instanceof ValidationError) {
-            guildMember.send({ content: `<@${guildMember.user.id}>\n` + e.message });
+            await modalContext.send({ content: `<@${guildMember.user.id}>\n` + e.message });
             return;
         }
     }
@@ -209,7 +216,7 @@ export const modalCallback = async (modalContext: ModalInteractionContext) => {
             convertedDueDateFromMessage = BountyUtils.validateDate(dueAt);
         } catch (e) {
             Log.warn('user entered invalid date for bounty');
-            await guildMember.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
+            await modalContext.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
             return;
         }
     } else if (dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip') {
@@ -218,19 +225,18 @@ export const modalCallback = async (modalContext: ModalInteractionContext) => {
 
     if (convertedDueDateFromMessage.toString() === 'Invalid Date') {
         Log.warn('user entered invalid date for bounty');
-        await guildMember.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
+        await modalContext.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
         return;
     }
 
-    await modalContext.defer(true);
 
-    await finishCreate(createRequest, description, criteria, convertedDueDateFromMessage);
+    await finishCreate(createRequest, description, criteria, convertedDueDateFromMessage, modalContext);
 
-    await modalContext.send("Go to your DMs to see your draft Bounty");
+    // await modalContext.send("Go to your DMs to see your draft Bounty");
 
 }
 
-export const finishCreate = async (createRequest: CreateRequest, description: string, criteria: string, dueAt: Date) => {
+export const finishCreate = async (createRequest: CreateRequest, description: string, criteria: string, dueAt: Date, modalContext?: ModalInteractionContext) => {
 
     const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
     const guildMember: GuildMember = guildAndMember.guildMember;
@@ -247,7 +253,7 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
 
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
 
-    const cardMessage = await BountyUtils.canonicalCard(newBounty._id, createRequest.activity, (createRequest.isIOU ? await DiscordUtils.getTextChannelfromChannelId(newBounty.createdInChannel) : undefined));
+    const cardMessage = await BountyUtils.canonicalCard(newBounty._id, createRequest.activity, (createRequest.isIOU ? await DiscordUtils.getTextChannelfromChannelId(newBounty.createdInChannel) : undefined), null, modalContext);
 
     if (createRequest.isIOU) {
         // await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created." } , { ephemeral: true });
@@ -300,7 +306,7 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
             'Thank you! If it looks good, please hit 👍 to publish the bounty.\n' +
             'Once the bounty has been published, others can view and claim the bounty.\n' +
             'If you are not happy with the bounty, hit ❌ to delete it and start over.\n'
-        await guildMember.send(publishOrDeleteMessage);
+        await modalContext.send(publishOrDeleteMessage, {ephemeral: true});
 
         return;
     }

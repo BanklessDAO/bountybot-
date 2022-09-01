@@ -1,6 +1,6 @@
 import ValidationError from '../errors/ValidationError';
 import Log, { LogUtils } from './Log';
-import { Role, Message, MessageOptions, TextChannel, AwaitMessagesOptions, DMChannel, GuildMember, MessageActionRow, MessageButton } from 'discord.js';
+import { Role, Message, MessageOptions, TextChannel, AwaitMessagesOptions, DMChannel, GuildMember, MessageActionRow, MessageButton, MessageActionRowComponent } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
 import { URL } from 'url';
 import { BountyCollection } from '../types/bounty/BountyCollection';
@@ -15,6 +15,7 @@ import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
 import { handler } from '../activity/bounty/Handler';
 import { UserCollection } from '../types/user/UserCollection';
+import { ModalInteractionContext, MessageOptions as scMessageOptions } from 'slash-create';
 
 
 const BountyUtils = {
@@ -277,7 +278,7 @@ const BountyUtils = {
 
     },
 
-    async canonicalCard(bountyId: string, activity: string, bountyChannel?: TextChannel, guildMember?: GuildMember): Promise<Message> {
+    async canonicalCard(bountyId: string, activity: string, bountyChannel?: TextChannel, guildMember?: GuildMember, modalContext?: ModalInteractionContext): Promise<Message> {
         Log.debug(`Creating/updating canonical card`);
 
         // Get the updated bounty
@@ -414,10 +415,14 @@ const BountyUtils = {
         
 
         // Create/Update the card
-        let cardMessage: Message;
+        let cardMessage: any;
 
         if (isDraftBounty) {  // If we are in Create (Draft) mode, put the card in the DM channel
-            cardMessage = await (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).send(cardEmbeds);
+            // cardMessage = await (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).send(cardEmbeds);
+            const cardEmbedsModal: scMessageOptions = JSON.parse(JSON.stringify(cardEmbeds));
+            const d = new Date(cardEmbedsModal.embeds[0].timestamp);
+            cardEmbedsModal.embeds[0].timestamp = d.toISOString();
+            cardMessage = await modalContext.send(cardEmbedsModal);
         } else {
             if (activity == Activities.publish) {  // Publishing. If the card exists, delete it - it was either in a DM or needs to be refreshed
                 if (!!bounty.canonicalCard) { 
