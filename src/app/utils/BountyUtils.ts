@@ -1,6 +1,6 @@
 import ValidationError from '../errors/ValidationError';
 import Log, { LogUtils } from './Log';
-import { Role, Message, MessageOptions, TextChannel, AwaitMessagesOptions, DMChannel, GuildMember, MessageActionRow, MessageButton, MessageActionRowComponent } from 'discord.js';
+import { Role, Message, MessageOptions, TextChannel, AwaitMessagesOptions, DMChannel, GuildMember, MessageActionRow, MessageButton, MessageActionRowComponent, Modal, ModalSubmitInteraction } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
 import { URL } from 'url';
 import { BountyCollection } from '../types/bounty/BountyCollection';
@@ -15,7 +15,9 @@ import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
 import { handler } from '../activity/bounty/Handler';
 import { UserCollection } from '../types/user/UserCollection';
-import { ModalInteractionContext, MessageOptions as scMessageOptions } from 'slash-create';
+import { ModalInteractionContext, MessageOptions as scMessageOptions, Message as scMessage, ComponentType, TextInputStyle } from 'slash-create';
+import WalletUtils from './WalletUtils';
+import RuntimeError from '../errors/RuntimeError';
 
 
 const BountyUtils = {
@@ -417,18 +419,24 @@ const BountyUtils = {
         // Create/Update the card
         let cardMessage: any;
 
-        if (isDraftBounty) {  // If we are in Create (Draft) mode, put the card in the DM channel
-            // cardMessage = await (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).send(cardEmbeds);
+/*         if (isDraftBounty) {  // If we are in Create (Draft) mode, put the card in the modal context and add the pre-message
+            const publishOrDeleteMessage =
+            'Thank you! If it looks good, please hit 👍 to publish the bounty.\n' +
+            'Once the bounty has been published, others can view and claim the bounty.\n' +
+            'If you are not happy with the bounty, hit ❌ to delete it and start over.\n'            
             const cardEmbedsModal: scMessageOptions = JSON.parse(JSON.stringify(cardEmbeds));
             const d = new Date(cardEmbedsModal.embeds[0].timestamp);
             cardEmbedsModal.embeds[0].timestamp = d.toISOString();
-            cardMessage = await modalContext.send(cardEmbedsModal);
+            cardMessage = await modalContext.send(publishOrDeleteMessage, cardEmbedsModal);
         } else {
+ */
             if (activity == Activities.publish) {  // Publishing. If the card exists, delete it - it was either in a DM or needs to be refreshed
                 if (!!bounty.canonicalCard) { 
+                    let draftCardMessage: Message
                     try {
                         const draftChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
-                        const draftCardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, draftChannel);
+                        draftCardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, draftChannel);
+                        console.log(`Trying to delete ${draftCardMessage.id} in channel ${draftChannel.id}`);
                         await draftCardMessage.delete();
                     } catch(e) {
                     } finally {
@@ -447,6 +455,15 @@ const BountyUtils = {
                 }
             } 
             if (!bounty.canonicalCard) { // If we didn't have a card, or we had an error trying to access it, create it
+                if (isDraftBounty) {  // If we are in Create (Draft) mode, put the card in the modal context and add the pre-message
+                    const publishOrDeleteMessage =
+                    `Thank you` +
+                    (guildMember ? ` <@${guildMember.id}>` : ``) +
+                    `! If it looks good, please hit 👍 to publish the bounty.\n` +
+                    `Once the bounty has been published, others can view and claim the bounty.\n` +
+                    `If you are not happy with the bounty, hit ❌ to delete it and start over.\n`            
+                    cardEmbeds.content = publishOrDeleteMessage;
+                }
                 if (!bountyChannel) bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
                 try {
                     cardMessage = await bountyChannel.send(cardEmbeds);
@@ -465,7 +482,7 @@ const BountyUtils = {
                     cardMessage = await bountyChannel.send(cardEmbeds);
                 }
             }
-        }
+//        }
         reacts.forEach(react => {
             cardMessage.react(react);
         });
@@ -488,17 +505,17 @@ const BountyUtils = {
         await channel.send(`Bounty card has been moved: ${cardUrl}`);
     },
 
-    async updateMessageStore(bounty: BountyCollection, cardMessage: Message): Promise<any> {
+    async updateMessageStore(bounty: BountyCollection, cardMessage: Message | scMessage): Promise<any> {
         // Delete old cards if they exist. Notify user of new card location with link
 
         if (bounty.discordMessageId) {
-            await this.notifyAndRemove(bounty.discordMessageId, await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId), cardMessage.url);
+            await this.notifyAndRemove(bounty.discordMessageId, await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId), (cardMessage as Message).url);
         }
         if (!!bounty.creatorMessage) {
-            await this.notifyAndRemove(bounty.creatorMessage.messageId, await DiscordUtils.getTextChannelfromChannelId(bounty.creatorMessage.channelId), cardMessage.url);
+            await this.notifyAndRemove(bounty.creatorMessage.messageId, await DiscordUtils.getTextChannelfromChannelId(bounty.creatorMessage.channelId), (cardMessage as Message).url);
         }
         if (!!bounty.claimantMessage) {
-            await this.notifyAndRemove(bounty.claimantMessage.messageId, await DiscordUtils.getTextChannelfromChannelId(bounty.claimantMessage.channelId), cardMessage.url);
+            await this.notifyAndRemove(bounty.claimantMessage.messageId, await DiscordUtils.getTextChannelfromChannelId(bounty.claimantMessage.channelId), (cardMessage as Message).url);
         }
 
         // Store the card location in the bounty, remove the old cards
@@ -513,7 +530,7 @@ const BountyUtils = {
             $set: {
                 canonicalCard: {
                     messageId: cardMessage.id,
-                    channelId: cardMessage.channelId,
+                    channelId: (cardMessage as Message).channelId || (cardMessage as scMessage).channelID,
                 },
             },
         });
@@ -559,6 +576,114 @@ const BountyUtils = {
         }
 
         return true;
+    },
+
+    async userInputWalletAddressModal(request: any, callBack: any) {
+
+        // Different modal data types and calls in slash commands vs. button interactions
+        const fromSlash = !!request.commandContext;
+
+        const modal = {
+            title: 'Wallet Address',
+            components: [
+            {
+                type: (fromSlash ? ComponentType.ACTION_ROW : "ACTION_ROW"),
+                components: [
+                {
+                    type: (fromSlash ? ComponentType.TEXT_INPUT : "TEXT_INPUT"),
+                    label: 'Wallet Address',
+                    style: (fromSlash ? TextInputStyle.PARAGRAPH: "PARAGRAPH"),
+                    max_length: 100,
+                    custom_id: 'wallet_address',
+                    placeholder: 'Enter your wallet address so you can be paid upon bounty completion'
+                }]
+            }]
+        };
+
+        const walletRegister = async (walletAddress: string, context: ModalInteractionContext | ModalSubmitInteraction): Promise<boolean> => {
+
+            try {
+                WalletUtils.validateEthereumWalletAddress(walletAddress);
+            } catch (e) {
+                if (e instanceof ValidationError) {
+                    if (context instanceof ModalInteractionContext) {
+                        await context.send(e.message);
+                    } else {
+                        await context.reply({content: e.message, ephemeral: true});
+                    }
+                    return false;
+                } 
+                throw new RuntimeError(e);               
+            }
+            const upsertWalletRequest = new UpsertUserWalletRequest({
+                userDiscordId: request.userId,
+                address: walletAddress,
+            })
+
+            try {
+            await handler(upsertWalletRequest);
+            } catch (e) {
+                if (e instanceof ValidationError) {
+                    if (context instanceof ModalInteractionContext) {
+                        await context.send(e.message);
+                    } else {
+                        await context.reply({content: e.message, ephemeral: true});
+                    }
+                    return false;
+                } 
+                throw new RuntimeError(e);               
+            }
+
+            if (context instanceof ModalInteractionContext) {
+                await context.send('Wallet address registered');
+            } else {
+                try {
+                    await context.user.send('Wallet address registered');
+                } catch (e) {
+                    Log.debug(`Couldn't sent wallet confirm to @<${context.user}>`);
+                }
+            }
+
+            return true;
+
+        }
+
+        // Callback for the slash version
+        const modalCallback = async (modalContext: ModalInteractionContext, request: any) => {
+
+            await modalContext.defer(true);
+            const walletAddress = modalContext.values.wallet_address;
+            if (await walletRegister(walletAddress, modalContext)) {
+                await callBack(request);
+            }
+        };
+
+        // Call the modal. For slash command, call the callback. For button interaction, wait for submit and return. 
+
+        if (fromSlash) {
+            await request.commandContext.sendModal(modal ,async (mctx) => { await modalCallback(mctx, request) });
+            return;
+        } else {
+            try {
+                await request.buttonInteraction.showModal(Object.assign(modal, {customId: 'wallet_address'}));
+            } catch(e) {
+                console.log(e.message)
+                return;
+            }
+            const submittedInteraction = await request.buttonInteraction.awaitModalSubmit({
+                time: 60000,
+                filter: i => i.user.id === request.userId,
+              }).catch(e => {
+                console.log(e.message)
+                return;
+              });
+            const walletAddress = submittedInteraction.components[0].components[0].value;
+            if (await walletRegister(walletAddress, submittedInteraction)) {
+                // We have a new interaction, use that for the request reponse.
+                request.buttonInteraction = submittedInteraction;
+                await callBack(request);
+            }
+        }
     },
 
     async isUserWalletRegistered(discordUserId: string): Promise<boolean> {

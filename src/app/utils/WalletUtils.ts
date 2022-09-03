@@ -4,7 +4,7 @@ const WalletUtils = {
         const ETHEREUM_WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/g;
         if (address == null || !ETHEREUM_WALLET_REGEX.test(address)) {
             throw new ValidationError(
-                'Please enter a valid ethereum address\n');
+                'Invalid Ethereum Address. Format is "0x" followed by 40 hex characters.\n');
         }
     } 
 }

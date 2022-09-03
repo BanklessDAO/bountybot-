@@ -14,7 +14,7 @@ import { Activities } from '../../constants/activities';
 import TimeoutError from '../../errors/TimeoutError';
 import ConflictingMessageException from '../../errors/ConflictingMessageException';
 import DMPermissionError from '../../errors/DMPermissionError';
-import { ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
+import { CommandContext, ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
 import { RequestCollection } from '../../types/request/RequestCollection';
 import mongo from 'mongodb';
 import { isJSDocNullableType } from 'typescript';
@@ -26,7 +26,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     if (createRequest.isIOU) {
         await finishCreate(createRequest, null, 'IOU for work already done', new Date());
     } else {
-        const db: Db = await MongoDbUtils.connect('bountyboard');
+/*         const db: Db = await MongoDbUtils.connect('bountyboard');
         const dbRequest = db.collection('requests');
 
         let createRequestSlimmed = Object.assign({}, createRequest);
@@ -40,10 +40,10 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
             Log.error('failed to insert create info into the cache');
             throw new Error('Sorry something is not working, our devs are looking into it.');
         }    
-
-        createRequest.commandContext.sendModal(      {
+ */
+        await createRequest.commandContext.sendModal(      {
             title: 'New Bounty Detail',
-            custom_id: dbInsertResult.insertedId,
+            //custom_id: dbInsertResult.insertedId,
             components: [
               {
                 type: ComponentType.ACTION_ROW,
@@ -84,7 +84,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                 ]
               }
             ]
-          },async (mctx) => { await modalCallback(mctx) })
+          },async (mctx) => { await modalCallback(mctx, createRequest) })
     }
 
 /*     if (!createRequest.isIOU) {
@@ -167,11 +167,11 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
 
 }
 
-export const modalCallback = async (modalContext: ModalInteractionContext) => {
+export const modalCallback = async (modalContext: ModalInteractionContext, createRequest: CreateRequest) => {
 
     await modalContext.defer(true);
 
-    const db: Db = await MongoDbUtils.connect('bountyboard');
+/*     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbRequest = db.collection('requests');
 
     const dbRequestResult: RequestCollection = await dbRequest.findOne({
@@ -186,6 +186,8 @@ export const modalCallback = async (modalContext: ModalInteractionContext) => {
     // ToDo: Delete Request Cache
 
     const createRequest = JSON.parse(dbRequestResult.requestJSON);
+    createRequest.commandContext = commandContext;
+ */
     const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
     const guildMember: GuildMember = guildAndMember.guildMember;
 
@@ -253,7 +255,7 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
 
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
 
-    const cardMessage = await BountyUtils.canonicalCard(newBounty._id, createRequest.activity, (createRequest.isIOU ? await DiscordUtils.getTextChannelfromChannelId(newBounty.createdInChannel) : undefined), null, modalContext);
+    const cardMessage = await BountyUtils.canonicalCard(newBounty._id, createRequest.activity, await DiscordUtils.getTextChannelfromChannelId(newBounty.createdInChannel), guildMember, modalContext);
 
     if (createRequest.isIOU) {
         // await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created." } , { ephemeral: true });
@@ -301,13 +303,7 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
 
         await DiscordUtils.activityResponse(createRequest.commandContext, null, 'IOU created successfully');
     } else {
-
-        const publishOrDeleteMessage =
-            'Thank you! If it looks good, please hit 👍 to publish the bounty.\n' +
-            'Once the bounty has been published, others can view and claim the bounty.\n' +
-            'If you are not happy with the bounty, hit ❌ to delete it and start over.\n'
-        await modalContext.send(publishOrDeleteMessage, {ephemeral: true});
-
+        await modalContext?.send('Bounty created, see below...');
         return;
     }
 }

@@ -14,26 +14,15 @@ import { UserCollection } from '../../types/user/UserCollection';
 import ValidationError from '../../errors/ValidationError';
 import TimeoutError from '../../errors/TimeoutError';
 import DMPermissionError from '../../errors/DMPermissionError';
+import { ModalInteractionContext } from 'slash-create';
 
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.debug('In Claim activity');
-
-    const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
-    Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
-
-    if (! (await BountyUtils.isUserWalletRegistered(request.userId))) {
-        const gotoDMMessage = 'Go to your DMs to finish claiming the bounty...';
-        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, gotoDMMessage);
-        
-        const durationMinutes = 2;
-        const claimWalletMessage = `Hello <@${request.userId}>!\n` +
-            `Please respond within 2 minutes.\n` +
-            `To claim this bounty, please enter the ethereum wallet address (non-ENS) to receive the reward amount for this bounty`;
-        const walletNeededMessage: Message = await claimedByUser.send({ content: claimWalletMessage }).catch(() => { throw new DMPermissionError(claimWalletMessage) });
-        const dmChannel: DMChannel = await walletNeededMessage.channel.fetch() as DMChannel;
-        
+    
+    if (! (await BountyUtils.isUserWalletRegistered(request.userId)) || true) {
         try {
-            await BountyUtils.userInputWalletAddress(dmChannel, request.userId, durationMinutes*60*1000);
+            console.log("Before wallet");
+            await BountyUtils.userInputWalletAddressModal(request, finishClaim);
         }
         catch (e) {
             if (e instanceof TimeoutError || e instanceof ValidationError) {
@@ -44,12 +33,22 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
                     );
             }
         }
+    } else {
+        await finishClaim(request);
     }
+
+}
+
+export const finishClaim = async (request: ClaimRequest) => {
+
+    const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
+    Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
 
     let getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 
     let claimedBounty = getDbResult.dbBountyResult;
     let parentBounty: BountyCollection;
+    //TODO: Test this again with modals in place
     if (!request.clientSyncRequest) {
         const writeResult = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
         claimedBounty = writeResult.claimedBounty;
@@ -84,6 +83,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     return;
 };
 
+
 const getDbHandler = async (request: ClaimRequest): Promise<{dbBountyResult: BountyCollection, bountyChannel: string}> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
@@ -115,6 +115,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
     const bountyCollection = db.collection('bounties');
     let claimedBounty: BountyCollection;
     let parentBounty: BountyCollection;
+    console.log(`In writer ${JSON.stringify(dbBountyResult)}`);
     const currentDate = (new Date()).toISOString();
 
     // If claiming an evergreen bounty, create a copy and use that
@@ -177,6 +178,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
         claimedBounty = dbBountyResult;
     }
  
+    console.log(`Going to write ${JSON.stringify(claimedBounty)}`);
     const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(claimedBounty, {
         $set: {
             claimedBy: {
@@ -199,6 +201,8 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
 			}
         },
     });
+
+    console.log(`End writer ${JSON.stringify(writeResult)}`);
 
     if (writeResult.result.ok !== 1) {
         Log.error('failed to update claimed bounty with in progress status');

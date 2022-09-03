@@ -1,4 +1,4 @@
-import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, Message, MessageActionRow, MessageButton, MessageOptions, Role, Snowflake, TextChannel } from 'discord.js';
+import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, InteractionReplyOptions, Message, MessageActionRow, MessageButton, MessageOptions, Role, Snowflake, TextChannel } from 'discord.js';
 import { Db } from 'mongodb';
 import { ButtonStyle, CommandContext, ComponentActionRow, ComponentContext, ComponentType } from 'slash-create';
 import { listBounty } from '../activity/bounty/List';
@@ -163,8 +163,8 @@ const DiscordUtils = {
             replyOptions.components = [componentActions];
         } 
         try {
-            if (buttonInteraction.deferred || buttonInteraction.replied) await buttonInteraction.editReply(replyOptions);
-            else await buttonInteraction.reply(Object.assign(replyOptions, { ephemeral: true }));
+            if ((buttonInteraction.deferred || buttonInteraction.replied)) await buttonInteraction.editReply(replyOptions);
+            else await buttonInteraction.reply(replyOptions as InteractionReplyOptions);
         } catch (e) {
             if (e.code === 40060) await buttonInteraction.editReply(replyOptions);
             else throw new RuntimeError(e);
