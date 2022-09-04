@@ -14,11 +14,7 @@ import { Activities } from '../../constants/activities';
 import TimeoutError from '../../errors/TimeoutError';
 import ConflictingMessageException from '../../errors/ConflictingMessageException';
 import DMPermissionError from '../../errors/DMPermissionError';
-import { CommandContext, ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
-import { RequestCollection } from '../../types/request/RequestCollection';
-import mongo from 'mongodb';
-import { isJSDocNullableType } from 'typescript';
-
+import { ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
     Log.debug('In Create activity');
@@ -26,21 +22,6 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     if (createRequest.isIOU) {
         await finishCreate(createRequest, null, 'IOU for work already done', new Date());
     } else {
-/*         const db: Db = await MongoDbUtils.connect('bountyboard');
-        const dbRequest = db.collection('requests');
-
-        let createRequestSlimmed = Object.assign({}, createRequest);
-        delete createRequestSlimmed.commandContext;
-        const requestCollection = {
-            requestJSON: JSON.stringify(createRequestSlimmed)
-        };
-
-        const dbInsertResult = await dbRequest.insertOne(requestCollection);
-        if (dbInsertResult == null) {
-            Log.error('failed to insert create info into the cache');
-            throw new Error('Sorry something is not working, our devs are looking into it.');
-        }    
- */
         await createRequest.commandContext.sendModal(      {
             title: 'New Bounty Detail',
             //custom_id: dbInsertResult.insertedId,
@@ -86,108 +67,12 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
             ]
           },async (mctx) => { await modalCallback(mctx, createRequest) })
     }
-
-/*     if (!createRequest.isIOU) {
-
-        const gotoDMMessage = 'Go to your DMs to finish creating the bounty...';
-        await createRequest.commandContext.send({ content: gotoDMMessage, ephemeral: true });
-
-        const createInfoMessage = `Hello <@${guildMember.id}>!\n` +
-            `Please respond to the following questions within 5 minutes.\n` +
-            `Can you tell me a description of your bounty?`;
-        let workNeededMessage: Message;
-        try {
-            workNeededMessage = await guildMember.send({ content: createInfoMessage });
-        } catch (e) {
-            throw new AuthorizationError(
-                `Thank you for giving bounty commands a try!\n` +
-                `It looks like bot does not have permission to DM you.\n` +
-                `Please give bot permission to DM you and try again.`
-            );
-        }
-
-        const dmChannel: DMChannel = await workNeededMessage.channel.fetch() as DMChannel;
-        const replyOptions: AwaitMessagesOptions = {
-            max: 1,
-            // time is in ms
-            time: 300000,
-            errors: ['time'],
-        };
-
-        const description = await DiscordUtils.awaitUserDM(dmChannel, replyOptions);
-        try {
-            BountyUtils.validateDescription(description);
-        } catch (e) {
-            if (e instanceof ValidationError) {
-                guildMember.send({ content: `<@${guildMember.user.id}>\n` + e.message })
-            }
-        }
-
-        await guildMember.send({ content: 'Awesome! Now what is absolutely required for the bounty to be complete?' });
-
-        const criteria = await DiscordUtils.awaitUserDM(dmChannel, replyOptions);
-        try {
-            BountyUtils.validateCriteria(criteria);
-        } catch (e) {
-            if (e instanceof ValidationError) {
-                guildMember.send({ content: `<@${guildMember.user.id}>\n` + e.message })
-            }
-        }
-
-        let convertedDueDateFromMessage: Date;
-        do {
-            // TODO: update default date to a reaction instead of text input
-            // TODO: update hardcoded no/skip to a REGEX
-            const dueDateMessage =
-                'When is the work for this bounty due by?\n' +
-                'Please enter `UTC` date in format `yyyy-mm-dd`, i.e 2022-01-01`? (type \'no\' or \'skip\' for a default value of 3 months from today)';
-            await guildMember.send({ content: dueDateMessage });
-            const dueAtMessageText = await DiscordUtils.awaitUserDM(dmChannel, replyOptions);
-
-            if (!(dueAtMessageText.toLowerCase() === 'no' || dueAtMessageText.toLowerCase() === 'skip')) {
-                try {
-                    convertedDueDateFromMessage = BountyUtils.validateDate(dueAtMessageText);
-                } catch (e) {
-                    Log.warn('user entered invalid date for bounty');
-                    await guildMember.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
-                }
-            } else if (dueAtMessageText.toLowerCase() === 'no' || dueAtMessageText.toLowerCase() === 'skip') {
-                convertedDueDateFromMessage = null;
-                break;
-            }
-
-            if (convertedDueDateFromMessage.toString() === 'Invalid Date') {
-                Log.warn('user entered invalid date for bounty');
-                await guildMember.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
-            }
-        } while (convertedDueDateFromMessage.toString() === 'Invalid Date');
-        const dueAt = convertedDueDateFromMessage ? convertedDueDateFromMessage : BountyUtils.threeMonthsFromNow();
-    }
- */
-
 }
 
 export const modalCallback = async (modalContext: ModalInteractionContext, createRequest: CreateRequest) => {
 
     await modalContext.defer(true);
 
-/*     const db: Db = await MongoDbUtils.connect('bountyboard');
-    const dbRequest = db.collection('requests');
-
-    const dbRequestResult: RequestCollection = await dbRequest.findOne({
-        _id: new mongo.ObjectId(modalContext.customID)
-    });
-
-    if (!dbRequestResult) {
-        Log.error('failed to get create info from the cache');
-        throw new Error('Sorry something is not working, our devs are looking into it.');
-    }
-
-    // ToDo: Delete Request Cache
-
-    const createRequest = JSON.parse(dbRequestResult.requestJSON);
-    createRequest.commandContext = commandContext;
- */
     const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
     const guildMember: GuildMember = guildAndMember.guildMember;
 
@@ -231,10 +116,7 @@ export const modalCallback = async (modalContext: ModalInteractionContext, creat
         return;
     }
 
-
     await finishCreate(createRequest, description, criteria, convertedDueDateFromMessage, modalContext);
-
-    // await modalContext.send("Go to your DMs to see your draft Bounty");
 
 }
 

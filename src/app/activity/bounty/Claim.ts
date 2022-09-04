@@ -1,4 +1,4 @@
-import { GuildMember, Message, DMChannel } from 'discord.js';
+import { GuildMember } from 'discord.js';
 import { ClaimRequest } from '../../requests/ClaimRequest';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import DiscordUtils from '../../utils/DiscordUtils';
@@ -10,11 +10,8 @@ import { BountyStatus } from '../../constants/bountyStatus';
 import BountyUtils from '../../utils/BountyUtils';
 import { Activities } from '../../constants/activities';
 import { Clients } from '../../constants/clients';
-import { UserCollection } from '../../types/user/UserCollection';
 import ValidationError from '../../errors/ValidationError';
 import TimeoutError from '../../errors/TimeoutError';
-import DMPermissionError from '../../errors/DMPermissionError';
-import { ModalInteractionContext } from 'slash-create';
 
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.debug('In Claim activity');
