@@ -164,7 +164,7 @@ const DiscordUtils = {
         } 
         try {
             if ((buttonInteraction.deferred || buttonInteraction.replied)) await buttonInteraction.editReply(replyOptions);
-            else await buttonInteraction.reply(replyOptions as InteractionReplyOptions);
+            else await buttonInteraction.reply(Object.assign(replyOptions, { ephemeral: true }) as InteractionReplyOptions);
         } catch (e) {
             if (e.code === 40060) await buttonInteraction.editReply(replyOptions);
             else throw new RuntimeError(e);
