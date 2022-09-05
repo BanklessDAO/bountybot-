@@ -36,9 +36,9 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
 
     let assigningContent = `Your bounty has been assigned to <@${assignedUser.user.id}>`;
     let assignedContent = `You have been assigned this bounty! Click Claim It to claim. Reach out to <@${assigningUser.id}> with any questions.\n`;
-    let assigneeBountyEmbed = await assigneeBountySummaryEmbed(cardMessage, request.guildId);
+    let assigneeEmbedCard = await bountySummaryEmbed(cardMessage, request.guildId);
 
-    await DiscordUtils.activityNotification(assignedContent, assignedUser, cardMessage.url, assigneeBountyEmbed);
+    await DiscordUtils.activityNotification(assignedContent, assignedUser, cardMessage.url, assigneeEmbedCard);
     await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, assigningContent, cardMessage.url);
     return;
 };
@@ -104,7 +104,7 @@ export const assignedBountyMessage = async (message: Message, appliedForBounty: 
 
 };
 
-const assigneeBountySummaryEmbed = async (message: Message, guildId: string): Promise<any> => {
+const bountySummaryEmbed = async (message: Message, guildId: string): Promise<any> => {
     const embedOrigMessage = message.embeds[0];
 
     const cardEmbeds: MessageEmbedOptions = {
