@@ -1,4 +1,4 @@
-import { GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, TextChannel } from 'discord.js';
+import { GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, MessageEmbedOptions, TextChannel } from 'discord.js';
 import { AssignRequest } from '../../requests/AssignRequest';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import { Bounty } from '../../types/bounty/Bounty';
@@ -35,9 +35,10 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
     const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
 
     let assigningContent = `Your bounty has been assigned to <@${assignedUser.user.id}>`;
-    let assignedContent = `You have been assigned this bounty! Go to the bounty card to claim it. Reach out to <@${assigningUser.id}> with any questions.\n`;
+    let assignedContent = `You have been assigned this bounty! Click Claim It to claim. Reach out to <@${assigningUser.id}> with any questions.\n`;
+    let assigneeBountyEmbed = await assigneeBountySummaryEmbed(cardMessage, request.guildId);
 
-    await DiscordUtils.activityNotification(assignedContent, assignedUser, cardMessage.url);
+    await DiscordUtils.activityNotification(assignedContent, assignedUser, cardMessage.url, assigneeBountyEmbed);
     await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, assigningContent, cardMessage.url);
     return;
 };
@@ -103,3 +104,18 @@ export const assignedBountyMessage = async (message: Message, appliedForBounty: 
 
 };
 
+const assigneeBountySummaryEmbed = async (message: Message, guildId: string): Promise<any> => {
+    const embedOrigMessage = message.embeds[0];
+
+    const cardEmbeds: MessageEmbedOptions = {
+        title: embedOrigMessage.title,
+        url: embedOrigMessage.url,
+        author: {
+            iconURL: embedOrigMessage.author.iconURL || embedOrigMessage.author.url,
+            name: `${embedOrigMessage.author.name}: ${guildId}`
+        },
+        description: embedOrigMessage.description,
+        fields: embedOrigMessage.fields.filter(({ name }) => name == 'Bounty Id' || name == "Reward"),
+    }
+    return cardEmbeds
+}

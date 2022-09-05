@@ -1,4 +1,4 @@
-import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, Message, MessageActionRow, MessageButton, MessageOptions, Role, Snowflake, TextChannel } from 'discord.js';
+import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, Message, MessageActionRow, MessageButton, MessageOptions, MessageEmbedOptions, Role, Snowflake, TextChannel } from 'discord.js';
 import { Db } from 'mongodb';
 import { ButtonStyle, CommandContext, ComponentActionRow, ComponentContext, ComponentType } from 'slash-create';
 import { listBounty } from '../activity/bounty/List';
@@ -190,15 +190,29 @@ const DiscordUtils = {
     },
 
     // Send a notification to an interested party (use a DM)
-    async activityNotification(content: string, toUser: GuildMember, link: string): Promise<void> {
+    async activityNotification(content: string, toUser: GuildMember, link: string, messageEmbeds?: MessageEmbedOptions): Promise<void> {
         try {
-            const componentActions = new MessageActionRow().addComponents(
-                new MessageButton()
+            const componentAction = [];
+            const linkButton = new MessageButton()
                     .setLabel('View Bounty')
                     .setStyle('LINK')
-                    .setURL(link || '')
-            );
-            await toUser.send({ content, components: link && [componentActions] });
+                    .setURL(link || '');
+
+            if (messageEmbeds) {
+                const claimButton = new MessageButton().setLabel('Claim It').setCustomId('🏴').setStyle('SECONDARY');
+                componentAction.push(claimButton);
+
+                // await toUser.send(messageEmbeds);
+                // await toUser.send(content);
+                // return;
+            }
+            
+            componentAction.push(linkButton);
+            await toUser.send({
+                content,
+                embeds: messageEmbeds ? [ messageEmbeds ] : [],
+                components: link && [new MessageActionRow().addComponents(componentAction)]
+            });
         } catch (e) {
             throw new NotificationPermissionError(content);
         }
