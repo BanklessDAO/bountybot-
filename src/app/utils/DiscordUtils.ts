@@ -190,28 +190,29 @@ const DiscordUtils = {
     },
 
     // Send a notification to an interested party (use a DM)
-    async activityNotification(content: string, toUser: GuildMember, link: string, messageEmbeds?: MessageEmbedOptions): Promise<void> {
+    async activityNotification(
+        content: string,
+        toUser: GuildMember,
+        link: string,
+        bountyCard?: {
+            embeds: MessageEmbedOptions,
+            buttons: MessageButton[]
+        }
+    ): Promise<void> {
         try {
-            const componentAction = [];
             const linkButton = new MessageButton()
-                    .setLabel('View Bounty')
-                    .setStyle('LINK')
-                    .setURL(link || '');
+                .setLabel('View Bounty')
+                .setStyle('LINK')
+                .setURL(link || '');
 
-            if (messageEmbeds) {
-                const claimButton = new MessageButton().setLabel('Claim It').setCustomId('🏴').setStyle('SECONDARY');
-                componentAction.push(claimButton);
-
-                // await toUser.send(messageEmbeds);
-                // await toUser.send(content);
-                // return;
-            }
-            
-            componentAction.push(linkButton);
             await toUser.send({
                 content,
-                embeds: messageEmbeds ? [ messageEmbeds ] : [],
-                components: link && [new MessageActionRow().addComponents(componentAction)]
+                embeds: bountyCard ? [bountyCard.embeds] : [],
+                components: bountyCard
+                    ? [new MessageActionRow().addComponents(
+                        bountyCard.buttons.concat(linkButton)
+                        )]
+                    : link && [new MessageActionRow().addComponents(linkButton)]
             });
         } catch (e) {
             throw new NotificationPermissionError(content);
