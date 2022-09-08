@@ -75,15 +75,34 @@ export default class implements DiscordEvent {
             });
         } else if (interaction.customId === '🏴') {
             Log.info(`${user.tag} attempting to claim a bounty ${bountyId} from the bounty board`);
-            request = new ClaimRequest({
-                commandContext: null,
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                },
-                clientSyncRequest: null,
-                buttonInteraction: interaction,
-            });
+            const guildId = message.embeds[0].author.name.split(': ')[1];
+
+            if (message.channel instanceof DMChannel) {
+                request = new ClaimRequest({
+                    commandContext: null,
+                    messageReactionRequest: null,
+                    clientSyncRequest: null,
+                    buttonInteraction: interaction,
+                    directRequest: {
+                        bountyId: bountyId,
+                        guildId: guildId,
+                        activity: Activities.claim,
+                        userId: user.id,
+                        bot: user.bot,
+                    }
+                });
+            } else {
+                request = new ClaimRequest({
+                    commandContext: null,
+                    messageReactionRequest: {
+                        user: user,
+                        message: message
+                    },
+                    clientSyncRequest: null,
+                    buttonInteraction: interaction,
+                    directRequest: null,
+                });
+            }
         } else if (interaction.customId === '💰') {
             Log.info(`${user.tag} attempting to mark a bounty as paid ${bountyId} from the bounty board`);
             request = new PaidRequest({
