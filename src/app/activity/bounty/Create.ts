@@ -144,7 +144,7 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
         const IOUContent = `<@${owedTo.id}> An IOU was created for you by <@${guildMember.user.id}>: ${cardMessage.url}`;
         await owedTo.send({ content: IOUContent }).catch(() => { throw new DMPermissionError(IOUContent) });
 
-        if (!(await BountyUtils.isUserWalletRegistered(owedTo.id))) {
+        if (!(await BountyUtils.userWalletRegistered(owedTo.id))) {
             // Note: ephemeral messagees are only visible to the user who kicked off the interaction,
             // so we can not send an ephemeral message to the owedTo user to check DMs
 
@@ -165,7 +165,7 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
                 if (e instanceof TimeoutError || e instanceof ValidationError) {
                     await owedTo.send(
                         `Unable to complete this operation due to timeout or incorrect wallet addresses.\n` +
-                        'Please try entering your wallet address with the slash command `/register wallet`.\n\n' +
+                        'Please try entering your wallet address with the slash command `/register-wallet`.\n\n' +
                         `Return to Bounty list: ${(await BountyUtils.getLatestCustomerList(createRequest.guildId))}`
                     );
                     await createRequest.commandContext.editOriginal({

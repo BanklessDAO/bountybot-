@@ -552,6 +552,9 @@ const BountyUtils = {
                 const upsertWalletRequest = new UpsertUserWalletRequest({
                     userDiscordId: userId,
                     address: walletAddress,
+                    commandContext: null,
+                    buttonInteraction: null,
+                    callBack: null
                 })
 
                 await handler(upsertWalletRequest);
@@ -578,115 +581,7 @@ const BountyUtils = {
         return true;
     },
 
-    async userInputWalletAddressModal(request: any, callBack: any) {
-
-        // Different modal data types and calls in slash commands vs. button interactions
-        const fromSlash = !!request.commandContext;
-
-        const modal = {
-            title: 'Wallet Address',
-            components: [
-            {
-                type: (fromSlash ? ComponentType.ACTION_ROW : "ACTION_ROW"),
-                components: [
-                {
-                    type: (fromSlash ? ComponentType.TEXT_INPUT : "TEXT_INPUT"),
-                    label: 'Wallet Address',
-                    style: (fromSlash ? TextInputStyle.PARAGRAPH: "PARAGRAPH"),
-                    max_length: 100,
-                    custom_id: 'wallet_address',
-                    placeholder: 'Enter your wallet address so you can be paid upon bounty completion'
-                }]
-            }]
-        };
-
-        const walletRegister = async (walletAddress: string, context: ModalInteractionContext | ModalSubmitInteraction): Promise<boolean> => {
-
-            try {
-                WalletUtils.validateEthereumWalletAddress(walletAddress);
-            } catch (e) {
-                if (e instanceof ValidationError) {
-                    if (context instanceof ModalInteractionContext) {
-                        await context.send(e.message);
-                    } else {
-                        await context.reply({content: e.message, ephemeral: true});
-                    }
-                    return false;
-                } 
-                throw new RuntimeError(e);               
-            }
-            const upsertWalletRequest = new UpsertUserWalletRequest({
-                userDiscordId: request.userId,
-                address: walletAddress,
-            })
-
-            try {
-            await handler(upsertWalletRequest);
-            } catch (e) {
-                if (e instanceof ValidationError) {
-                    if (context instanceof ModalInteractionContext) {
-                        await context.send(e.message);
-                    } else {
-                        await context.reply({content: e.message, ephemeral: true});
-                    }
-                    return false;
-                } 
-                throw new RuntimeError(e);               
-            }
-
-            if (context instanceof ModalInteractionContext) {
-                await context.send('Wallet address registered');
-            } else {
-                try {
-                    await context.user.send('Wallet address registered');
-                } catch (e) {
-                    Log.debug(`Couldn't sent wallet confirm to @<${context.user}>`);
-                }
-            }
-
-            return true;
-
-        }
-
-        // Callback for the slash version
-        const modalCallback = async (modalContext: ModalInteractionContext, request: any) => {
-
-            await modalContext.defer(true);
-            const walletAddress = modalContext.values.wallet_address;
-            if (await walletRegister(walletAddress, modalContext)) {
-                await callBack(request);
-            }
-        };
-
-        // Call the modal. For slash command, call the callback. For button interaction, wait for submit and return. 
-
-        if (fromSlash) {
-            await request.commandContext.sendModal(modal ,async (mctx) => { await modalCallback(mctx, request) });
-            return;
-        } else {
-            try {
-                await request.buttonInteraction.showModal(Object.assign(modal, {customId: 'wallet_address'}));
-            } catch(e) {
-                console.log(e.message)
-                return;
-            }
-            const submittedInteraction = await request.buttonInteraction.awaitModalSubmit({
-                time: 60000,
-                filter: i => i.user.id === request.userId,
-              }).catch(e => {
-                console.log(e.message)
-                return;
-              });
-            const walletAddress = submittedInteraction.components[0].components[0].value;
-            if (await walletRegister(walletAddress, submittedInteraction)) {
-                // We have a new interaction, use that for the request reponse.
-                request.buttonInteraction = submittedInteraction;
-                await callBack(request);
-            }
-        }
-    },
-
-    async isUserWalletRegistered(discordUserId: string): Promise<boolean> {
+    async userWalletRegistered(discordUserId: string): Promise<string | null> {
         const db: Db = await MongoDbUtils.connect('bountyboard');
         const userCollection = db.collection('user');
 
@@ -694,8 +589,8 @@ const BountyUtils = {
             userDiscordId: discordUserId
         });
 
-        if (dbUserResult && dbUserResult.walletAddress) return true;
-        return false;
+        if (dbUserResult && dbUserResult.walletAddress) return dbUserResult.walletAddress;
+        return null;
     },
 
     async getLatestCustomerList(customerId: string): Promise<string> {

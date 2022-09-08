@@ -9,11 +9,9 @@ import { handler } from '../../activity/bounty/Handler';
 import ValidationError from '../../errors/ValidationError';
 import AuthorizationError from '../../errors/AuthorizationError';
 import Log, { LogUtils } from '../../utils/Log';
-import { Request } from '../../requests/Request';
 import { guildIds } from '../../constants/customerIds';
 import { Activities } from '../../constants/activities';
 import { UpsertUserWalletRequest } from '../../requests/UpsertUserWalletRequest';
-import DiscordUtils from '../../utils/DiscordUtils';
 
 export default class Wallet extends SlashCommand {
     constructor(creator: SlashCreator) {
@@ -27,7 +25,7 @@ export default class Wallet extends SlashCommand {
                         name: 'eth-wallet-address',
                         type: CommandOptionType.STRING,
                         description: 'Enter your ethereum wallet address',
-                        required: true,
+                        required: false,
                     },
                 ],
             throttling: {
@@ -59,7 +57,10 @@ export default class Wallet extends SlashCommand {
 
         const request = new UpsertUserWalletRequest({
             userDiscordId: commandContext.user.id,
-            address: commandContext.options['eth-wallet-address']
+            address: commandContext.options['eth-wallet-address'],
+            commandContext: commandContext,
+            buttonInteraction: null,
+            callBack: null
 
         })
         //const { guildMember } = await DiscordUtils.getGuildAndMember(commandContext.guildID, commandContext.user.id);
@@ -83,7 +84,7 @@ export default class Wallet extends SlashCommand {
             }
         }
 
-        return await commandContext.send(`<@${request.userDiscordId}>, registered wallet address ${request.address}`, { ephemeral: true });
+        if (!commandContext.initiallyResponded) await commandContext.send(`<@${request.userDiscordId}>, registered wallet address ${request.address}`, { ephemeral: true });
 
     }
 }

@@ -172,14 +172,14 @@ const DiscordUtils = {
     },
 
     // Send a response to a command (use ephemeral) or a reaction (use DM)
-    async activityResponse(commandContext: CommandContext, buttonInteraction: ButtonInteraction, content: string, link?: string): Promise<void> {
+    async activityResponse(commandContext: CommandContext, buttonInteraction: ButtonInteraction, content: string, link?: string, linkTitle?: string): Promise<void> {
         if (!!commandContext) { // This was a slash command
             const btnComponent =  (link ? [{
 				type: ComponentType.ACTION_ROW,
 				components: [{
 					type: ComponentType.BUTTON,
 					style: ButtonStyle.LINK,
-                    label: 'View Bounty',
+                    label: linkTitle ? linkTitle : 'View Bounty',
                     url: link,
 				}]
              }] : []) as ComponentActionRow[];

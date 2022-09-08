@@ -12,23 +12,37 @@ import { Activities } from '../../constants/activities';
 import { Clients } from '../../constants/clients';
 import ValidationError from '../../errors/ValidationError';
 import TimeoutError from '../../errors/TimeoutError';
+import { UpsertUserWalletRequest } from '../../requests/UpsertUserWalletRequest';
+import { handler } from './Handler';
+import RuntimeError from '../../errors/RuntimeError';
 
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.debug('In Claim activity');
     
-    if (! (await BountyUtils.isUserWalletRegistered(request.userId)) || true) {
+    if (! (await BountyUtils.userWalletRegistered(request.userId)) || true) {
+        console.log("Before wallet");
+        const upsertWalletRequest = new UpsertUserWalletRequest({
+            userDiscordId: request.userId,
+            address: null,
+            commandContext: request.commandContext,
+            buttonInteraction: request.buttonInteraction,
+            callBack: finishClaim,
+        })
+
         try {
-            console.log("Before wallet");
-            await BountyUtils.userInputWalletAddressModal(request, finishClaim);
-        }
-        catch (e) {
-            if (e instanceof TimeoutError || e instanceof ValidationError) {
-                throw new ValidationError(                
-                    `Unable to complete this operation.\n` +
-                    'Please try entering your wallet address with the slash command `/register wallet` and then try claiming the bounty again.\n\n' +
-                    `Return to Bounty list: ${(await BountyUtils.getLatestCustomerList(request.guildId))}`
-                    );
+            await handler(upsertWalletRequest);
+        } catch (e) {
+            if (e instanceof ValidationError) {
+                await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation.\n` +
+                'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
+                return;
             }
+            throw new RuntimeError(e);               
+        }
+        if (!await BountyUtils.userWalletRegistered(request.userId)) {
+            await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `You must enter a wallet address to claim a bounty.\n` +
+            'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
+            return;
         }
     } else {
         await finishClaim(request);
@@ -36,7 +50,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
 
 }
 
-export const finishClaim = async (request: ClaimRequest) => {
+export const finishClaim = async (request: any) => {
 
     const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
