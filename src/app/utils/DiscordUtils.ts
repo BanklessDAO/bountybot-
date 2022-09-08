@@ -151,19 +151,19 @@ const DiscordUtils = {
         return messages.first();
     },
 
-    async interactionResponse(buttonInteraction: ButtonInteraction, content: string, link?: string) {
+    async interactionResponse(buttonInteraction: ButtonInteraction, content: string, link?: string, linkTitle?: string) {
         let replyOptions: MessageOptions = { content: content };
         if (link) {
             const componentActions = new MessageActionRow().addComponents(
                 new MessageButton()
-                    .setLabel('View Bounty')
+                    .setLabel(linkTitle ? linkTitle : 'View Bounty')
                     .setStyle('LINK')
                     .setURL(link || '')
             );
             replyOptions.components = [componentActions];
         } 
         try {
-            if ((buttonInteraction.deferred || buttonInteraction.replied)) await buttonInteraction.editReply(replyOptions);
+            if ((buttonInteraction.deferred || buttonInteraction.replied)) await buttonInteraction.followUp(Object.assign(replyOptions, { ephemeral: true }) as InteractionReplyOptions);
             else await buttonInteraction.reply(Object.assign(replyOptions, { ephemeral: true }) as InteractionReplyOptions);
         } catch (e) {
             if (e.code === 40060) await buttonInteraction.editReply(replyOptions);
@@ -185,7 +185,7 @@ const DiscordUtils = {
              }] : []) as ComponentActionRow[];
             await commandContext.send({ content: content, ephemeral: true, components: btnComponent });
         } else {// This was a button interaction
-            await this.interactionResponse(buttonInteraction, content, link);
+            await this.interactionResponse(buttonInteraction, content, link, linkTitle);
         }
     },
 
@@ -246,7 +246,7 @@ const DiscordUtils = {
                 commandContext: request.commandContext,
                 listType: undefined,
                 messageReactionRequest: {
-                    user: request.buttonInteraction.user,
+                    user: request.buttonInteraction?.user,
                     message: message
                 },
                 buttonInteraction: request.buttonInteraction,

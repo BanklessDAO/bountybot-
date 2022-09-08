@@ -554,6 +554,7 @@ const BountyUtils = {
                     address: walletAddress,
                     commandContext: null,
                     buttonInteraction: null,
+                    origRequest: null,
                     callBack: null
                 })
 

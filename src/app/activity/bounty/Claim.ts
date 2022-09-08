@@ -26,6 +26,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
             address: null,
             commandContext: request.commandContext,
             buttonInteraction: request.buttonInteraction,
+            origRequest: request,
             callBack: finishClaim,
         })
 
@@ -33,16 +34,12 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
             await handler(upsertWalletRequest);
         } catch (e) {
             if (e instanceof ValidationError) {
+                console.log("Reply 1: activityResponse");
                 await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation.\n` +
                 'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
                 return;
             }
             throw new RuntimeError(e);               
-        }
-        if (!await BountyUtils.userWalletRegistered(request.userId)) {
-            await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `You must enter a wallet address to claim a bounty.\n` +
-            'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
-            return;
         }
     } else {
         await finishClaim(request);
@@ -51,6 +48,16 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
 }
 
 export const finishClaim = async (request: any) => {
+
+    console.log("In finishClaim");
+
+    // Check to make sure they didn't enter DELETE when putting in the wallet address
+    if (!await BountyUtils.userWalletRegistered(request.userId)) {
+        console.log("Reply 2: activityResponse");
+        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `You must enter a wallet address to claim a bounty.\n` +
+        'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
+        return;
+    }
 
     const claimedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     Log.info(`${request.bountyId} bounty claimed by ${claimedByUser.user.tag}`);
@@ -86,9 +93,11 @@ export const finishClaim = async (request: any) => {
     }
 
     const createdByUser = await DiscordUtils.getGuildMemberFromUserId(getDbResult.dbBountyResult.createdBy.discordId, request.guildId);
+    console.log("Reply 3: activityNotification");
     await DiscordUtils.activityNotification(creatorNotification, createdByUser, claimedBountyCard.url);
 
     const claimaintResponse = `<@${claimedByUser.user.id}>, you have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions.`;
+    console.log("Reply 4: activityResponse");
     await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, claimaintResponse, claimedBountyCard.url);
     
     return;

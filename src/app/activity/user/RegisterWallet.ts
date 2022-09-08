@@ -35,17 +35,18 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
             components: [
             {
                 type: (fromSlash ? ComponentType.TEXT_INPUT : "TEXT_INPUT"),
-                label: 'Wallet Address',
+                label: 'Wallet Address or \'DELETE\' to remove existing',
                 style: (fromSlash ? TextInputStyle.PARAGRAPH: "PARAGRAPH"),
-                require: true,
+                required: true,
                 max_length: 100,
                 custom_id: 'wallet_address',
-                placeholder: 'Enter your wallet address so you can be paid. Enter DELETE to remove your registered address.',
+                placeholder: 'Enter your wallet address so you can be paid.',
                 value: current_address ? current_address : ""
             }]
         }]
     };
 
+    // Check what we got in the modal, and if good store and respond
     const walletRegister = async (request: UpsertUserWalletRequest, context: ModalInteractionContext | ModalSubmitInteraction) => {
 
         try {
@@ -53,14 +54,18 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
         } catch (e) {
             if (e instanceof ValidationError) {
                 if (context instanceof ModalInteractionContext) {
+                    console.log("Reply 5: context.send");
                     await context.send(e.message);
                 } else {
+                    console.log("Reply 6: context.reply");
                     await context.reply({content: e.message, ephemeral: true});
                 }
                 return;
             } 
             throw new RuntimeError(e);               
         }
+
+        // We have a new context to use after the modal for the response
         if (context instanceof ModalInteractionContext) {
             request.commandContext = context as unknown as CommandContext;
         } else {
@@ -70,26 +75,34 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
         await dbHandler(request);
         await finishRegister(request);
 
-        if (request.callBack) {
-            await request.callBack(request);
-            return;
-        }
-
-        if (context instanceof ModalInteractionContext) {
+/*         if (context instanceof ModalInteractionContext) {
+            console.log("Reply 7: context.send");
             await context.send('Wallet address updated');
         } else {
             try {
+                console.log("Reply 8: context.user.send");
                 await context.user.send('Wallet address updated');
             } catch (e) {
                 Log.debug(`Couldn't sent wallet confirm to @<${context.user}>`);
             }
         }
+ */
+        // We were called from another activity. Restore the original request object except for the context, and call back into that activity
+        if (request.callBack) {
+            console.log("Restoring request, but keeping new context from modal so replies work");
+            request.origRequest.commandContext = request.commandContext;
+            request.origRequest.buttonInteraction = request.buttonInteraction;
+            console.log("Doing callback");
+            await request.callBack(request.origRequest);
+            return;
+        }
+
 
         return;
 
     }
 
-    // Callback for the slash version
+    // Callback for the slash modal version
     const modalCallback = async (modalContext: ModalInteractionContext, request: UpsertUserWalletRequest) => {
         console.log("In modalCallback");
         await modalContext.defer(true);
@@ -97,7 +110,7 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
         await walletRegister(request, modalContext);
     };
 
-    // Call the modal. For slash command, call the callback. For button interaction, wait for submit and return. 
+    // Call the modal. For slash command (slacsh-create), call the callback. For button interaction (discord.js), wait for submit and return. 
 
     if (fromSlash) {
         try {
@@ -119,7 +132,9 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
             time: 60000,
             filter: i => i.user.id === request.userDiscordId,
             }).catch(e => {
-            Log.error(e.message);            throw new RuntimeError(e);
+                Log.error(e.message);
+                // TODO Catch timeout error here
+                throw new RuntimeError(e);
             });
         request.address = submittedInteraction.components[0].components[0].value;
         await walletRegister(request, submittedInteraction);
@@ -130,12 +145,14 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
 export const finishRegister = async (request: UpsertUserWalletRequest) => {
     console.log("In finishRegister");
     if (ADDRESS_DELETE_REGEX.test(request.address)) {
+        console.log("Reply 9: activityResponse");
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, "Your wallet address has been deleted.");
       
     } else {
         const activityMessage = `<@${request.userDiscordId}>, your wallet address has been registered as ${request.address}.\n`+
                                 `You can change it by using the /register-wallet command.`;
         const etherscanUrl = `https://etherscan.io/address/${request.address}`;
+        console.log("Reply 10: activityResponse");
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage, etherscanUrl, "View on Etherscan");
     }
 }
@@ -157,17 +174,17 @@ const dbHandler = async (request: UpsertUserWalletRequest): Promise<void> => {
 
 	const writeResult: UpdateWriteOpResult = await userCollection.updateOne({userDiscordId: request.userDiscordId}, 
         ADDRESS_DELETE_REGEX.test(request.address) ? 
-            {
-                $set: {
-                    walletAddress: request.address,
-                },
-            } :
-            {
-                $unset: {
-                    walletAddress: "",
-                },
-            }
-        );
+        {
+            $unset: {
+                walletAddress: "",
+            },
+        } :
+        {
+            $set: {
+                walletAddress: request.address,
+            },
+        }
+    );
 
     if (writeResult.result.ok !== 1) {
         Log.error(`Write result did not execute correctly`);
