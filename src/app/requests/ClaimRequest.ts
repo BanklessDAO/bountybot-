@@ -18,6 +18,13 @@ export class ClaimRequest extends Request {
         messageReactionRequest: MessageReactionRequest,
         clientSyncRequest: ChangeStreamEvent,
         buttonInteraction: ButtonInteraction,
+        directRequest: {
+            guildId: string,
+            bountyId: string,
+            userId: string,
+            activity: string
+            bot: boolean,
+        }
     }) {
         if (args.commandContext) {
             if (args.commandContext.subcommands[0] !== Activities.claim) {
@@ -40,6 +47,13 @@ export class ClaimRequest extends Request {
             super(Activities.claim, upsertedBountyRecord.customerId, claimantUserId, false);
             this.bountyId = upsertedBountyRecord._id;
             this.clientSyncRequest = true;
+        }
+        else if (args.directRequest) {
+            const { guildId, bountyId, userId, activity, bot } = args.directRequest;
+            super (activity, guildId, userId, bot);
+
+            this.bountyId = bountyId;
+            this.buttonInteraction = args.buttonInteraction;
         }
     }
 }

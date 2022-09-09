@@ -1,6 +1,6 @@
 import { Bounty } from '../../types/bounty/Bounty';
 import Log from '../../utils/Log';
-import { Message, GuildMember, DMChannel, Role } from 'discord.js';
+import { GuildMember, Role, MessageButton, MessageActionRow } from 'discord.js';
 import DiscordUtils from '../../utils/DiscordUtils';
 import BountyUtils from '../../utils/BountyUtils';
 import MongoDbUtils from '../../utils/MongoDbUtils';
@@ -11,8 +11,6 @@ import { BountyStatus } from '../../constants/bountyStatus';
 import { Clients } from '../../constants/clients';
 import { PaidStatus } from '../../constants/paidStatus';
 import { Activities } from '../../constants/activities';
-import TimeoutError from '../../errors/TimeoutError';
-import ConflictingMessageException from '../../errors/ConflictingMessageException';
 import DMPermissionError from '../../errors/DMPermissionError';
 import { ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
 
@@ -144,46 +142,20 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
         const IOUContent = `<@${owedTo.id}> An IOU was created for you by <@${guildMember.user.id}>: ${cardMessage.url}`;
         await owedTo.send({ content: IOUContent }).catch(() => { throw new DMPermissionError(IOUContent) });
 
-        if (!(await BountyUtils.userWalletRegistered(owedTo.id))) {
+        const walletNeeded = !(await BountyUtils.userWalletRegistered(owedTo.id));
+
+        if (walletNeeded) {
             // Note: ephemeral messagees are only visible to the user who kicked off the interaction,
             // so we can not send an ephemeral message to the owedTo user to check DMs
 
-            const durationMinutes = 5;
-            const iouWalletMessage = `Hello <@${owedTo.id}>!\n` +
-                `Please respond within ${durationMinutes} minutes.\n` +
-                `Please enter the ethereum wallet address (non-ENS) to receive the reward amount for this bounty`;
-            const walletNeededMessage: Message = await owedTo.send({ content: iouWalletMessage });
-            const dmChannel: DMChannel = await walletNeededMessage.channel.fetch() as DMChannel;
+            const iouWalletMessage = `Please click the button below to enter your ethereum wallet address (non-ENS) to receive the reward amount for this bounty`;
+            const walletButton = new MessageButton().setStyle('SECONDARY').setCustomId('👛').setLabel('Register Wallet');
 
-            await createRequest.commandContext.send({ content: `Waiting for <@${owedTo.id}> to enter their wallet address.`, ephemeral: true });
-
-            try {
-                await BountyUtils.userInputWalletAddress(dmChannel, owedTo.id, durationMinutes * 60 * 1000);
-                await createRequest.commandContext.delete();
-            }
-            catch (e) {
-                if (e instanceof TimeoutError || e instanceof ValidationError) {
-                    await owedTo.send(
-                        `Unable to complete this operation due to timeout or incorrect wallet addresses.\n` +
-                        'Please try entering your wallet address with the slash command `/register-wallet`.\n\n' +
-                        `Return to Bounty list: ${(await BountyUtils.getLatestCustomerList(createRequest.guildId))}`
-                    );
-                    await createRequest.commandContext.editOriginal({
-                        content:
-                            `<@${createRequest.userId}>:\n` +
-                            `<@${owedTo.id}> was unable to enter their wallet address.\n` +
-                            `Collecting wallet addresses of contributors can take up to a few days.\n` +
-                            `To facilitate ease of payment when this bounty is completed, please remind <@${owedTo.id}> ` +
-                            'to register their wallet address with the slash command `/register wallet`\n'
-                    });
-                }
-                if (e instanceof ConflictingMessageException) {
-                    await walletNeededMessage.delete();
-                }
-            }
+            await owedTo.send({ content: iouWalletMessage, components: [new MessageActionRow().addComponents(walletButton)] });
         }
 
-        await DiscordUtils.activityResponse(createRequest.commandContext, null, 'IOU created successfully');
+        await DiscordUtils.activityResponse(createRequest.commandContext, null, 'IOU created successfully.' + (walletNeeded ? "\n" +
+        `${owedTo} has not registered a wallet. Remind them to check their DMs for a register wallet button, or to use the /register-wallet command.` : ""));
     } else {
         await modalContext?.send('Bounty created, see below...');
         return;

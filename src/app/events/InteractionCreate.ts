@@ -19,6 +19,7 @@ import { Activities } from '../constants/activities';
 import NotificationPermissionError from '../errors/NotificationPermissionError';
 import DMPermissionError from '../errors/DMPermissionError';
 import ErrorUtils from '../utils/ErrorUtils';
+import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
 
 export default class implements DiscordEvent {
     name = 'interactionCreate';
@@ -49,11 +50,15 @@ export default class implements DiscordEvent {
             return;
         }
 
-        if (message.embeds == null || message.embeds[0] == null || message.embeds[0].fields[BountyEmbedFields.bountyId] == null) {
-            return;
+        // Skip bounty card check for non-bounty interactions
+        let bountyId = "";
+        if (!(["👛"].includes(interaction.customId))) {
+            if (message.embeds == null || message.embeds[0] == null || message.embeds[0].fields[BountyEmbedFields.bountyId] == null) {
+                return;
+            }
+            bountyId = DiscordUtils.getBountyIdFromEmbedMessage(message);
         }
 
-        const bountyId: string = DiscordUtils.getBountyIdFromEmbedMessage(message);
         let request: any;
 
         if (interaction.customId === '👍') {
@@ -75,15 +80,34 @@ export default class implements DiscordEvent {
             });
         } else if (interaction.customId === '🏴') {
             Log.info(`${user.tag} attempting to claim a bounty ${bountyId} from the bounty board`);
-            request = new ClaimRequest({
-                commandContext: null,
-                messageReactionRequest: {
-                    user: user,
-                    message: message
-                },
-                clientSyncRequest: null,
-                buttonInteraction: interaction,
-            });
+            const guildId = message.embeds[0].author.name.split(': ')[1];
+
+            if (message.channel instanceof DMChannel) {
+                request = new ClaimRequest({
+                    commandContext: null,
+                    messageReactionRequest: null,
+                    clientSyncRequest: null,
+                    buttonInteraction: interaction,
+                    directRequest: {
+                        bountyId: bountyId,
+                        guildId: guildId,
+                        activity: Activities.claim,
+                        userId: user.id,
+                        bot: user.bot,
+                    }
+                });
+            } else {
+                request = new ClaimRequest({
+                    commandContext: null,
+                    messageReactionRequest: {
+                        user: user,
+                        message: message
+                    },
+                    clientSyncRequest: null,
+                    buttonInteraction: interaction,
+                    directRequest: null,
+                });
+            }
         } else if (interaction.customId === '💰') {
             Log.info(`${user.tag} attempting to mark a bounty as paid ${bountyId} from the bounty board`);
             request = new PaidRequest({
@@ -205,6 +229,19 @@ export default class implements DiscordEvent {
                 },
                 buttonInteraction: interaction,
             });
+
+        } else if (interaction.customId === '👛') {
+            Log.info(`${user.tag} attempting to register wallet}`);
+            request = new UpsertUserWalletRequest({
+                commandContext: null,
+                buttonInteraction: interaction,
+                address: null,
+                origRequest: null,
+                callBack: null,
+                userDiscordId: user.id,
+
+            });
+
         } else {
             return;
         }

@@ -1,4 +1,4 @@
-import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, InteractionReplyOptions, Message, MessageActionRow, MessageButton, MessageOptions, Role, Snowflake, TextChannel } from 'discord.js';
+import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, InteractionReplyOptions, Message, MessageActionRow, MessageButton, MessageEmbedOptions, MessageOptions, Role, Snowflake, TextChannel } from 'discord.js';
 import { Db } from 'mongodb';
 import { ButtonStyle, CommandContext, ComponentActionRow, ComponentContext, ComponentType } from 'slash-create';
 import { listBounty } from '../activity/bounty/List';
@@ -190,15 +190,30 @@ const DiscordUtils = {
     },
 
     // Send a notification to an interested party (use a DM)
-    async activityNotification(content: string, toUser: GuildMember, link: string): Promise<void> {
+    async activityNotification(
+        content: string,
+        toUser: GuildMember,
+        link: string,
+        bountyCard?: {
+            embeds: MessageEmbedOptions,
+            buttons: MessageButton[]
+        }
+    ): Promise<void> {
         try {
-            const componentActions = new MessageActionRow().addComponents(
-                new MessageButton()
-                    .setLabel('View Bounty')
-                    .setStyle('LINK')
-                    .setURL(link || '')
-            );
-            await toUser.send({ content, components: link && [componentActions] });
+            const linkButton = new MessageButton()
+                .setLabel('View Bounty')
+                .setStyle('LINK')
+                .setURL(link || '');
+
+            await toUser.send({
+                content,
+                embeds: bountyCard ? [bountyCard.embeds] : [],
+                components: bountyCard
+                    ? [new MessageActionRow().addComponents(
+                        bountyCard.buttons.concat(linkButton)
+                        )]
+                    : link && [new MessageActionRow().addComponents(linkButton)]
+            });
         } catch (e) {
             throw new NotificationPermissionError(content);
         }

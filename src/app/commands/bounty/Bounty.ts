@@ -292,6 +292,7 @@ export default class Bounty extends SlashCommand {
                     messageReactionRequest: null,
                     clientSyncRequest: null,
                     buttonInteraction: null,
+                    directRequest: null,
                 });
                 break;
             case Activities.apply:
