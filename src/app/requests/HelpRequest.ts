@@ -19,7 +19,7 @@ export class HelpRequest extends Request {
     }) {
         if (args.commandContext) {
             if (args.commandContext.subcommands[0] !== Activities.help) {
-                throw new Error('ListRequest created for non List activity.');
+                throw new Error('HelpRequest created for non List activity.');
             }
             super(args.commandContext.subcommands[0], args.commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.commandContext = args.commandContext;

@@ -19,7 +19,7 @@ import RuntimeError from '../../errors/RuntimeError';
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.debug('In Claim activity');
     
-    if (! (await BountyUtils.userWalletRegistered(request.userId)) || true) {
+    if (! (await BountyUtils.userWalletRegistered(request.userId)) ) {
         console.log("Before wallet");
         const upsertWalletRequest = new UpsertUserWalletRequest({
             userDiscordId: request.userId,
