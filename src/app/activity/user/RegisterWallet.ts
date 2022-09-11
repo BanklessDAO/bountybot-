@@ -10,6 +10,7 @@ import { ComponentType, TextInputStyle, ModalInteractionContext, ModalOptions as
 import RuntimeError from "../../errors/RuntimeError";
 import ValidationError from "../../errors/ValidationError";
 import WalletUtils, { ADDRESS_DELETE_REGEX } from "../../utils/WalletUtils";
+import ModalTimeoutError from "../../errors/ModalTimeoutError";
 
 export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promise<any> => {
 
@@ -75,18 +76,6 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
         await dbHandler(request);
         await finishRegister(request);
 
-/*         if (context instanceof ModalInteractionContext) {
-            console.log("Reply 7: context.send");
-            await context.send('Wallet address updated');
-        } else {
-            try {
-                console.log("Reply 8: context.user.send");
-                await context.user.send('Wallet address updated');
-            } catch (e) {
-                Log.debug(`Couldn't sent wallet confirm to @<${context.user}>`);
-            }
-        }
- */
         // We were called from another activity. Restore the original request object except for the context, and call back into that activity
         if (request.callBack) {
             console.log("Restoring request, but keeping new context from modal so replies work");
@@ -121,8 +110,10 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
         }
         return;
     } else {
+        const crypto = require('crypto');
+        const uuid = crypto.randomUUID();
         try {
-            await request.buttonInteraction.showModal(Object.assign(modal, {customId: 'wallet_address'}) as unknown as ModalOptions);
+            await request.buttonInteraction.showModal(Object.assign(modal, {customId: uuid}) as unknown as ModalOptions);
         } catch(e) {
             Log.error(e.message);
             throw new RuntimeError(e);
@@ -130,15 +121,15 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
         console.log("After showModal");
         const submittedInteraction = await request.buttonInteraction.awaitModalSubmit({
             time: 60000,
-            filter: i => i.user.id === request.userDiscordId,
+            filter: i => (i.user.id === request.userDiscordId) && (i.customId === uuid),
             }).catch(e => {
-                Log.error(e.message);
-                // TODO Catch timeout error here
-                throw new RuntimeError(e);
-            });
+                Log.info(`<@${request.userDiscordId}> had a modal error ${e.message}`);
+                // Most likely a modal form timeout error
+                throw new ModalTimeoutError(e);
+            }) as ModalSubmitInteraction;
         request.address = submittedInteraction.components[0].components[0].value;
         await walletRegister(request, submittedInteraction);
-    }
+       }
     
 }
 

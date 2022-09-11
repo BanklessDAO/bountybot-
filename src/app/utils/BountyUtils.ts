@@ -15,7 +15,7 @@ import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
 import { handler } from '../activity/bounty/Handler';
 import { UserCollection } from '../types/user/UserCollection';
-import { ModalInteractionContext, MessageOptions as scMessageOptions, Message as scMessage, ComponentType, TextInputStyle } from 'slash-create';
+import { ModalInteractionContext, MessageOptions as scMessageOptions, Message as scMessage, ComponentType, TextInputStyle, CommandContext } from 'slash-create';
 import WalletUtils from './WalletUtils';
 import RuntimeError from '../errors/RuntimeError';
 
@@ -280,7 +280,7 @@ const BountyUtils = {
 
     },
 
-    async canonicalCard(bountyId: string, activity: string, bountyChannel?: TextChannel, guildMember?: GuildMember, modalContext?: ModalInteractionContext): Promise<Message> {
+    async canonicalCard(bountyId: string, activity: string, bountyChannel?: TextChannel, guildMember?: GuildMember): Promise<Message> {
         Log.debug(`Creating/updating canonical card`);
 
         // Get the updated bounty

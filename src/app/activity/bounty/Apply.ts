@@ -10,6 +10,7 @@ import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import BountyUtils from '../../utils/BountyUtils';
 import { ModalOptions as scModalOptions, ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
 import RuntimeError from '../../errors/RuntimeError';
+import ModalTimeoutError from '../../errors/ModalTimeoutError';
 
 export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     Log.debug('In Apply activity');
@@ -28,6 +29,7 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
                 label: 'Pitch',
                 style: (fromSlash ? TextInputStyle.PARAGRAPH: "PARAGRAPH"),
                 max_length: 4000,
+                required: true,
                 custom_id: 'pitch',
                 placeholder: 'Why should this bounty be assigned to you?'
             }]
@@ -60,18 +62,20 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
         await request.commandContext.sendModal(modal as scModalOptions ,async (mctx) => { await modalCallback(mctx, request) });
         return;
     } else {
+        const crypto = require('crypto');
+        const uuid = crypto.randomUUID();
         try {
-            await request.buttonInteraction.showModal(Object.assign(modal as unknown as ModalOptions, {customId: 'pitch'}));
+            await request.buttonInteraction.showModal(Object.assign(modal as unknown as ModalOptions, {customId: uuid}));
         } catch(e) {
             console.log(e.message)
             return;
         }
         const submittedInteraction = (await request.buttonInteraction.awaitModalSubmit({
             time: 60000,
-            filter: i => i.user.id === request.userId,
+            filter: i => (i.user.id === request.userId) && (i.customId === uuid),
             }).catch(e => {
-            console.log(e.message)
-            return;
+                // Most likely a modal timeout
+                throw new ModalTimeoutError(e);
             })) as ModalSubmitInteraction;
         const pitch = submittedInteraction.components[0].components[0].value;
         try {

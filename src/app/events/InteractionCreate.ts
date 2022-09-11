@@ -20,6 +20,7 @@ import NotificationPermissionError from '../errors/NotificationPermissionError';
 import DMPermissionError from '../errors/DMPermissionError';
 import ErrorUtils from '../utils/ErrorUtils';
 import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
+import ModalTimeoutError from '../errors/ModalTimeoutError';
 
 export default class implements DiscordEvent {
     name = 'interactionCreate';
@@ -258,7 +259,9 @@ export default class implements DiscordEvent {
                 Log.info(`${user.tag} submitted a request that failed validation`);
             } else if (e instanceof AuthorizationError) {
                 Log.info(`${user.tag} submitted a request that failed authorization`);
-            
+            } else if (e instanceof ModalTimeoutError) {
+                Log.info(`${user.tag} had a modal form timeout`);
+                errorContent = 'Form timeout. Please finish your entries within 1 minute.';
             } else if (e instanceof DMPermissionError) {
                 Log.info(`${user.tag} submitted a request that failed DM`);
                 errorContent = `It looks like bot does not have permission to DM <@${user.id}>.\n \n` +

@@ -15,6 +15,7 @@ import TimeoutError from '../../errors/TimeoutError';
 import { UpsertUserWalletRequest } from '../../requests/UpsertUserWalletRequest';
 import { handler } from './Handler';
 import RuntimeError from '../../errors/RuntimeError';
+import ModalTimeoutError from '../../errors/ModalTimeoutError';
 
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.debug('In Claim activity');
@@ -36,6 +37,12 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
             if (e instanceof ValidationError) {
                 console.log("Reply 1: activityResponse");
                 await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation.\n` +
+                'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
+                return;
+            }
+            if (e instanceof ModalTimeoutError) {
+                console.log("Reply 50: activityResponse");
+                await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation - form timeout.\n` +
                 'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
                 return;
             }
