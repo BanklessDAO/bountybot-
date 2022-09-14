@@ -12,25 +12,31 @@ import BountyUtils from '../../utils/BountyUtils';
 
 
 export const paidBounty = async (request: PaidRequest): Promise<void> => {
-	Log.debug('In Paid activity');
-
+    Log.debug('In Paid activity');
+    
     const getDbResult: {dbBountyResult: BountyCollection, bountyChannel: string} = await getDbHandler(request);
 	// Since we are in DMs with new flow, guild might not be populated in the request
 	if (request.guildId === undefined || request.guildId === null) {
 		request.guildId = getDbResult.dbBountyResult.customerId;
 	}
     const paidByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
-	Log.info(`${request.bountyId} bounty paid by ${paidByUser.user.tag}`);
-	
+    
+    Log.info(`${request.bountyId} bounty paid by ${paidByUser.user.tag}`);
+    
     await writeDbHandler(request, paidByUser);
-
+    
     const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
-	
-	const creatorPaidDM = 
+    
+    const creatorPaidDM = 
         `Thank you for marking your bounty as paid.\n` +
         `If you haven't already, please remember to tip <@${getDbResult.dbBountyResult.claimedBy.discordId}>`;
-
     
+    const payee = await paidByUser.guild.members.fetch(getDbResult.dbBountyResult.claimedBy.discordId);
+    const payeeDMContent =
+        `Your bounty has been marked as paid: ${getDbResult.dbBountyResult.title}.\n` +
+        `If you don't see a payment post, contact the bounty creator <@${paidByUser.user.id}>`;
+    
+    await DiscordUtils.activityNotification(payeeDMContent, payee, cardMessage.url);
     await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorPaidDM, cardMessage.url);
     return;
 }
@@ -101,3 +107,5 @@ const writeDbHandler = async (request: PaidRequest, paidByUser: GuildMember): Pr
         throw new Error(`Write to database for bounty ${request.bountyId} failed for Paid `);
     }
 }
+
+
