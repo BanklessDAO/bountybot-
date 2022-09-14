@@ -626,7 +626,8 @@ const BountyUtils = {
             const childBounty: BountyCollection = await bountyCollection.findOne({
             _id: new mongo.ObjectId(bounty.childrenIds[bounty.childrenIds.length -1])
              });
-             await this.fixBounty(childBounty);
+             const fixedChild = await this.fixBounty(childBounty);
+             await bountyCollection.replaceOne({ _id: new mongo.ObjectId(childBounty._id) }, fixedChild);
         }
     },
 

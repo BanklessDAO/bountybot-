@@ -171,7 +171,7 @@ const DiscordUtils = {
         }
     },
 
-    // Send a response to a command (use ephemeral) or a reaction (use DM)
+    // Send a response to a command (use ephemeral) or a reaction (use the context) or if neither, treat it as an activityNotification instead
     async activityResponse(commandContext: CommandContext, buttonInteraction: ButtonInteraction, content: string, link?: string, linkTitle?: string): Promise<void> {
         if (!!commandContext) { // This was a slash command
             const btnComponent =  (link ? [{
@@ -184,7 +184,7 @@ const DiscordUtils = {
 				}]
              }] : []) as ComponentActionRow[];
             await commandContext.send({ content: content, ephemeral: true, components: btnComponent });
-        } else {// This was a button interaction
+        } else { // This was a button interaction
             await this.interactionResponse(buttonInteraction, content, link, linkTitle);
         }
     },

@@ -1,4 +1,4 @@
-import { GuildMember } from 'discord.js';
+import { GuildMember, MessageActionRow, MessageButton } from 'discord.js';
 import { ClaimRequest } from '../../requests/ClaimRequest';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 import DiscordUtils from '../../utils/DiscordUtils';
@@ -20,7 +20,7 @@ import ModalTimeoutError from '../../errors/ModalTimeoutError';
 export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.debug('In Claim activity');
     
-    if (! (await BountyUtils.userWalletRegistered(request.userId)) ) {
+    if ( !request.clientSyncRequest && !(await BountyUtils.userWalletRegistered(request.userId))  ) {
         console.log("Before wallet");
         const upsertWalletRequest = new UpsertUserWalletRequest({
             userDiscordId: request.userId,
@@ -56,10 +56,12 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
 
 export const finishClaim = async (request: any) => {
 
+    const walletStillNeeded = !(await BountyUtils.userWalletRegistered(request.userId));
+
     console.log("In finishClaim");
 
     // Check to make sure they didn't enter DELETE when putting in the wallet address
-    if (!await BountyUtils.userWalletRegistered(request.userId)) {
+    if ( !request.clientSyncRequest && walletStillNeeded ) {
         console.log("Reply 2: activityResponse");
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `You must enter a wallet address to claim a bounty.\n` +
         'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
@@ -73,7 +75,6 @@ export const finishClaim = async (request: any) => {
 
     let claimedBounty = getDbResult.dbBountyResult;
     let parentBounty: BountyCollection;
-    //TODO: Test this again with modals in place
     if (!request.clientSyncRequest) {
         const writeResult = await writeDbHandler(request, getDbResult.dbBountyResult, claimedByUser);
         claimedBounty = writeResult.claimedBounty;
@@ -105,8 +106,19 @@ export const finishClaim = async (request: any) => {
 
     const claimaintResponse = `<@${claimedByUser.user.id}>, you have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions.`;
     console.log("Reply 4: activityResponse");
-    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, claimaintResponse, claimedBountyCard.url);
+    if (!request.clientSyncRequest) {
+        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, claimaintResponse, claimedBountyCard.url);
+    } else {
+        await DiscordUtils.activityNotification(claimaintResponse, claimedByUser, claimedBountyCard.url)
+        if (walletStillNeeded) {
+            const walletMessage = `Please click the button below to enter your ethereum wallet address (non-ENS) to receive the reward amount for this bounty`;
+            const walletButton = new MessageButton().setStyle('SECONDARY').setCustomId('👛').setLabel('Register Wallet');
     
+            await claimedByUser.send({ content: walletMessage, components: [new MessageActionRow().addComponents(walletButton)] });
+    
+        }
+    }
+
     return;
 };
 

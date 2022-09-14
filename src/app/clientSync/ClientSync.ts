@@ -21,10 +21,13 @@ import Log, { LogUtils } from "../utils/Log";
  * @returns void promise
  */
 export const ClientSync = async (args: {changeStreamEvent: ChangeStreamEvent}): Promise<void> => {
-    // if OperationType is insert, updatedFields will be invalid
+    // if OperationType is insert, updatedFields will be invalid, so they won't get filtered
+    // if OperationType is update, filter out if no new activity in the history and the paid status didn't change
+    // if OperationType is replace, it's currently only our Bounty Fix cleanup on the bot side that does that, so filter it
     let filterEvent = (
-        "update" === args.changeStreamEvent.operationType && 
-        !args.changeStreamEvent.updateDescription.updatedFields.activityHistory
+        ("update" === args.changeStreamEvent.operationType && 
+        !args.changeStreamEvent.updateDescription.updatedFields.activityHistory && !args.changeStreamEvent.updateDescription.updatedFields.paidStatus) ||
+        ("replace" === args.changeStreamEvent.operationType)
     );
     
     if (filterEvent) {
