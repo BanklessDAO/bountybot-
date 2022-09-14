@@ -32,7 +32,9 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
         `If you haven't already, please remember to tip <@${getDbResult.dbBountyResult.claimedBy.discordId}>`;
     
     const payee = await paidByUser.guild.members.fetch(getDbResult.dbBountyResult.claimedBy.discordId);
-    const payeeDMContent = `You have been paid for the bounty "${getDbResult.dbBountyResult.title}"`;
+    const payeeDMContent =
+        `Your bounty has been marked as paid: ${getDbResult.dbBountyResult.title}.\n` +
+        `If you don't see a payment post, contact the bounty creator <@${paidByUser.user.id}>`;
     
     await DiscordUtils.activityNotification(payeeDMContent, payee, cardMessage.url);
     await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorPaidDM, cardMessage.url);
@@ -105,4 +107,5 @@ const writeDbHandler = async (request: PaidRequest, paidByUser: GuildMember): Pr
         throw new Error(`Write to database for bounty ${request.bountyId} failed for Paid `);
     }
 }
+
 
