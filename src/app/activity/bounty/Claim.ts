@@ -39,8 +39,7 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
                 return;
             }
             if (e instanceof ModalTimeoutError) {
-                await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation - form timeout.\n` +
-                'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
+                await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation - form timeout.`);
                 return;
             }
             throw new RuntimeError(e);               

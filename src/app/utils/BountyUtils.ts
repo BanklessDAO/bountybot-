@@ -263,19 +263,20 @@ const BountyUtils = {
             title += `\n(For role ${role.name})`;
         } else if (bountyRecord.isIOU) {
             title += `\n(IOU owed to ${bountyRecord.claimedBy.discordHandle})`;
-        } else {
-            if (bountyRecord.requireApplication) {
-                title += `\n(Requires application before claiming`;
-                if (bountyRecord.applicants) {
-                    if (bountyRecord.applicants.length == 1) {
-                        title += `. 1 applicant so far.`;
-                    } else {
-                        title += `. ${bountyRecord.applicants.length} applicants so far.`;
-                    }
+        } 
+
+        if (bountyRecord.requireApplication) {
+            title += `\n(Requires application before claiming`;
+            if (bountyRecord.applicants) {
+                if (bountyRecord.applicants.length == 1) {
+                    title += `. 1 applicant so far.`;
+                } else {
+                    title += `. ${bountyRecord.applicants.length} applicants so far.`;
                 }
-                title += ')'
             }
+            title += ')'
         }
+        
         return title;
 
     },
