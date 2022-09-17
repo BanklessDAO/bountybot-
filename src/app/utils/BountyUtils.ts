@@ -257,7 +257,7 @@ const BountyUtils = {
         } else if (bountyRecord.assign) {  //assign is deprecated, replaced by assignTo
             title += `\n(For user ${bountyRecord.assignedName})`
         } else if (bountyRecord.gateTo) {
-            title += `\n(For role ${bountyRecord.gateTo[0].discordName})`;  
+            title += `\n(For role ${bountyRecord.gateTo[0].discordName})`;
         } else if (bountyRecord.gate) {  // deprecated, repalced by gateTo
             const role: Role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
             title += `\n(For role ${role.name})`;
@@ -383,7 +383,7 @@ const BountyUtils = {
         const isDraftBounty = (bounty.status == BountyStatus.draft)
         const createdAt = new Date(bounty.createdAt);
 
-        const actionComponent = actions.map(a => 
+        const actionComponent = actions.map(a =>
             new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
         );
 
@@ -393,7 +393,7 @@ const BountyUtils = {
             );
         }
 
-        
+
         let cardEmbeds: MessageOptions = {
             embeds: [{
                 title: await BountyUtils.createPublicTitle(bounty),
@@ -411,78 +411,66 @@ const BountyUtils = {
             components: actionComponent.length ? [
                 new MessageActionRow().addComponents(actionComponent)
             ]
-            :
-            [],
+                :
+                [],
         };
-        
+
 
         // Create/Update the card
         let cardMessage: any;
 
-/*         if (isDraftBounty) {  // If we are in Create (Draft) mode, put the card in the modal context and add the pre-message
-            const publishOrDeleteMessage =
-            'Thank you! If it looks good, please hit 👍 to publish the bounty.\n' +
-            'Once the bounty has been published, others can view and claim the bounty.\n' +
-            'If you are not happy with the bounty, hit ❌ to delete it and start over.\n'            
-            const cardEmbedsModal: scMessageOptions = JSON.parse(JSON.stringify(cardEmbeds));
-            const d = new Date(cardEmbedsModal.embeds[0].timestamp);
-            cardEmbedsModal.embeds[0].timestamp = d.toISOString();
-            cardMessage = await modalContext.send(publishOrDeleteMessage, cardEmbedsModal);
-        } else {
- */
-            if (activity == Activities.publish) {  // Publishing. If the card exists, delete it - it was either in a DM or needs to be refreshed
-                if (!!bounty.canonicalCard) { 
-                    let draftCardMessage: Message
-                    try {
-                        const draftChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
-                        draftCardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, draftChannel);
-                        console.log(`Trying to delete ${draftCardMessage.id} in channel ${draftChannel.id}`);
-                        await draftCardMessage.delete();
-                    } catch(e) {
-                    } finally {
-                        bounty.canonicalCard = undefined;
-                    }
-                }
-            }
-            if (!!bounty.canonicalCard) {  // If we still have an existing card, try to just edit it, remove old reactions
+        if (activity == Activities.publish) {  // Publishing. If the card exists, delete it - it was either in a DM or needs to be refreshed
+            if (!!bounty.canonicalCard) {
+                let draftCardMessage: Message
                 try {
-                    bountyChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
-                    cardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel);
-                    await cardMessage.edit(cardEmbeds);
-                    await cardMessage.reactions.removeAll();
-                } catch(e) {
+                    const draftChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
+                    draftCardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, draftChannel);
+                    await draftCardMessage.delete();
+                } catch (e) {
+                } finally {
                     bounty.canonicalCard = undefined;
                 }
-            } 
-            if (!bounty.canonicalCard) { // If we didn't have a card, or we had an error trying to access it, create it
-                if (isDraftBounty) {  // If we are in Create (Draft) mode, put the card in the modal context and add the pre-message
-                    const publishOrDeleteMessage =
+            }
+        }
+        if (!!bounty.canonicalCard) {  // If we still have an existing card, try to just edit it, remove old reactions
+            try {
+                bountyChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
+                cardMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel);
+                await cardMessage.edit(cardEmbeds);
+                await cardMessage.reactions.removeAll();
+            } catch (e) {
+                bounty.canonicalCard = undefined;
+            }
+        }
+        if (!bounty.canonicalCard) { // If we didn't have a card, or we had an error trying to access it, create it
+            if (isDraftBounty) {  // If we are in Create (Draft) mode, put the card in the modal context and add the pre-message
+                const publishOrDeleteMessage =
                     `Thank you` +
                     (guildMember ? ` <@${guildMember.id}>` : ``) +
                     `! If it looks good, please hit 👍 to publish the bounty.\n` +
                     `Once the bounty has been published, others can view and claim the bounty.\n` +
-                    `If you are not happy with the bounty, hit ❌ to delete it and start over.\n`            
-                    cardEmbeds.content = publishOrDeleteMessage;
-                }
-                if (!bountyChannel) bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
-                try {
-                    cardMessage = await bountyChannel.send(cardEmbeds);
-                } catch (e) {
-                    guildMember &&
-                        await guildMember.send({
-                            content: `> Failed to publish bounty in **#${bountyChannel.name}**. \n` +
-                                `> Reason: ${e.message} \n` +
-                                `> Please add bot to **#${bountyChannel.name}** to publish successfully. If issue persists, please contact support \n \n `
-                        });
-
-                    bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
-
-                    guildMember &&
-                        await guildMember.send({ content: `Trying to publish on **#${bountyChannel.name}** instead...\n \n ` });
-                    cardMessage = await bountyChannel.send(cardEmbeds);
-                }
+                    `If you are not happy with the bounty, hit ❌ to delete it and start over.\n`
+                cardEmbeds.content = publishOrDeleteMessage;
             }
-//        }
+            if (!bountyChannel) bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
+            try {
+                cardMessage = await bountyChannel.send(cardEmbeds);
+            } catch (e) {
+                guildMember &&
+                    await guildMember.send({
+                        content: `> Failed to publish bounty in **#${bountyChannel.name}**. \n` +
+                            `> Reason: ${e.message} \n` +
+                            `> Please add bot to **#${bountyChannel.name}** to publish successfully. If issue persists, please contact support \n \n `
+                    });
+
+                bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(bounty.customerId);
+
+                guildMember &&
+                    await guildMember.send({ content: `Trying to publish on **#${bountyChannel.name}** instead...\n \n ` });
+                cardMessage = await bountyChannel.send(cardEmbeds);
+            }
+        }
+        //        }
         reacts.forEach(react => {
             cardMessage.react(react);
         });
@@ -624,15 +612,15 @@ const BountyUtils = {
         // If evergreen parent, fix last created child also
         if (bounty.childrenIds) {
             const childBounty: BountyCollection = await bountyCollection.findOne({
-            _id: new mongo.ObjectId(bounty.childrenIds[bounty.childrenIds.length -1])
-             });
-             const fixedChild = await this.fixBounty(childBounty);
-             await bountyCollection.replaceOne({ _id: new mongo.ObjectId(childBounty._id) }, fixedChild);
+                _id: new mongo.ObjectId(bounty.childrenIds[bounty.childrenIds.length - 1])
+            });
+            const fixedChild = await this.fixBounty(childBounty);
+            await bountyCollection.replaceOne({ _id: new mongo.ObjectId(childBounty._id) }, fixedChild);
         }
     },
 
     async fixBounty(bounty: BountyCollection): Promise<any> {
-    
+
         const customerId = bounty.customerId;
 
         // If the user avatar URLs are missing, this bounty was probably created on the web. Populate the URLs
@@ -649,7 +637,7 @@ const BountyUtils = {
             bounty.reviewedBy.iconUrl = (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, customerId)).user.avatarURL();
         }
         if (bounty.applicants) {
-            bounty.applicants.forEach( async (a, i) => {
+            bounty.applicants.forEach(async (a, i) => {
                 if (!a.iconUrl) {
                     bounty.applicants[i].iconUrl = (await DiscordUtils.getGuildMemberFromUserId(a.discordId, customerId)).user.avatarURL();
                 }
@@ -659,13 +647,13 @@ const BountyUtils = {
         // If assignTo is missing, create it from the deprecated assign item
         if (bounty.assign && !bounty.assignTo) {
             const assignedUser = await DiscordUtils.getGuildMemberFromUserId(bounty.assign, customerId)
-            bounty.assignTo = {discordId: assignedUser.user.id, discordHandle: assignedUser.user.tag, iconUrl: assignedUser.user.avatarURL()};
+            bounty.assignTo = { discordId: assignedUser.user.id, discordHandle: assignedUser.user.tag, iconUrl: assignedUser.user.avatarURL() };
         }
 
         // If gateTo is missing, create it from the deprecated gate item
         if (bounty.gate && !bounty.gateTo) {
             const gatedTo = await DiscordUtils.getRoleFromRoleId(bounty.gate[0], customerId)
-            bounty.gateTo = [{discordId: gatedTo.id, discordName: gatedTo.name, iconUrl: gatedTo.iconURL() }];
+            bounty.gateTo = [{ discordId: gatedTo.id, discordName: gatedTo.name, iconUrl: gatedTo.iconURL() }];
         }
 
         return bounty;

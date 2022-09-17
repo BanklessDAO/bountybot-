@@ -67,7 +67,6 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
         try {
             await request.buttonInteraction.showModal(Object.assign(modal as unknown as ModalOptions, {customId: uuid}));
         } catch(e) {
-            console.log(e.message)
             return;
         }
         const submittedInteraction = (await request.buttonInteraction.awaitModalSubmit({

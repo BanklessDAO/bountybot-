@@ -21,7 +21,6 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
     Log.debug('In Claim activity');
     
     if ( !request.clientSyncRequest && !(await BountyUtils.userWalletRegistered(request.userId))  ) {
-        console.log("Before wallet");
         const upsertWalletRequest = new UpsertUserWalletRequest({
             userDiscordId: request.userId,
             address: null,
@@ -35,13 +34,11 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
             await handler(upsertWalletRequest);
         } catch (e) {
             if (e instanceof ValidationError) {
-                console.log("Reply 1: activityResponse");
                 await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation.\n` +
                 'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
                 return;
             }
             if (e instanceof ModalTimeoutError) {
-                console.log("Reply 50: activityResponse");
                 await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation - form timeout.\n` +
                 'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
                 return;
@@ -58,11 +55,8 @@ export const finishClaim = async (request: any) => {
 
     const walletStillNeeded = !(await BountyUtils.userWalletRegistered(request.userId));
 
-    console.log("In finishClaim");
-
     // Check to make sure they didn't enter DELETE when putting in the wallet address
     if ( !request.clientSyncRequest && walletStillNeeded ) {
-        console.log("Reply 2: activityResponse");
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `You must enter a wallet address to claim a bounty.\n` +
         'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
         return;
@@ -101,11 +95,9 @@ export const finishClaim = async (request: any) => {
     }
 
     const createdByUser = await DiscordUtils.getGuildMemberFromUserId(getDbResult.dbBountyResult.createdBy.discordId, request.guildId);
-    console.log("Reply 3: activityNotification");
     await DiscordUtils.activityNotification(creatorNotification, createdByUser, claimedBountyCard.url);
 
     const claimaintResponse = `<@${claimedByUser.user.id}>, you have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions.`;
-    console.log("Reply 4: activityResponse");
     if (!request.clientSyncRequest) {
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, claimaintResponse, claimedBountyCard.url);
     } else {
@@ -154,7 +146,6 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
     const bountyCollection = db.collection('bounties');
     let claimedBounty: BountyCollection;
     let parentBounty: BountyCollection;
-    console.log(`In writer ${JSON.stringify(dbBountyResult)}`);
     const currentDate = (new Date()).toISOString();
 
     // If claiming an evergreen bounty, create a copy and use that
@@ -217,7 +208,6 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
         claimedBounty = dbBountyResult;
     }
  
-    console.log(`Going to write ${JSON.stringify(claimedBounty)}`);
     const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(claimedBounty, {
         $set: {
             claimedBy: {
@@ -240,8 +230,6 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
 			}
         },
     });
-
-    console.log(`End writer ${JSON.stringify(writeResult)}`);
 
     if (writeResult.result.ok !== 1) {
         Log.error('failed to update claimed bounty with in progress status');

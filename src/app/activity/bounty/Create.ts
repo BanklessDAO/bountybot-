@@ -58,7 +58,8 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                     label: 'Due Date',
                     style: TextInputStyle.SHORT,
                     custom_id: 'dueAt',
-                    placeholder: 'yyyy-mm-dd, or \'no\' or \'skip\' for 3 months from today'
+                    placeholder: 'yyyy-mm-dd, or leave blank for 3 months from today',
+                    required: false
                   }
                 ]
               }
@@ -96,7 +97,9 @@ export const modalCallback = async (modalContext: ModalInteractionContext, creat
 
     const dueAt = modalContext.values.dueAt;
     let convertedDueDateFromMessage: Date;
-    if (!(dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip')) {
+    if (!dueAt){
+        convertedDueDateFromMessage = BountyUtils.threeMonthsFromNow();
+    } else if (!(dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip')) {
         try {
             convertedDueDateFromMessage = BountyUtils.validateDate(dueAt);
         } catch (e) {
@@ -104,8 +107,6 @@ export const modalCallback = async (modalContext: ModalInteractionContext, creat
             await modalContext.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
             return;
         }
-    } else if (dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip') {
-        convertedDueDateFromMessage = BountyUtils.threeMonthsFromNow();
     }
 
     if (convertedDueDateFromMessage.toString() === 'Invalid Date') {
@@ -217,7 +218,7 @@ export const generateBountyRecord = async (
     let scale = reward.split('.')[1]?.length;
     scale = (scale != null) ? scale : 0;
     const currentDate = (new Date()).toISOString();
-    let status = BountyStatus.draft;
+    let status = BountyStatus.open;
     if (createRequest.isIOU) {
         status = BountyStatus.complete;
     }

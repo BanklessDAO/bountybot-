@@ -70,17 +70,14 @@ export default class Wallet extends SlashCommand {
         }
         catch (e) {
             if (e instanceof ValidationError) {
-                console.log("Reply 11: commandContext.send");
                 await commandContext.send(`<@${commandContext.user.id}>\n` + e.message, { ephemeral: true });
                 return;
             } else if (e instanceof AuthorizationError) {
-                console.log("Reply 12: commandContext.send");
                 await commandContext.send(`<@${commandContext.user.id}>\n` + e.message, { ephemeral: true });
                 return;
             }
             else {
                 LogUtils.logError('error', e);
-                console.log("Reply 13: commandContext.send/delete");
                 await commandContext.send('Sorry something is not working and our devs are looking into it.', { ephemeral: true });
                 await commandContext.delete();
                 return;
@@ -88,7 +85,6 @@ export default class Wallet extends SlashCommand {
         }
 
         if (!commandContext.initiallyResponded) {
-            console.log("Reply 14: commandContext.send");
             await commandContext.send(`<@${request.userDiscordId}>, registered wallet address ${request.address}`, { ephemeral: true });
         }
 

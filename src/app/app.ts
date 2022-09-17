@@ -101,8 +101,6 @@ changeStream.on("change", async next => {
 		changeEvent.fullDocument = upsertedBountyRecord;
 	}
 
-	console.log(`Client Sync Event: ${changeEvent.operationType}`);
-
 	ClientSync({ changeStreamEvent: changeEvent });
 	});
 }

@@ -23,10 +23,7 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
     
     // Different modal data types and calls in slash commands vs. button interactions
     const fromSlash = !!request.commandContext;
-    console.log(`fromSlash ${fromSlash}`);
-    console.log(`commandContext ${request.commandContext}`);
     const current_address = await BountyUtils.userWalletRegistered(request.userDiscordId);
-    console.log(`Current address ${current_address}`);
 
     const modal = {
         title: 'Wallet Address',
@@ -55,10 +52,8 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
         } catch (e) {
             if (e instanceof ValidationError) {
                 if (context instanceof ModalInteractionContext) {
-                    console.log("Reply 5: context.send");
                     await context.send(e.message);
                 } else {
-                    console.log("Reply 6: context.reply");
                     await context.reply({content: e.message, ephemeral: true});
                 }
                 return;
@@ -78,10 +73,8 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
 
         // We were called from another activity. Restore the original request object except for the context, and call back into that activity
         if (request.callBack) {
-            console.log("Restoring request, but keeping new context from modal so replies work");
             request.origRequest.commandContext = request.commandContext;
             request.origRequest.buttonInteraction = request.buttonInteraction;
-            console.log("Doing callback");
             await request.callBack(request.origRequest);
             return;
         }
@@ -93,7 +86,6 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
 
     // Callback for the slash modal version
     const modalCallback = async (modalContext: ModalInteractionContext, request: UpsertUserWalletRequest) => {
-        console.log("In modalCallback");
         await modalContext.defer(true);
         request.address = modalContext.values.wallet_address;
         await walletRegister(request, modalContext);
@@ -118,7 +110,6 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
             Log.error(e.message);
             throw new RuntimeError(e);
         }
-        console.log("After showModal");
         const submittedInteraction = await request.buttonInteraction.awaitModalSubmit({
             time: 60000,
             filter: i => (i.user.id === request.userDiscordId) && (i.customId === uuid),
@@ -134,22 +125,18 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
 }
 
 export const finishRegister = async (request: UpsertUserWalletRequest) => {
-    console.log("In finishRegister");
     if (ADDRESS_DELETE_REGEX.test(request.address)) {
-        console.log("Reply 9: activityResponse");
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, "Your wallet address has been deleted.");
       
     } else {
         const activityMessage = `<@${request.userDiscordId}>, your wallet address has been registered as ${request.address}.\n`+
                                 `You can change it by using the /register-wallet command.`;
         const etherscanUrl = `https://etherscan.io/address/${request.address}`;
-        console.log("Reply 10: activityResponse");
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage, etherscanUrl, "View on Etherscan");
     }
 }
 
 const dbHandler = async (request: UpsertUserWalletRequest): Promise<void> => {
-    console.log("In dbHandler");
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const userCollection = db.collection('user');
 
