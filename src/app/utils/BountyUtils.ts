@@ -313,23 +313,23 @@ const BountyUtils = {
             fields.push({ name: 'For user', value: assignedUser.user.tag, inline: false })
         }
 
-        let footer = {};
+        let footer = { text: bounty.tags ? `🔖${bounty.tags.join(' 🔖')}\n \n` : ''};
         let reacts = [];
         let actions = [];
         let color = undefined;
 
         switch (bounty.status) {
             case BountyStatus.draft:
-                footer = { text: '👍 - publish | ❌ - delete | Please reply within 60 minutes', };
+                footer.text += '👍 - publish | ❌ - delete | Please reply within 60 minutes';
                 actions.push('👍');
                 actions.push('❌');
                 break;
             case BountyStatus.open:
                 if (bounty.requireApplication && (!bounty.assign) && (!bounty.assignTo)) {
-                    footer = { text: '🙋 - apply | ❌ - delete', };
+                    footer.text += '🙋 - apply | ❌ - delete' ;
                     actions.push('🙋');
                 } else {
-                    footer = { text: '🏴 - claim | ❌ - delete', };
+                    footer.text += '🏴 - claim | ❌ - delete' ; 
                     actions.push('🏴');
                 }
                 actions.push('❌');
@@ -339,10 +339,10 @@ const BountyUtils = {
                 actions.push('📮');
                 actions.push('✅');
                 if (bounty.paidStatus !== PaidStatus.paid) {
-                    footer = { text: '📮 - submit | ✅ - mark complete | 💰 - mark paid | 🆘 - help', };
+                    footer.text += '📮 - submit | ✅ - mark complete | 💰 - mark paid | 🆘 - help';
                     actions.push('💰');
                 } else {
-                    footer = { text: '📮 - submit | ✅ - mark complete | 🆘 - help', };
+                    footer.text += '📮 - submit | ✅ - mark complete | 🆘 - help';
                 }
                 actions.push('🆘');
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
@@ -352,10 +352,10 @@ const BountyUtils = {
                 color = '#d39e00';
                 actions.push('✅');
                 if (bounty.paidStatus !== PaidStatus.paid) {
-                    footer = { text: '✅ - mark complete | 💰 - mark paid | 🆘 - help', };
+                    footer.text += '✅ - mark complete | 💰 - mark paid | 🆘 - help';
                     actions.push('💰');
                 } else {
-                    footer = { text: '✅ - mark complete | 🆘 - help', };
+                    footer.text += '✅ - mark complete | 🆘 - help';
                 }
                 actions.push('🆘');
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
@@ -366,7 +366,7 @@ const BountyUtils = {
                 color = '#01d212';
                 reacts.push('🔥');
                 if (bounty.paidStatus !== PaidStatus.paid) {
-                    footer = { text: '💰 - mark paid', };
+                    footer.text += '💰 - mark paid';
                     actions.push('💰');
                 }
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });

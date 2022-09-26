@@ -242,6 +242,9 @@ export const generateBountyRecord = async (
     if (createRequest.isIOU) {
         status = BountyStatus.complete;
     }
+    
+    const bountyCreationChannel = await DiscordUtils.getTextChannelfromChannelId(createdInChannel);
+    const bountyCreationChannelCategory = await DiscordUtils.getTextChannelfromChannelId(bountyCreationChannel.parentId as string);
 
     let bountyRecord: Bounty = {
         customerId: createRequest.guildId,
@@ -276,6 +279,7 @@ export const generateBountyRecord = async (
         status: status,
         paidStatus: PaidStatus.unpaid,
         dueAt: dueAt ? dueAt.toISOString() : null,
+        tags: [bountyCreationChannelCategory.name]
     };
 
     if (createRequest.gate) {
@@ -318,4 +322,5 @@ export const generateBountyRecord = async (
 
     return bountyRecord;
 };
+
 

@@ -41,7 +41,8 @@ export interface Bounty {
 	activityHistory: ClientInteraction[],
 	isIOU?: boolean,
 	resolutionNote?: string,
-	owedTo?: UserObject
+	owedTo?: UserObject,
+	tags: string[],
 }
 
 export type UserObject = {

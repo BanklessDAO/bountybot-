@@ -184,7 +184,7 @@ export default class Bounty extends SlashCommand {
                         {
                             name: 'tag',
                             type: CommandOptionType.STRING,
-                            description: 'Tag (i.e. \'Note Taking: January\' ',
+                            description: 'Tag (i.e. \'Note Taking: January\')',
                             required: true,
                         },
                     ],
@@ -363,8 +363,9 @@ export default class Bounty extends SlashCommand {
                 break;
             case Activities.tag:
                 request = new TagRequest({
-                    commandContext: commandContext,
-                    messageReactionRequest: null
+		    commandContext: commandContext,
+		    messageReactionRequest: null,
+		    buttonInteraction: null,
                 });
                 break;
             case 'gm':
