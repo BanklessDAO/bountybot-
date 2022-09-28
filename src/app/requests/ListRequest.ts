@@ -9,6 +9,8 @@ export class ListRequest extends Request {
     commandContext: CommandContext;
     message: Message;
     buttonInteraction: ButtonInteraction;
+    channelCategory: string;
+    tag: string;
 
     constructor(args: {
         commandContext: CommandContext, 
@@ -22,6 +24,8 @@ export class ListRequest extends Request {
             }
             super(args.commandContext.subcommands[0], args.commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.listType = args.commandContext.options.list['list-type'];
+            this.channelCategory = args.commandContext.options.list['channel-category'];
+            this.tag = args.commandContext.options.list['tag'];
             this.commandContext = args.commandContext;
         } else if (args.messageReactionRequest) {
             const messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;

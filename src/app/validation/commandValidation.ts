@@ -339,6 +339,11 @@ const list = async (request: ListRequest): Promise<void> => {
         case 'UNPAID_BY_ME':
             return;
         case undefined:
+            if (request.tag) {
+                BountyUtils.validateTag(request.tag)
+            } if (request.channelCategory) {
+                BountyUtils.validateChannelCategory(request.channelCategory)
+            }
             return;
         default:
             Log.info('invalid list-type');
@@ -429,3 +434,4 @@ const tag = async (request: TagRequest): Promise<void> => {
         BountyUtils.validateTag(request.tag);
     }
 }
+

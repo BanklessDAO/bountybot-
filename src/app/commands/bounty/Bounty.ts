@@ -206,6 +206,20 @@ export default class Bounty extends SlashCommand {
                     name: Activities.list,
                     type: CommandOptionType.SUB_COMMAND,
                     description: 'View list of bounties you created or are claimed',
+                    options: [
+                        {
+                           name: 'channel-category',
+                           description: 'Bounty Channel Category',
+                           type: CommandOptionType.STRING,
+                           required: false,
+                        },
+                        {
+                            name: 'tag',
+                            description: 'Bounty Tag',
+                            type: CommandOptionType.STRING,
+                            required: false,
+                        }
+                        ]
                 },
                 {
                     name: Activities.delete,
@@ -363,9 +377,9 @@ export default class Bounty extends SlashCommand {
                 break;
             case Activities.tag:
                 request = new TagRequest({
-		    commandContext: commandContext,
-		    messageReactionRequest: null,
-		    buttonInteraction: null,
+                    commandContext: commandContext,
+                    messageReactionRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case 'gm':
@@ -411,3 +425,4 @@ export default class Bounty extends SlashCommand {
 
     }
 }
+

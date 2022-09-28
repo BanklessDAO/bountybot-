@@ -145,6 +145,18 @@ const BountyUtils = {
             throw new ValidationError('Please choose a valid user on this server.');
         }
     },
+    
+    validateChannelCategory(channelCategory: string): void {
+        const CREATE_CHANNEL_CATEGORY_REGEX = /^[\w\s\W]{1,80}$/;
+        if (channelCategory == null || !CREATE_CHANNEL_CATEGORY_REGEX.test(channelCategory)) {
+            throw new ValidationError(
+                'Please enter a valid channel category: \n' +
+                '- 80 characters maximum\n ' +
+                '- alphanumeric\n ' +
+                '- special characters: .!@#$%&,?:|-_',
+            );
+        }
+    },
 
     threeMonthsFromNow(): Date {
         let ts: number = Date.now();
@@ -313,7 +325,7 @@ const BountyUtils = {
             fields.push({ name: 'For user', value: assignedUser.user.tag, inline: false })
         }
 
-        let footer = { text: bounty.tags ? `🔖${bounty.tags.join(' 🔖')}\n \n` : ''};
+        let footer = { text: bounty?.tags.length ? `🔖${bounty.tags.join(' 🔖')}\n \n` : ''};
         let reacts = [];
         let actions = [];
         let color = undefined;
@@ -647,3 +659,4 @@ const BountyUtils = {
 }
 
 export default BountyUtils;
+
