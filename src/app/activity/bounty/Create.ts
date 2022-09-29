@@ -279,7 +279,9 @@ export const generateBountyRecord = async (
         status: status,
         paidStatus: PaidStatus.unpaid,
         dueAt: dueAt ? dueAt.toISOString() : null,
-        tags: [bountyCreationChannelCategory.name]
+        tags: {
+            channelCategory: [bountyCreationChannelCategory.name]
+        }
     };
 
     if (createRequest.gate) {
@@ -322,5 +324,6 @@ export const generateBountyRecord = async (
 
     return bountyRecord;
 };
+
 
 

@@ -42,7 +42,7 @@ export interface BountyCollection extends Collection {
 	isIOU: boolean,
 	resolutionNote: string,
 	owedTo: UserObject,
-	tags: string[],
+	tags: TagObject,
 }
 
 export type UserObject = {
@@ -85,3 +85,9 @@ export type ClientInteraction = {
 	modifiedAt: string,
 	client: string
 };
+
+export type TagObject = {
+    channelCategory: string[],
+    text?: string[]
+};
+

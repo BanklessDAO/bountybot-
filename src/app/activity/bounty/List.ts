@@ -19,8 +19,8 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
 
     const listUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
     const listType: string = request.listType;
-    const channelCategory: string = request.channelCategory ?? '';
-    const tag: string = request.tag ?? '';
+    const channelCategory: string = request.channelCategory;
+    const tag: string = request.tag;
 
     let dbRecords: Cursor;
     const db: Db = await MongoDbUtils.connect('bountyboard');
@@ -47,15 +47,26 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
             openTitle = "Applied For"
             break;
         default:
-            if (channelCategory || tag) {
-                dbRecords = bountyCollection.find({ tags: { $in: [channelCategory, tag] }, status: { $ne: 'Deleted' } }).sort({ status: -1, createdAt: -1 });
-                if (channelCategory && tag) {
-                    listTitle = `${channelCategory} Bounties & Bounties tagged with ${tag}`
-                } else {
-                    tag
-                        ? listTitle = `Bounties tagged with ${tag}`
-                        : listTitle = `${channelCategory} Bounties`
-                }
+            if (channelCategory && tag) {
+                dbRecords = bountyCollection.find({
+                    $or: [
+                        { 'tags.channelCategory': { $regex: channelCategory, $options: 'i' } },
+                        { 'tags.text': { $regex: tag, $options: 'i' } }
+                        ],
+                    status: { $ne: 'Deleted' }
+                }).sort({ status: -1, createdAt: -1 });
+                listTitle = `${channelCategory} Bounties & Bounties tagged with ${tag}`;
+            } else if (tag) {
+                dbRecords = bountyCollection.find({
+                    'tags.text': { '$regex': tag, '$options': 'i' },
+                    status: { $ne: 'Deleted' }
+                }).sort({ status: -1, createdAt: -1 });
+                listTitle = `Bounties tagged with ${tag}`;
+            } else if (channelCategory) {
+                dbRecords = bountyCollection.find({
+                    'tags.channelCategory': { '$regex': channelCategory, '$options': 'i' },
+                    status: { $ne: 'Deleted' }
+                }).sort({ status: -1, createdAt: -1 });
             } else {
                 // Make sure "in_review" bounties don't exhaust the list limit before "in_progress" are fetched
                 const statusOrder = [ BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review ];
@@ -207,4 +218,6 @@ const getClaimedByMeMetadata = (record: BountyCollection, listType: string) => {
 		
 	return text;
 };
+
+
 

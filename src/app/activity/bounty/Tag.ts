@@ -26,8 +26,8 @@ const writeDbHandler = async (request: TagRequest): Promise<void> => {
 	const bountyCollection = db.collection('bounties');
 
 	const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne( {_id: new mongo.ObjectId(request.bountyId)}, {
-		$push: {
-			tags: request.tag,
+		$addToSet: {
+			'tags.text': request.tag,
 		},
 	});
 }
@@ -50,5 +50,6 @@ const getDbHandler = async (request: TagRequest): Promise<{dbBountyResult: Bount
         bountyChannel: dbCustomerResult.bountyChannel
     }
 }
+
 
 

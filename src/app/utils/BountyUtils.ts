@@ -325,7 +325,14 @@ const BountyUtils = {
             fields.push({ name: 'For user', value: assignedUser.user.tag, inline: false })
         }
 
-        let footer = { text: bounty?.tags.length ? `🔖${bounty.tags.join(' 🔖')}\n \n` : ''};
+        let footerArr = [];
+        if (bounty.tags.channelCategory) {
+            footerArr = footerArr.concat(bounty.tags.channelCategory);
+        }
+        if (bounty.tags.text) {
+            footerArr = footerArr.concat(bounty.tags.text)
+        }
+        let footer = { text: footerArr.length ? `🔖${footerArr.join(' 🔖')}\n \n` : ''};
         let reacts = [];
         let actions = [];
         let color = undefined;
@@ -659,4 +666,5 @@ const BountyUtils = {
 }
 
 export default BountyUtils;
+
 
