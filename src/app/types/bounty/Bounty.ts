@@ -87,7 +87,7 @@ export type ClientInteraction = {
 };
 
 export type TagObject = {
-    channelCategory: string[],
+    channelCategory: string,
     text?: string[]
 };
 

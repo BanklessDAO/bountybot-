@@ -280,7 +280,7 @@ export const generateBountyRecord = async (
         paidStatus: PaidStatus.unpaid,
         dueAt: dueAt ? dueAt.toISOString() : null,
         tags: {
-            channelCategory: [bountyCreationChannelCategory.name]
+            channelCategory: bountyCreationChannelCategory.name
         }
     };
 
