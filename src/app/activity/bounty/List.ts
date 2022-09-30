@@ -47,6 +47,12 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
             openTitle = "Applied For"
             break;
         default:
+            // single query if indexed
+            // dbRecords = bountyCollection.find({
+            //     $or: [ {'tags.channelCategory': channelCategory}, {'tags.text': text} ],
+            //     status: { $ne: 'Deleted'}
+            // }).sort({ status: -1, createdAt: -1 });
+            
             if (channelCategory && tag) {
                 dbRecords = bountyCollection.find({
                     $or: [
@@ -218,6 +224,5 @@ const getClaimedByMeMetadata = (record: BountyCollection, listType: string) => {
 		
 	return text;
 };
-
 
 
