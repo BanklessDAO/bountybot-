@@ -88,6 +88,6 @@ export type ClientInteraction = {
 
 export type TagObject = {
     channelCategory: string,
-    text?: string[]
+    keywords?: string[]
 };
 

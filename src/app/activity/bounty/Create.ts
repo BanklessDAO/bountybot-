@@ -325,5 +325,3 @@ export const generateBountyRecord = async (
     return bountyRecord;
 };
 
-
-
