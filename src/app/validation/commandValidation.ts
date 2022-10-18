@@ -430,8 +430,9 @@ const tag = async (request: TagRequest): Promise<void> => {
         );
     }
 
-    if (request.tag) {
-        BountyUtils.validateTag(request.tag);
+    if (request.keywords) {
+        BountyUtils.validateTag(request.keywords);
     }
 }
+
 

@@ -1,4 +1,5 @@
 import {
+    ChannelType,
     CommandContext,
     CommandOptionType,
     SlashCommand,
@@ -182,9 +183,9 @@ export default class Bounty extends SlashCommand {
                             required: true,
                         },
                         {
-                            name: 'tag',
+                            name: 'keywords',
                             type: CommandOptionType.STRING,
-                            description: 'Tag (i.e. \'Note Taking: January\')',
+                            description: 'Tag with keywords (i.e. \'Note Taking, January Bounties\')',
                             required: true,
                         },
                     ],
@@ -210,7 +211,8 @@ export default class Bounty extends SlashCommand {
                         {
                            name: 'channel-category',
                            description: 'Bounty Channel Category',
-                           type: CommandOptionType.STRING,
+                           type: CommandOptionType.CHANNEL,
+                           channel_types: [ChannelType.GUILD_CATEGORY],
                            required: false,
                         },
                         {
@@ -425,4 +427,5 @@ export default class Bounty extends SlashCommand {
 
     }
 }
+
 

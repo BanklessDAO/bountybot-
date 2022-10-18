@@ -64,14 +64,14 @@ const BountyUtils = {
         }
     },
 
-    validateTag(tag: string): void {
-        const CREATE_TAG_REGEX = /^[\w\s\W]{1,80}$/;
-        if (tag == null || !CREATE_TAG_REGEX.test(tag)) {
+    validateTag(keywords: string): void {
+        const CREATE_TAG_REGEX = /^[\w\s\W]{1,256}$/;
+        if (keywords == null || !CREATE_TAG_REGEX.test(keywords)) {
             throw new ValidationError(
                 'Please enter a valid tag: \n' +
-                '- 80 characters maximum\n ' +
+                '- 256 characters maximum\n ' +
                 '- alphanumeric\n ' +
-                '- special characters: .!@#$%&,?:|-_',
+                '- special characters: .!@#$%&?:|-_',
             );
         }
     },
@@ -146,16 +146,14 @@ const BountyUtils = {
         }
     },
     
-    validateChannelCategory(channelCategory: string): void {
-        const CREATE_CHANNEL_CATEGORY_REGEX = /^[\w\s\W]{1,80}$/;
-        if (channelCategory == null || !CREATE_CHANNEL_CATEGORY_REGEX.test(channelCategory)) {
-            throw new ValidationError(
-                'Please enter a valid channel category: \n' +
-                '- 80 characters maximum\n ' +
-                '- alphanumeric\n ' +
-                '- special characters: .!@#$%&,?:|-_',
-            );
+    async validateChannelCategory(channelCategory: string): Promise<void> {
+        try {
+            await DiscordUtils.getTextChannelfromChannelId(channelCategory);
+        } catch (e) {
+            Log.info(`${channelCategory} is not a channel category on this server`);
+            throw new ValidationError('Please choose a valid channel category on this server.');
         }
+       
     },
 
     threeMonthsFromNow(): Date {
@@ -666,5 +664,4 @@ const BountyUtils = {
 }
 
 export default BountyUtils;
-
 
