@@ -329,10 +329,10 @@ const BountyUtils = {
         if (bounty.tags?.channelCategory) {
             footerArr = footerArr.concat(bounty.tags.channelCategory);
         }
-        if (bounty.tags?.text) {
-            footerArr = footerArr.concat(bounty.tags.text)
+        if (bounty.tags?.keywords) {
+            footerArr = footerArr.concat(bounty.tags.keywords)
         }
-        let footer = { text: footerArr.length ? `🔖${footerArr.join(' 🔖')}\n \n` : ''};
+        let footer = { text: footerArr.length ? `🔖${footerArr.slice(0, 5).join(' 🔖')}\n \n` : ''};
         let reacts = [];
         let actions = [];
         let color = undefined;
