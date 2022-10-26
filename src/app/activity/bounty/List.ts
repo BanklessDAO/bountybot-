@@ -47,16 +47,10 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
             openTitle = "Applied For"
             break;
         default:
-            // single query if indexed
-            // dbRecords = bountyCollection.find({
-            //     $or: [ {'tags.channelCategory': channelCategory.name}, {'tags.keywords': tag} ],
-            //     status: { $ne: 'Deleted'}
-            // }).sort({ status: -1, createdAt: -1 });
-            
-            if (channelCategory && tag) {
+            if (!!channelCategory && tag) {
                 dbRecords = bountyCollection.find({
                     $or: [
-                        { 'tags.channelCategory': { $regex: channelCategory.name, $options: 'i' } },
+                        { 'tags.channelCategory': channelCategory.name },
                         { 'tags.keywords': { $regex: tag, $options: 'i' } }
                         ],
                     status: { $ne: 'Deleted' }
@@ -64,15 +58,16 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
                 listTitle = `${channelCategory.name} Bounties & Bounties tagged with ${tag}`;
             } else if (tag) {
                 dbRecords = bountyCollection.find({
-                    'tags.text': { '$regex': tag, '$options': 'i' },
+                    'tags.keywords': { '$regex': tag, '$options': 'i' },
                     status: { $ne: 'Deleted' }
                 }).sort({ status: -1, createdAt: -1 });
                 listTitle = `Bounties tagged with ${tag}`;
-            } else if (channelCategory) {
+            } else if (!!channelCategory) {
                 dbRecords = bountyCollection.find({
-                    'tags.channelCategory': { '$regex': channelCategory.name, '$options': 'i' },
+                    'tags.channelCategory': channelCategory.name,
                     status: { $ne: 'Deleted' }
                 }).sort({ status: -1, createdAt: -1 });
+		listTitle = `${channelCategory.name} Bounties`
             } else {
                 // Make sure "in_review" bounties don't exhaust the list limit before "in_progress" are fetched
                 const statusOrder = [ BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review ];
