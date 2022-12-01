@@ -1,13 +1,11 @@
-import { GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, MessageEmbedOptions, TextChannel } from 'discord.js';
+import { GuildMember, Message, MessageButton, MessageEmbedOptions } from 'discord.js';
 import { AssignRequest } from '../../requests/AssignRequest';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
-import { Bounty } from '../../types/bounty/Bounty';
 import DiscordUtils from '../../utils/DiscordUtils';
-import Log, { LogUtils } from '../../utils/Log';
+import Log from '../../utils/Log';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
-import RuntimeError from '../../errors/RuntimeError';
 import BountyUtils from '../../utils/BountyUtils';
 
 export const assignBounty = async (request: AssignRequest): Promise<any> => {
@@ -21,17 +19,6 @@ export const assignBounty = async (request: AssignRequest): Promise<any> => {
     const assignedUser: GuildMember = await assigningUser.guild.members.fetch(request.assign);
     await writeDbHandler(request, getDbResult.dbBountyResult, assignedUser);
     
-    let bountyEmbedMessage: Message;
-    if (!request.message) {
-        const bountyChannel: TextChannel = await assigningUser.guild.channels.fetch(getDbResult.bountyChannel) as TextChannel;
-        bountyEmbedMessage = await bountyChannel.messages.fetch(getDbResult.dbBountyResult.discordMessageId).catch(e => {
-            LogUtils.logError(`could not find bounty ${request.bountyId} in discord #bounty-board channel ${bountyChannel.id} in guild ${request.guildId}`, e);
-            throw new RuntimeError(e);
-        });
-    } else {
-        bountyEmbedMessage = request.message;
-    }
-
     const cardMessage = await BountyUtils.canonicalCard(getDbResult.dbBountyResult._id, request.activity);
 
     let assigningContent = `Your bounty has been assigned to <@${assignedUser.user.id}>`;
@@ -90,19 +77,6 @@ const writeDbHandler = async (request: AssignRequest, assignedBounty: BountyColl
 
     return assignedBounty;
 }
-
-export const assignedBountyMessage = async (message: Message, appliedForBounty: BountyCollection): Promise<any> => {
-    Log.debug(`fetching bounty message for assign`)
-    
-    const embedOrigMessage: MessageEmbed = message.embeds[0];
-    embedOrigMessage.setTitle(await BountyUtils.createPublicTitle(<Bounty>appliedForBounty));
-    embedOrigMessage.setFooter({text: '🏴 - claim | ❌ - delete'});
-    const componentActions = new MessageActionRow().addComponents(['👷', '📝', '🔄'].map(a => 
-        new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
-    ))
-    await message.edit({ embeds: [embedOrigMessage], components: [componentActions] });
-
-};
 
 const assigneeBountySummaryEmbed = async (message: Message, guildId: string): Promise<any> => {
     const embedOrigMessage = message.embeds[0];

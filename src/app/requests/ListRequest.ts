@@ -17,11 +17,8 @@ export class ListRequest extends Request {
         buttonInteraction: ButtonInteraction,
     }) {
         if (args.commandContext) {
-            if (args.commandContext.subcommands[0] !== Activities.list) {
-                throw new Error('ListRequest created for non List activity.');
-            }
-            super(args.commandContext.subcommands[0], args.commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
-            this.listType = args.commandContext.options.list['list-type'];
+            super(Activities.list, args.commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
+            this.listType = args.commandContext.options?.list?.['list-type'];
             this.commandContext = args.commandContext;
         } else if (args.messageReactionRequest) {
             const messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;

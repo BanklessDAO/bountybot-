@@ -1,4 +1,4 @@
-import { Snowflake } from "discord-api-types";
+import { Snowflake } from "discord-api-types/v9";
 import { Collection, Role } from "discord.js";
 import { Db, UpdateWriteOpResult } from "mongodb";
 import ValidationError from "../../errors/ValidationError";
