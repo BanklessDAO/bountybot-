@@ -19,6 +19,8 @@ import { Activities } from '../constants/activities';
 import NotificationPermissionError from '../errors/NotificationPermissionError';
 import DMPermissionError from '../errors/DMPermissionError';
 import ErrorUtils from '../utils/ErrorUtils';
+import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
+import ModalTimeoutError from '../errors/ModalTimeoutError';
 
 export default class implements DiscordEvent {
     name = 'interactionCreate';
@@ -49,11 +51,15 @@ export default class implements DiscordEvent {
             return;
         }
 
-        if (message.embeds == null || message.embeds[0] == null || message.embeds[0].fields[BountyEmbedFields.bountyId] == null) {
-            return;
+        // Skip bounty card check for non-bounty interactions
+        let bountyId = "";
+        if (!(["👛"].includes(interaction.customId))) {
+            if (message.embeds == null || message.embeds[0] == null || message.embeds[0].fields[BountyEmbedFields.bountyId] == null) {
+                return;
+            }
+            bountyId = DiscordUtils.getBountyIdFromEmbedMessage(message);
         }
 
-        const bountyId: string = DiscordUtils.getBountyIdFromEmbedMessage(message);
         let request: any;
 
         if (interaction.customId === '👍') {
@@ -224,6 +230,19 @@ export default class implements DiscordEvent {
                 },
                 buttonInteraction: interaction,
             });
+
+        } else if (interaction.customId === '👛') {
+            Log.info(`${user.tag} attempting to register wallet}`);
+            request = new UpsertUserWalletRequest({
+                commandContext: null,
+                buttonInteraction: interaction,
+                address: null,
+                origRequest: null,
+                callBack: null,
+                userDiscordId: user.id,
+
+            });
+
         } else {
             return;
         }
@@ -240,7 +259,9 @@ export default class implements DiscordEvent {
                 Log.info(`${user.tag} submitted a request that failed validation`);
             } else if (e instanceof AuthorizationError) {
                 Log.info(`${user.tag} submitted a request that failed authorization`);
-            
+            } else if (e instanceof ModalTimeoutError) {
+                Log.info(`${user.tag} had a modal form timeout`);
+                errorContent = 'Form timeout. Please finish your entries within 1 minute.';
             } else if (e instanceof DMPermissionError) {
                 Log.info(`${user.tag} submitted a request that failed DM`);
                 errorContent = `It looks like bot does not have permission to DM <@${user.id}>.\n \n` +
