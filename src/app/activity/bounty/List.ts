@@ -7,7 +7,6 @@ import DiscordUtils from '../../utils/DiscordUtils';
 import { ListRequest } from '../../requests/ListRequest';
 import { CustomerCollection } from '../../types/bounty/CustomerCollection';
 import { BountyStatus } from '../../constants/bountyStatus';
-import { ConnectionVisibility } from 'discord-api-types';
 import DMPermissionError from '../../errors/DMPermissionError';
 import { PaidStatus } from '../../constants/paidStatus';
 

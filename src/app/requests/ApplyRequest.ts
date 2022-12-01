@@ -11,6 +11,7 @@ export class ApplyRequest extends Request {
     commandContext: CommandContext;
     message: Message;
     buttonInteraction: ButtonInteraction;
+    request: any;
 
     constructor(args: {
         commandContext: CommandContext,
