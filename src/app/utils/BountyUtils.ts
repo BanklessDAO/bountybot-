@@ -78,7 +78,7 @@ const BountyUtils = {
 
     validateReward(rewardInput: string): void {
         const [stringAmount, symbol] = (rewardInput != null) ? rewardInput.split(' ') : [null, null];
-        const ALLOWED_CURRENCIES = ['BANK', 'ETH', 'BTC', 'USDC', 'USDT', 'TempCity', 'gOHM', 'LUSD', 'FOX', 'oneFOX', 'POINTS'];
+        const ALLOWED_CURRENCIES = ['BANK', 'ETH', 'BTC', 'USDC', 'USDT', 'BCARD'];
         const isValidCurrency = (typeof symbol !== 'undefined') && (ALLOWED_CURRENCIES.find(element => {
             return element.toLowerCase() === symbol.toLowerCase();
         }) !== undefined);
