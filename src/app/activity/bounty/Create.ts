@@ -97,9 +97,9 @@ export const modalCallback = async (modalContext: ModalInteractionContext, creat
 
     const dueAt = modalContext.values.dueAt;
     let convertedDueDateFromMessage: Date;
-    if (!dueAt){
+    if (!dueAt || (dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip')) {
         convertedDueDateFromMessage = BountyUtils.threeMonthsFromNow();
-    } else if (!(dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip')) {
+    } else {
         try {
             convertedDueDateFromMessage = BountyUtils.validateDate(dueAt);
         } catch (e) {
