@@ -71,3 +71,4 @@ build
 
 # jest-mongodb output
 globalConfig.json
+.vscode/settings.json

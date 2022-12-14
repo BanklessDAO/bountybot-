@@ -21,12 +21,12 @@ import Log, { LogUtils } from "../utils/Log";
  * @returns void promise
  */
 export const ClientSync = async (args: {changeStreamEvent: ChangeStreamEvent}): Promise<void> => {
-    // if OperationType is insert, updatedFields will be invalid
-    let filterEvent = (
+     // if OperationType is insert, updatedFields will be invalid
+     let filterEvent = (
         "update" === args.changeStreamEvent.operationType && 
         !args.changeStreamEvent.updateDescription.updatedFields.activityHistory
     );
-    
+   
     if (filterEvent) {
         return;
     }

@@ -1,4 +1,4 @@
-import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, Message, MessageActionRow, MessageButton, MessageOptions, MessageEmbedOptions, Role, Snowflake, TextChannel } from 'discord.js';
+import { AwaitMessagesOptions, ButtonInteraction, Collection, DMChannel, Guild, GuildMember, InteractionReplyOptions, Message, MessageActionRow, MessageButton, MessageEmbedOptions, MessageOptions, Role, Snowflake, TextChannel } from 'discord.js';
 import { Db } from 'mongodb';
 import { ButtonStyle, CommandContext, ComponentActionRow, ComponentContext, ComponentType } from 'slash-create';
 import { listBounty } from '../activity/bounty/List';
@@ -151,41 +151,41 @@ const DiscordUtils = {
         return messages.first();
     },
 
-    async interactionResponse(buttonInteraction: ButtonInteraction, content: string, link?: string) {
+    async interactionResponse(buttonInteraction: ButtonInteraction, content: string, link?: string, linkTitle?: string) {
         let replyOptions: MessageOptions = { content: content };
         if (link) {
             const componentActions = new MessageActionRow().addComponents(
                 new MessageButton()
-                    .setLabel('View Bounty')
+                    .setLabel(linkTitle ? linkTitle : 'View Bounty')
                     .setStyle('LINK')
                     .setURL(link || '')
             );
             replyOptions.components = [componentActions];
         } 
         try {
-            if (buttonInteraction.deferred || buttonInteraction.replied) await buttonInteraction.editReply(replyOptions);
-            else await buttonInteraction.reply(Object.assign(replyOptions, { ephemeral: true }));
+            if ((buttonInteraction.deferred || buttonInteraction.replied)) await buttonInteraction.followUp(Object.assign(replyOptions, { ephemeral: true }) as InteractionReplyOptions);
+            else await buttonInteraction.reply(Object.assign(replyOptions, { ephemeral: true }) as InteractionReplyOptions);
         } catch (e) {
             if (e.code === 40060) await buttonInteraction.editReply(replyOptions);
             else throw new RuntimeError(e);
         }
     },
 
-    // Send a response to a command (use ephemeral) or a reaction (use DM)
-    async activityResponse(commandContext: CommandContext, buttonInteraction: ButtonInteraction, content: string, link?: string): Promise<void> {
+    // Send a response to a command (use ephemeral) or a reaction (use the context) or if neither, treat it as an activityNotification instead
+    async activityResponse(commandContext: CommandContext, buttonInteraction: ButtonInteraction, content: string, link?: string, linkTitle?: string): Promise<void> {
         if (!!commandContext) { // This was a slash command
             const btnComponent =  (link ? [{
 				type: ComponentType.ACTION_ROW,
 				components: [{
 					type: ComponentType.BUTTON,
 					style: ButtonStyle.LINK,
-                    label: 'View Bounty',
+                    label: linkTitle ? linkTitle : 'View Bounty',
                     url: link,
 				}]
              }] : []) as ComponentActionRow[];
             await commandContext.send({ content: content, ephemeral: true, components: btnComponent });
-        } else {// This was a button interaction
-            await this.interactionResponse(buttonInteraction, content, link);
+        } else { // This was a button interaction
+            await this.interactionResponse(buttonInteraction, content, link, linkTitle);
         }
     },
 
@@ -261,7 +261,7 @@ const DiscordUtils = {
                 commandContext: request.commandContext,
                 listType: undefined,
                 messageReactionRequest: {
-                    user: request.buttonInteraction.user,
+                    user: request.buttonInteraction?.user,
                     message: message
                 },
                 buttonInteraction: request.buttonInteraction,
