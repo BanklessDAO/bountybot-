@@ -71,7 +71,7 @@ const BountyUtils = {
         const CREATE_TAG_REGEX = /^[\w\s\W]{1,256}$/;
         if (keywords == null || !CREATE_TAG_REGEX.test(keywords)) {
             throw new ValidationError(
-                'Please enter a valid tag: \n' +
+                'Please enter valid tags, separated by commas: \n' +
                 '- 256 characters maximum\n ' +
                 '- alphanumeric\n ' +
                 '- special characters: .!@#$%&?:|-_',
