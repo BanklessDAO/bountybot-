@@ -16,7 +16,7 @@ const BOUNTY_SEGMENT_LIMIT = 5;
 export const listBounty = async (request: ListRequest, preventResponse ?: boolean): Promise<any> => {
     Log.debug('In List activity');
 
-    const listUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
+    const listUser = request.userId ? await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId) : null;
     const listType: string = request.listType;
     const channelCategory: TextChannel = request.channelCategory ? await DiscordUtils.getTextChannelfromChannelId(request.channelCategory) : null;
     const tag: string = request.tag;
