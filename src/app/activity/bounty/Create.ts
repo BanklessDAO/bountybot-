@@ -56,7 +56,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                   {
                     type: ComponentType.TEXT_INPUT,
                     label: 'Tags',
-                    style: TextInputStyle.PARAGRAPH,
+                    style: TextInputStyle.SHORT,
                     max_length: 1000,
                     custom_id: 'tags',
                     placeholder: 'Comma separated list - e.g. L1, Marketing, Dev Guild',
