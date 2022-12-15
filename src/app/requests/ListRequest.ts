@@ -35,11 +35,12 @@ export class ListRequest extends Request {
         } else if (args.messageReactionRequest) {
             const messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
 
+            // User will be null if this is triggered from a web update
             super(
                 Activities.list,
                 messageReactionRequest.message.guildId,
-                messageReactionRequest.user.id,
-                messageReactionRequest.user.bot
+                messageReactionRequest.user?.id,
+                messageReactionRequest.user?.bot
             );
             this.message = messageReactionRequest.message;
             this.buttonInteraction = args.buttonInteraction;
