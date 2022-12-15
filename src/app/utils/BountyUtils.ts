@@ -334,7 +334,7 @@ const BountyUtils = {
         if (bounty.tags?.keywords) {
             footerArr = footerArr.concat(bounty.tags.keywords)
         }
-        let footer = { text: footerArr.length ? `🔖${footerArr.slice(0, 5).join(' 🔖')}\n \n` : ''};
+        let footer = { text: footerArr.length ? `🔖${footerArr.slice(0, 5).join(' 🔖')}` + (footerArr.length > 5 ? ' ...' : '') + `\n \n` : ''};
         let reacts = [];
         let actions = [];
         let color = undefined;
