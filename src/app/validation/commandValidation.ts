@@ -274,10 +274,6 @@ const submit = async (request: SubmitRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
     BountyUtils.validateBountyId(request.bountyId);
 
-    if (request.url) {
-        BountyUtils.validateUrl(request.url);
-    }
-
     if (request.notes) {
         BountyUtils.validateNotes(request.notes);
     }

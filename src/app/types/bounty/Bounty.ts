@@ -2,6 +2,7 @@ import { Double, Int32, ObjectId } from 'mongodb';
 
 // TODO - *TWE I don't think we need both this and BountyCollection. Settle on one or the other
 // assign and assignedName are deprecated, replaced by assignTo
+// submissionUrl is deprecated
 export interface Bounty {
 	_id?: ObjectId,
 	season?: string,
