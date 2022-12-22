@@ -183,9 +183,9 @@ export default class Bounty extends SlashCommand {
                             required: true,
                         },
                         {
-                            name: 'keywords',
+                            name: 'tags',
                             type: CommandOptionType.STRING,
-                            description: 'Tag with keywords (i.e. \'Note Taking, January Bounties\')',
+                            description: 'Comma separated list of tags (i.e. \'Note Taking, January Bounties\')',
                             required: true,
                         },
                     ],

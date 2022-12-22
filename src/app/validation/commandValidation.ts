@@ -20,6 +20,7 @@ import { HelpRequest } from '../requests/HelpRequest';
 import { DeleteRequest } from '../requests/DeleteRequest';
 import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
 import { TagRequest } from '../requests/TagRequest';
+import DiscordUtils from '../utils/DiscordUtils';
 
 
 const ValidationModule = {
@@ -71,6 +72,13 @@ export default ValidationModule;
 
 const create = async (request: CreateRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
+    const channel = await DiscordUtils.getTextChannelfromChannelId(request.createdInChannel);
+    if (channel.type !== "GUILD_TEXT") {
+        throw new ValidationError(
+            `Thank you for giving bounties a try!\n` +
+            `Creating bounties in a thread is currently not supported.`
+        )
+    }
     BountyUtils.validateTitle(request.title);
 
     BountyUtils.validateReward(request.reward);
@@ -430,8 +438,8 @@ const tag = async (request: TagRequest): Promise<void> => {
         );
     }
 
-    if (request.keywords) {
-        BountyUtils.validateTag(request.keywords);
+    if (request.tags) {
+        BountyUtils.validateTag(request.tags);
     }
 }
 

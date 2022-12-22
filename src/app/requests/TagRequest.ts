@@ -7,7 +7,7 @@ import DiscordUtils from '../utils/DiscordUtils';
 
 export class TagRequest extends Request {
     bountyId: string;
-    keywords: string;
+    tags: string;
     
     commandContext: CommandContext;
     message: Message;
@@ -25,7 +25,7 @@ export class TagRequest extends Request {
             super(args.commandContext.subcommands[0], args.commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.commandContext = args.commandContext;
             this.bountyId = args.commandContext.options.tag['bounty-id'];
-            this.keywords = args.commandContext.options.tag['keywords'];
+            this.tags = args.commandContext.options.tag['tags'];
         } else if (args.messageReactionRequest) {
             const messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
             super(Activities.tag, messageReactionRequest.message.guildId, messageReactionRequest.user.id, messageReactionRequest.user.bot);

@@ -22,7 +22,7 @@ export const tagBounty = async (request: TagRequest): Promise<void> => {
         request.activity
     );
 
-    const tagResponse = `You have added a new tag to the bounty: ${bountyCard.embeds[0].title}`;
+    const tagResponse = `You have added new tags to the bounty: ${bountyCard.embeds[0].title}`;
     await DiscordUtils.activityResponse(
         request.commandContext,
         request.buttonInteraction,
@@ -41,7 +41,7 @@ const writeDbHandler = async (request: TagRequest): Promise<void> => {
         {
             $addToSet: {
                 'tags.keywords': {
-                    $each: request.keywords
+                    $each: request.tags
                         .split(',')
                         .map((word) => word.trim().toLowerCase())
                         .filter((word) => word),
