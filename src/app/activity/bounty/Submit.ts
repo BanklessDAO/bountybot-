@@ -12,6 +12,7 @@ import { SubmitRequest } from "../../requests/SubmitRequest";
 import { BountyCollection } from "../../types/bounty/BountyCollection";
 import { BountyStatus } from "../../constants/bountyStatus";
 import { CustomerCollection } from "../../types/bounty/CustomerCollection";
+import crypto from 'crypto';
 
 export const submitBounty = async (request: SubmitRequest): Promise<void> => {
     Log.debug('In Submit activity');
@@ -106,7 +107,6 @@ export const submitBounty = async (request: SubmitRequest): Promise<void> => {
         }
         return;
     } else {
-        const crypto = require('crypto');
         const uuid = crypto.randomUUID();
         try {
             await request.buttonInteraction.showModal(Object.assign(modal, { customId: uuid }) as unknown as ModalOptions);
