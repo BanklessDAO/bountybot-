@@ -1,6 +1,6 @@
 # Bounty Bot
 
-This is the Dicord bot application for the Bankless DAO Bounty Board.
+This is the Discord bot application for the Bankless DAO Bounty Board.
 
 # Install
 
@@ -24,7 +24,8 @@ the [discord.js guide](https://discordjs.guide/#before-you-begin);
 
 ### 1. Create environment file
 
-Refer to .env.template
+Copy .env.template to .env
+
 Below is a description of these env vars:
 
 ```
