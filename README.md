@@ -47,25 +47,56 @@ BOUNTY_BOARD_URL=<URL of the Bounty Board website>
 BOUNTY_BOARD_HELP_URL=https://www.notion.so/bankless/Bounty-Board-Help-aa6d0d679a2f4266872a20e376a59c9d
 ```
 
-### 2. Generate bot token
+### 2. Create Discord bot application
 
 [https://discordjs.guide/preparations/setting-up-a-bot-application.html](https://discordjs.guide/preparations/setting-up-a-bot-application.html)
 Create your own discord application and then create a bot in that application to get your own bot API key.
 
-Retrieve the App's client ID
+Retrieve the bot application's Application ID and Public Key
 ![](images/create_app.png)
 
-Retrieve the bot token
+Create the bot user and retrieve the token
 ![](images/create_bot.png)
 
-### 3. Invite bot to your personal discord
+Put these into your .env file (see above)
+
+Give your bot all Intents privileges
+![](images/Intents.png)
+
+
+### 3. Invite your bot to your personal discord with correct permissions
 
 [https://discordjs.guide/preparations/adding-your-bot-to-servers.html#bot-invite-links](https://discordjs.guide/preparations/adding-your-bot-to-servers.html#bot-invite-links)
-The newly created bot should be invited to your own discord space/server.
 
-```
-https://discord.com/oauth2/authorize?client_id=REPLACE_THIS_HERE&scope=bot+applications.commands
-```
+Go to the OAuth2->URL Generator, and select the following permissions:
+
+#### OAuth2/Scopes
+- bot
+- applications.commands
+
+#### General Permissions
+- Manage Roles
+- Manage Channels
+- Kick Members
+- Ban Members
+- Manage Emojis and Stickers
+- Manage Webhooks
+- View Channels
+
+#### Text Permissions
+- Send Messages
+- Public Threads
+- Private Threads
+- Send Messages in Threads
+- Manage Messages
+- Manage Threads
+- Embed Links
+- Read Message History
+- Mention Everyone
+- Add Reactions
+- Use Slash Commands
+
+Copy the URL generated at the bottom of your page and paste this into a browser
 
 ### 4. Enable Developer Mode
 
@@ -75,9 +106,11 @@ developer mode
 
  ### 5. Mongo DB Configuration
  
- Refer to the Bounty Board web application [https://github.com/BanklessDAO/bounty-board]README, including the instructions for setting up your customer record in the Customers collection
+ Refer to the Bounty Board web application [README](https://github.com/BanklessDAO/bounty-board), including the instructions for setting up your customer record in the Customers collection
+ 
+ Put the MongoDB URI into your .env file (see above)
 
-### 6. Create LogDNA Account
+### 6. Create LogDNA Account (optional)
 
 Start a free trial.
 If you do not mind about retaining logs (not necessary for local development), the service will always stay free.
