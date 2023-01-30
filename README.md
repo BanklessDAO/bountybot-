@@ -37,7 +37,7 @@ TEST_CUSTOMER=<Discord server ID if your server is not in the CustomerIds consta
 
 NODE_ENV=development
 
-MONGODB_URI=<mongodb URI for your mongodb install>
+MONGODB_URI=<mongodb URI for your mongodb install, e.g. mongodb://localhost:27017>
 
 LOGDNA_APP_NAME=<you choose, but it's the application that will show up in LOGDNA>
 LOGDNA_DEFAULT_LEVEL=debug
@@ -108,7 +108,7 @@ developer mode
  
  Refer to the Bounty Board web application, using the manual (non-Docker) mongoDB install [README](https://github.com/BanklessDAO/bounty-board), including the instructions for setting up your customer record in the Customers collection
  
- Put the MongoDB URI into your .env file (see above)
+ Put the MongoDB URI, minus the '/bountyboard' extension, into your .env file (see above)
 
 ### 6. Create LogDNA Account
 
