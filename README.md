@@ -106,11 +106,11 @@ developer mode
 
  ### 5. Mongo DB Configuration
  
- Refer to the Bounty Board web application [README](https://github.com/BanklessDAO/bounty-board), including the instructions for setting up your customer record in the Customers collection
+ Refer to the Bounty Board web application, using the manual (non-Docker) mongoDB install [README](https://github.com/BanklessDAO/bounty-board), including the instructions for setting up your customer record in the Customers collection
  
  Put the MongoDB URI into your .env file (see above)
 
-### 6. Create LogDNA Account (optional)
+### 6. Create LogDNA Account
 
 Start a free trial.
 If you do not mind about retaining logs (not necessary for local development), the service will always stay free.
@@ -119,13 +119,7 @@ Copy an ingestion key. Set that value as LOGDNA_TOKEN in your .env
 
 ### 6. Run application
 
-If not using docker:
 ```bash
 yarn start
-```
-
-If using docker:
-```bash
-docker-compose up
 ```
 
