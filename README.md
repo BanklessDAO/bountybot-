@@ -43,7 +43,7 @@ LOGDNA_APP_NAME=<you choose, but it's the application that will show up in LOGDN
 LOGDNA_DEFAULT_LEVEL=debug
 LOGDNA_TOKEN=<Ingestion key from the Settings > Organization > API console of LOGDNA>
 
-BOUNTY_BOARD_URL=<URL of the Bounty Board website>
+BOUNTY_BOARD_URL=<URL of the Bounty Board website, including the trailing '/'>
 BOUNTY_BOARD_HELP_URL=https://www.notion.so/bankless/Bounty-Board-Help-aa6d0d679a2f4266872a20e376a59c9d
 ```
 
