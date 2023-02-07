@@ -274,14 +274,6 @@ const submit = async (request: SubmitRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
     BountyUtils.validateBountyId(request.bountyId);
 
-    if (request.url) {
-        BountyUtils.validateUrl(request.url);
-    }
-
-    if (request.notes) {
-        BountyUtils.validateNotes(request.notes);
-    }
-
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
     const dbBountyResult: BountyCollection = await bountyCollection.findOne({

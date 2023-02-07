@@ -119,18 +119,6 @@ export default class Bounty extends SlashCommand {
                             description: 'Bounty ID',
                             required: true,
                         },
-                        {
-                            name: 'url',
-                            type: CommandOptionType.STRING,
-                            description: 'Url of work',
-                            required: false,
-                        },
-                        {
-                            name: 'notes',
-                            type: CommandOptionType.STRING,
-                            description: 'any additional notes for bounty completion',
-                            required: false,
-                        },
                     ],
                 },
                 {

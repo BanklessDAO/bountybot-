@@ -187,21 +187,6 @@ const BountyUtils = {
         }
     },
 
-    validateUrl(url: string): void {
-        try {
-            new URL(url);
-        }
-        catch (e) {
-            throw new ValidationError(
-                'Please enter a valid url.\n' +
-                // TODO: think whether the following line should be here (likely not) or out of utils
-                //'Providing a url is not required, but it makes it easier for your work to be reviewed and for your bounty to be paid out.\n' +
-                'If you are having trouble, try navigating to the desired url in your browser. Then copy the url directly from your browser address bar\n' +
-                'If you have any questions, please reach out to your favourite bouny board representative!'
-            );
-        }
-    },
-
     validateNotes(notes: string): void {
         const SUBMIT_NOTES_REGEX = /^[\w\s\W]{1,4000}$/;
         if (notes == null || !SUBMIT_NOTES_REGEX.test(notes)) {
