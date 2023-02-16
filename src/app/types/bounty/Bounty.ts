@@ -2,6 +2,7 @@ import { Double, Int32, ObjectId } from 'mongodb';
 
 // TODO - *TWE I don't think we need both this and BountyCollection. Settle on one or the other
 // assign and assignedName are deprecated, replaced by assignTo
+// submissionUrl is deprecated
 export interface Bounty {
 	_id?: ObjectId,
 	season?: string,
@@ -41,7 +42,8 @@ export interface Bounty {
 	activityHistory: ClientInteraction[],
 	isIOU?: boolean,
 	resolutionNote?: string,
-	owedTo?: UserObject
+	owedTo?: UserObject,
+	tags: TagObject,
 }
 
 export type UserObject = {
@@ -84,3 +86,9 @@ export type ClientInteraction = {
 	modifiedAt: string,
 	client: string
 };
+
+export type TagObject = {
+    channelCategory: string,
+    keywords?: string[]
+};
+

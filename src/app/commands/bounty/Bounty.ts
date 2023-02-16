@@ -1,4 +1,5 @@
 import {
+    ChannelType,
     CommandContext,
     CommandOptionType,
     SlashCommand,
@@ -118,18 +119,6 @@ export default class Bounty extends SlashCommand {
                             description: 'Bounty ID',
                             required: true,
                         },
-                        {
-                            name: 'url',
-                            type: CommandOptionType.STRING,
-                            description: 'Url of work',
-                            required: false,
-                        },
-                        {
-                            name: 'notes',
-                            type: CommandOptionType.STRING,
-                            description: 'any additional notes for bounty completion',
-                            required: false,
-                        },
                     ],
                 },
                 {
@@ -182,9 +171,9 @@ export default class Bounty extends SlashCommand {
                             required: true,
                         },
                         {
-                            name: 'tag',
+                            name: 'tags',
                             type: CommandOptionType.STRING,
-                            description: 'Tag (i.e. \'Note Taking: January\' ',
+                            description: 'Comma separated list of tags (i.e. \'Note Taking, January Bounties\')',
                             required: true,
                         },
                     ],
@@ -206,6 +195,21 @@ export default class Bounty extends SlashCommand {
                     name: Activities.list,
                     type: CommandOptionType.SUB_COMMAND,
                     description: 'View list of bounties you created or are claimed',
+                    options: [
+                        {
+                           name: 'channel-category',
+                           description: 'Bounty Channel Category',
+                           type: CommandOptionType.CHANNEL,
+                           channel_types: [ChannelType.GUILD_CATEGORY],
+                           required: false,
+                        },
+                        {
+                            name: 'tag',
+                            description: 'Bounty Tag',
+                            type: CommandOptionType.STRING,
+                            required: false,
+                        }
+                        ]
                 },
                 {
                     name: Activities.delete,
@@ -364,7 +368,8 @@ export default class Bounty extends SlashCommand {
             case Activities.tag:
                 request = new TagRequest({
                     commandContext: commandContext,
-                    messageReactionRequest: null
+                    messageReactionRequest: null,
+                    buttonInteraction: null,
                 });
                 break;
             case 'gm':
@@ -410,3 +415,5 @@ export default class Bounty extends SlashCommand {
 
     }
 }
+
+

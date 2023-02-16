@@ -1,6 +1,7 @@
 import { Collection, Double, Int32, ObjectId } from 'mongodb';
 
 // assign and assignedName are deprecated, replaced by assignTo
+// submissionUrl is deprecated
 export interface BountyCollection extends Collection {
 	_id: ObjectId,
 	season: string,
@@ -41,7 +42,8 @@ export interface BountyCollection extends Collection {
 	activityHistory: ClientInteraction[],
 	isIOU: boolean,
 	resolutionNote: string,
-	owedTo: UserObject
+	owedTo: UserObject,
+	tags: TagObject,
 }
 
 export type UserObject = {
@@ -84,3 +86,9 @@ export type ClientInteraction = {
 	modifiedAt: string,
 	client: string
 };
+
+export type TagObject = {
+    channelCategory: string,
+    keywords?: string[]
+};
+
