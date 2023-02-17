@@ -244,7 +244,7 @@ export const generateBountyRecord = async (
     tags: string
 ): Promise<Bounty> => {
 
-    Log.debug('generating bounty record')
+    Log.debug('generating bounty record');
     const [reward, symbol] = (createRequest.reward != null) ? createRequest.reward.split(' ') : [null, null];
     let scale = reward.split('.')[1]?.length;
     scale = (scale != null) ? scale : 0;
@@ -291,9 +291,9 @@ export const generateBountyRecord = async (
         paidStatus: PaidStatus.unpaid,
         dueAt: dueAt ? dueAt.toISOString() : null,
         tags: {
-            keywords:  tags.split(',')
+            keywords:  tags ? tags.split(',')
             .map((word) => word.trim().toLowerCase())
-            .filter((word) => word),
+            .filter((word) => word) : null,
             channelCategory: bountyCreationChannelCategory.name
         }
     };
