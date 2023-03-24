@@ -10,6 +10,7 @@ const customers = {
 	banklessBrasil: '875424808194691113',
 	banklessDAOProductSupportCenter: '895442799971942410',
 	eco: '768556386404794448',
+	ELI5DAO: '1040378471341371502',
 };
 
 // Allow adding a test customer from the environment
