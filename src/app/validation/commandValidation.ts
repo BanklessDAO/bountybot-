@@ -20,6 +20,7 @@ import { HelpRequest } from '../requests/HelpRequest';
 import { DeleteRequest } from '../requests/DeleteRequest';
 import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
 import { TagRequest } from '../requests/TagRequest';
+import DiscordUtils from '../utils/DiscordUtils';
 
 
 const ValidationModule = {
@@ -71,6 +72,13 @@ export default ValidationModule;
 
 const create = async (request: CreateRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
+    const channel = await DiscordUtils.getTextChannelfromChannelId(request.createdInChannel);
+    if (channel.type !== "GUILD_TEXT") {
+        throw new ValidationError(
+            `Thank you for giving bounties a try!\n` +
+            `Creating bounties in a thread is currently not supported.`
+        )
+    }
     BountyUtils.validateTitle(request.title);
 
     BountyUtils.validateReward(request.reward);
@@ -266,14 +274,6 @@ const submit = async (request: SubmitRequest): Promise<void> => {
     Log.debug(`Validating activity ${request.activity}`);
     BountyUtils.validateBountyId(request.bountyId);
 
-    if (request.url) {
-        BountyUtils.validateUrl(request.url);
-    }
-
-    if (request.notes) {
-        BountyUtils.validateNotes(request.notes);
-    }
-
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
     const dbBountyResult: BountyCollection = await bountyCollection.findOne({
@@ -339,6 +339,11 @@ const list = async (request: ListRequest): Promise<void> => {
         case 'UNPAID_BY_ME':
             return;
         case undefined:
+            if (request.tag) {
+                BountyUtils.validateTag(request.tag)
+            } if (request.channelCategory) {
+                BountyUtils.validateChannelCategory(request.channelCategory)
+            }
             return;
         default:
             Log.info('invalid list-type');
@@ -425,7 +430,9 @@ const tag = async (request: TagRequest): Promise<void> => {
         );
     }
 
-    if (request.tag) {
-        BountyUtils.validateTag(request.tag);
+    if (request.tags) {
+        BountyUtils.validateTag(request.tags);
     }
 }
+
+

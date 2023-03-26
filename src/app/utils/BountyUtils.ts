@@ -67,14 +67,14 @@ const BountyUtils = {
         }
     },
 
-    validateTag(tag: string): void {
-        const CREATE_TAG_REGEX = /^[\w\s\W]{1,80}$/;
-        if (tag == null || !CREATE_TAG_REGEX.test(tag)) {
+    validateTag(keywords: string): void {
+        const CREATE_TAG_REGEX = /^[\w\s\W]{1,256}$/;
+        if (keywords == null || !CREATE_TAG_REGEX.test(keywords)) {
             throw new ValidationError(
-                'Please enter a valid tag: \n' +
-                '- 80 characters maximum\n ' +
+                'Please enter valid tags, separated by commas: \n' +
+                '- 256 characters maximum\n ' +
                 '- alphanumeric\n ' +
-                '- special characters: .!@#$%&,?:|-_',
+                '- special characters: .!@#$%&?:|-_',
             );
         }
     },
@@ -148,6 +148,16 @@ const BountyUtils = {
             throw new ValidationError('Please choose a valid user on this server.');
         }
     },
+    
+    async validateChannelCategory(channelCategory: string): Promise<void> {
+        try {
+            await DiscordUtils.getTextChannelfromChannelId(channelCategory);
+        } catch (e) {
+            Log.info(`${channelCategory} is not a channel category on this server`);
+            throw new ValidationError('Please choose a valid channel category on this server.');
+        }
+       
+    },
 
     threeMonthsFromNow(): Date {
         let ts: number = Date.now();
@@ -173,21 +183,6 @@ const BountyUtils = {
                 `Thank you for giving bounty board a try!\n` +
                 `Please enter a valid bounty ID, which can be found on the website or in the bounties channel \n` +
                 ` - ${process.env.BOUNTY_BOARD_URL}`
-            );
-        }
-    },
-
-    validateUrl(url: string): void {
-        try {
-            new URL(url);
-        }
-        catch (e) {
-            throw new ValidationError(
-                'Please enter a valid url.\n' +
-                // TODO: think whether the following line should be here (likely not) or out of utils
-                //'Providing a url is not required, but it makes it easier for your work to be reviewed and for your bounty to be paid out.\n' +
-                'If you are having trouble, try navigating to the desired url in your browser. Then copy the url directly from your browser address bar\n' +
-                'If you have any questions, please reach out to your favourite bouny board representative!'
             );
         }
     },
@@ -317,23 +312,30 @@ const BountyUtils = {
             fields.push({ name: 'For user', value: assignedUser.user.tag, inline: false })
         }
 
-        let footer = {};
+        let footerArr = [];
+        if (bounty.tags?.channelCategory) {
+            footerArr = footerArr.concat(bounty.tags.channelCategory);
+        }
+        if (bounty.tags?.keywords) {
+            footerArr = footerArr.concat(bounty.tags.keywords)
+        }
+        let footer = { text: footerArr.length ? `🔖${footerArr.slice(0, 5).join(' 🔖')}` + (footerArr.length > 5 ? ' ...' : '') + `\n \n` : ''};
         let reacts = [];
         let actions = [];
         let color = undefined;
 
         switch (bounty.status) {
             case BountyStatus.draft:
-                footer = { text: '👍 - publish | ❌ - delete | Please reply within 60 minutes', };
+                footer.text += '👍 - publish | ❌ - delete | Please reply within 60 minutes';
                 actions.push('👍');
                 actions.push('❌');
                 break;
             case BountyStatus.open:
                 if (bounty.requireApplication && (!bounty.assign) && (!bounty.assignTo)) {
-                    footer = { text: '🙋 - apply | ❌ - delete', };
+                    footer.text += '🙋 - apply | ❌ - delete' ;
                     actions.push('🙋');
                 } else {
-                    footer = { text: '🏴 - claim | ❌ - delete', };
+                    footer.text += '🏴 - claim | ❌ - delete' ; 
                     actions.push('🏴');
                 }
                 actions.push('❌');
@@ -343,10 +345,10 @@ const BountyUtils = {
                 actions.push('📮');
                 actions.push('✅');
                 if (bounty.paidStatus !== PaidStatus.paid) {
-                    footer = { text: '📮 - submit | ✅ - mark complete | 💰 - mark paid | 🆘 - help', };
+                    footer.text += '📮 - submit | ✅ - mark complete | 💰 - mark paid | 🆘 - help';
                     actions.push('💰');
                 } else {
-                    footer = { text: '📮 - submit | ✅ - mark complete | 🆘 - help', };
+                    footer.text += '📮 - submit | ✅ - mark complete | 🆘 - help';
                 }
                 actions.push('🆘');
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
@@ -356,10 +358,10 @@ const BountyUtils = {
                 color = '#d39e00';
                 actions.push('✅');
                 if (bounty.paidStatus !== PaidStatus.paid) {
-                    footer = { text: '✅ - mark complete | 💰 - mark paid | 🆘 - help', };
+                    footer.text += '✅ - mark complete | 💰 - mark paid | 🆘 - help';
                     actions.push('💰');
                 } else {
-                    footer = { text: '✅ - mark complete | 🆘 - help', };
+                    footer.text += '✅ - mark complete | 🆘 - help';
                 }
                 actions.push('🆘');
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
@@ -370,7 +372,7 @@ const BountyUtils = {
                 color = '#01d212';
                 reacts.push('🔥');
                 if (bounty.paidStatus !== PaidStatus.paid) {
-                    footer = { text: '💰 - mark paid', };
+                    footer.text += '💰 - mark paid';
                     actions.push('💰');
                 }
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
@@ -663,3 +665,4 @@ const BountyUtils = {
 }
 
 export default BountyUtils;
+

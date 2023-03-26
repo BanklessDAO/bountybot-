@@ -18,7 +18,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     Log.debug('In Create activity');
 
     if (createRequest.isIOU) {
-        await finishCreate(createRequest, null, 'IOU for work already done', new Date());
+        await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null);
     } else {
         await createRequest.commandContext.sendModal(      {
             title: 'New Bounty Detail',
@@ -47,6 +47,20 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                     max_length: 1000,
                     custom_id: 'criteria',
                     placeholder: 'What needs to be done for this bounty to be completed'
+                  }
+                ]
+              },
+              {
+                type: ComponentType.ACTION_ROW,
+                components: [
+                  {
+                    type: ComponentType.TEXT_INPUT,
+                    label: 'Tags',
+                    style: TextInputStyle.SHORT,
+                    max_length: 1000,
+                    custom_id: 'tags',
+                    placeholder: 'Comma separated list - e.g. L1, Marketing, Dev Guild',
+                    required: false
                   }
                 ]
               },
@@ -95,6 +109,19 @@ export const modalCallback = async (modalContext: ModalInteractionContext, creat
         }
     }
 
+    const tags = modalContext.values.tags;
+    if (tags) {
+        try {
+            BountyUtils.validateTag(tags);
+        } catch (e) {
+            if (e instanceof ValidationError) {
+                await modalContext.send({ content: `<@${guildMember.user.id}>\n` + e.message });
+                return;
+            }
+        }
+    }
+
+
     const dueAt = modalContext.values.dueAt;
     let convertedDueDateFromMessage: Date;
     if (!dueAt || (dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip')) {
@@ -115,11 +142,11 @@ export const modalCallback = async (modalContext: ModalInteractionContext, creat
         return;
     }
 
-    await finishCreate(createRequest, description, criteria, convertedDueDateFromMessage, modalContext);
+    await finishCreate(createRequest, description, criteria, convertedDueDateFromMessage, tags, modalContext);
 
 }
 
-export const finishCreate = async (createRequest: CreateRequest, description: string, criteria: string, dueAt: Date, modalContext?: ModalInteractionContext) => {
+export const finishCreate = async (createRequest: CreateRequest, description: string, criteria: string, dueAt: Date, tags: string, modalContext?: ModalInteractionContext) => {
 
     const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
     const guildMember: GuildMember = guildAndMember.guildMember;
@@ -132,7 +159,8 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
         dueAt,
         guildMember,
         owedTo,
-        createRequest.createdInChannel);
+        createRequest.createdInChannel,
+        tags);
 
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
 
@@ -170,7 +198,8 @@ const createDbHandler = async (
     dueAt: Date,
     guildMember: GuildMember,
     owedTo: GuildMember,
-    createdInChannel: string
+    createdInChannel: string,
+    tags: string
 ): Promise<Bounty> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbBounty = db.collection('bounties');
@@ -188,7 +217,8 @@ const createDbHandler = async (
         owedTo,
         assignedTo,
         gatedTo,
-        createdInChannel);
+        createdInChannel,
+        tags);
 
 
     const dbInsertResult = await dbBounty.insertOne(createdBounty);
@@ -210,10 +240,11 @@ export const generateBountyRecord = async (
     owedTo: GuildMember,
     assignedTo: GuildMember,
     gatedTo: Role,
-    createdInChannel: string
+    createdInChannel: string,
+    tags: string
 ): Promise<Bounty> => {
 
-    Log.debug('generating bounty record')
+    Log.debug('generating bounty record');
     const [reward, symbol] = (createRequest.reward != null) ? createRequest.reward.split(' ') : [null, null];
     let scale = reward.split('.')[1]?.length;
     scale = (scale != null) ? scale : 0;
@@ -222,6 +253,9 @@ export const generateBountyRecord = async (
     if (createRequest.isIOU) {
         status = BountyStatus.complete;
     }
+    
+    const bountyCreationChannel = await DiscordUtils.getTextChannelfromChannelId(createdInChannel);
+    const bountyCreationChannelCategory = await DiscordUtils.getTextChannelfromChannelId(bountyCreationChannel.parentId as string);
 
     let bountyRecord: Bounty = {
         customerId: createRequest.guildId,
@@ -256,6 +290,12 @@ export const generateBountyRecord = async (
         status: status,
         paidStatus: PaidStatus.unpaid,
         dueAt: dueAt ? dueAt.toISOString() : null,
+        tags: {
+            keywords:  tags ? tags.split(',')
+            .map((word) => word.trim().toLowerCase())
+            .filter((word) => word) : null,
+            channelCategory: bountyCreationChannelCategory.name
+        }
     };
 
     if (createRequest.gate) {

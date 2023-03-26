@@ -7,7 +7,6 @@ import DiscordUtils from '../utils/DiscordUtils';
 
 export class SubmitRequest extends Request {
     bountyId: string;
-    url: string;
     notes: string;
 
     commandContext: CommandContext;
@@ -26,8 +25,6 @@ export class SubmitRequest extends Request {
             }
             super(commandContext.subcommands[0], commandContext.guildID, args.commandContext.user.id, args.commandContext.user.bot);
             this.bountyId = commandContext.options.submit['bounty-id'];
-            this.url = commandContext.options.submit['url'];
-            this.notes = commandContext.options.submit['notes'];
 
             this.commandContext = commandContext;
         }
