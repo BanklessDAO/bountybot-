@@ -22,9 +22,6 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
         await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null);
     } else {
         let dueDateMessage = 'yyyy-mm-dd, or leave blank for 3 months from today';
-        if (createRequest.repeatDays) {
-            dueDateMessage += '. Each repeated bounty occurrence due date will be shifted out accordingly.';
-        }
         await createRequest.commandContext.sendModal(      {
             title: 'New Bounty Detail',
             //custom_id: dbInsertResult.insertedId,

@@ -1,8 +1,7 @@
 import ValidationError from '../errors/ValidationError';
 import Log, { LogUtils } from './Log';
-import { Role, Message, MessageOptions, TextChannel, AwaitMessagesOptions, DMChannel, GuildMember, MessageActionRow, MessageButton, MessageActionRowComponent, Modal, ModalSubmitInteraction } from 'discord.js';
+import { Role, Message, MessageOptions, TextChannel, AwaitMessagesOptions, DMChannel, GuildMember, MessageActionRow, MessageButton } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
-import { URL } from 'url';
 import { BountyCollection } from '../types/bounty/BountyCollection';
 import { Applicant, Bounty } from '../types/bounty/Bounty';
 import { BountyStatus } from '../constants/bountyStatus';
@@ -15,9 +14,8 @@ import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
 import { handler } from '../activity/bounty/Handler';
 import { UserCollection } from '../types/user/UserCollection';
-import { ModalInteractionContext, MessageOptions as scMessageOptions, Message as scMessage, ComponentType, TextInputStyle, CommandContext } from 'slash-create';
-import WalletUtils from './WalletUtils';
-import RuntimeError from '../errors/RuntimeError';
+import { Message as scMessage } from 'slash-create';
+import MiscUtils from './MiscUtils';
 
 
 const BountyUtils = {
@@ -246,40 +244,45 @@ const BountyUtils = {
 
     async createPublicTitle(bountyRecord: Bounty): Promise<string> {
         let title = bountyRecord.title;
+        let secondaryTitle = '';
         if (bountyRecord.evergreen && bountyRecord.isParent) {
             if (bountyRecord.claimLimit > 1) {
                 const claimsAvailable = bountyRecord.claimLimit - (bountyRecord.childrenIds !== undefined ? bountyRecord.childrenIds.length : 0);
-                title += `\n(${claimsAvailable} claim${claimsAvailable !== 1 ? "s" : ""} available)`;
+                secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`${claimsAvailable} claim${claimsAvailable !== 1 ? "s" : ""} available`);
             } else {
-                title += '\n(Infinite claims available)';
+                secondaryTitle = MiscUtils.addToTitle(secondaryTitle,'infinite claims available');
             }
         }
         if (bountyRecord.assignTo) {
-            title += `\n(For user ${bountyRecord.assignTo.discordHandle})`
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`for user ${bountyRecord.assignTo.discordHandle}`);
         } else if (bountyRecord.assign) {  //assign is deprecated, replaced by assignTo
-            title += `\n(For user ${bountyRecord.assignedName})`
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`for user ${bountyRecord.assignedName}`);
         } else if (bountyRecord.gateTo) {
-            title += `\n(For role ${bountyRecord.gateTo[0].discordName})`;
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`for role ${bountyRecord.gateTo[0].discordName}`);
         } else if (bountyRecord.gate) {  // deprecated, repalced by gateTo
             const role: Role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
-            title += `\n(For role ${role.name})`;
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`for role ${role.name}`);
         } else if (bountyRecord.isIOU) {
-            title += `\n(IOU owed to ${bountyRecord.claimedBy.discordHandle})`;
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`IOU owed to ${bountyRecord.claimedBy.discordHandle}`);
         } 
 
         if (bountyRecord.requireApplication) {
-            title += `\n(Requires application before claiming`;
+            let appTitle =  `requires application before claiming`;
             if (bountyRecord.applicants) {
                 if (bountyRecord.applicants.length == 1) {
-                    title += `. 1 applicant so far.`;
+                    appTitle += `. 1 applicant so far.`;
                 } else {
-                    title += `. ${bountyRecord.applicants.length} applicants so far.`;
+                    appTitle += `. ${bountyRecord.applicants.length} applicants so far.`;
                 }
             }
-            title += ')'
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,appTitle);
         }
-        
-        return title;
+
+        if (bountyRecord.repeatDays) {
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle, `bounty repeats every ${bountyRecord.repeatDays} day${bountyRecord.repeatDays !== 1 ? 's' : ''}`)
+        }
+
+        return secondaryTitle ? title + '\n' + MiscUtils.wordWrap(secondaryTitle, 20) : title;
 
     },
 
