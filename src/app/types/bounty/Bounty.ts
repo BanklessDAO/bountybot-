@@ -33,7 +33,10 @@ export interface Bounty {
 	claimLimit?: Int32,
 	isParent?: boolean,
 	parentId?: string,
-	childrenIds?: ObjectId[]
+	childrenIds?: ObjectId[],
+	isRepeatTemplate?: boolean,
+	repeatTemplateId?: string,
+	repeatDays?: Int32,
 	assign?: string,
 	assignedName?: string,
 	assignTo?: UserObject,

@@ -114,6 +114,13 @@ const BountyUtils = {
         }
     },
 
+    validateRepeatDays(repeatDays: number) {
+        if (repeatDays !== undefined && (repeatDays < 1 )) {
+            throw new ValidationError('repeatDays should be greater than 0');
+        }
+    },
+
+
     validateRequireApplications(request: CreateRequest) {
         if (request.evergreen && request.requireApplication) {
             throw new ValidationError('Cannot require applications on multi-claimant bounties.');

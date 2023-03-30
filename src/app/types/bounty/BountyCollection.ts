@@ -33,7 +33,10 @@ export interface BountyCollection extends Collection {
 	claimLimit: Int32,
 	isParent: boolean,
 	parentId: ObjectId,
-	childrenIds: ObjectId[]
+	childrenIds: ObjectId[],
+	isRepeatTemplate: boolean,
+	repeatTemplateId: string,
+	repeatDays: Int32,
 	assign: string,
 	assignedName: string,
 	assignTo: UserObject,

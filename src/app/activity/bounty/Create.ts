@@ -13,6 +13,7 @@ import { PaidStatus } from '../../constants/paidStatus';
 import { Activities } from '../../constants/activities';
 import DMPermissionError from '../../errors/DMPermissionError';
 import { ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
+import { BountyCollection } from '../../types/bounty/BountyCollection';
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
     Log.debug('In Create activity');
@@ -20,6 +21,10 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     if (createRequest.isIOU) {
         await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null);
     } else {
+        let dueDateMessage = 'yyyy-mm-dd, or leave blank for 3 months from today';
+        if (createRequest.repeatDays) {
+            dueDateMessage += '. Each repeated bounty occurrence due date will be shifted out accordingly.';
+        }
         await createRequest.commandContext.sendModal(      {
             title: 'New Bounty Detail',
             //custom_id: dbInsertResult.insertedId,
@@ -72,7 +77,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                     label: 'Due Date',
                     style: TextInputStyle.SHORT,
                     custom_id: 'dueAt',
-                    placeholder: 'yyyy-mm-dd, or leave blank for 3 months from today',
+                    placeholder: dueDateMessage,
                     required: false
                   }
                 ]
@@ -221,13 +226,24 @@ const createDbHandler = async (
         tags);
 
 
-    const dbInsertResult = await dbBounty.insertOne(createdBounty);
+    let dbInsertResult = await dbBounty.insertOne(createdBounty);
     if (dbInsertResult == null) {
         Log.error('failed to insert bounty into DB');
         throw new Error('Sorry something is not working, our devs are looking into it.');
     }
 
-    return createdBounty;
+    if (createdBounty.isRepeatTemplate) {
+        const firstBountyOccurrence: Bounty = Object.assign({}, createdBounty);
+        firstBountyOccurrence.repeatTemplateId = createdBounty._id;
+        delete firstBountyOccurrence._id;
+        delete firstBountyOccurrence.isRepeatTemplate;
+        dbInsertResult = await dbBounty.insertOne(firstBountyOccurrence);
+        if (dbInsertResult == null) {
+            Log.error('failed to insert bounty into DB');
+            throw new Error('Sorry something is not working, our devs are looking into it.');
+        }
+        return firstBountyOccurrence;
+    } else return createdBounty;
 
 }
 
@@ -308,6 +324,11 @@ export const generateBountyRecord = async (
         if (createRequest.claimLimit !== undefined) {
             bountyRecord.claimLimit = createRequest.claimLimit;
         }
+    }
+
+    if (createRequest.repeatDays > 0) {
+        bountyRecord.isRepeatTemplate = true;
+        bountyRecord.repeatDays = createRequest.repeatDays;
     }
 
     if (createRequest.assign) {

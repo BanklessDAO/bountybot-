@@ -17,6 +17,7 @@ export class CreateRequest extends Request {
     owedTo: string;
     isIOU: boolean;
     createdInChannel: string;
+    repeatDays: number;
 
     // TODO: remove
     commandContext: CommandContext;
@@ -54,6 +55,7 @@ export class CreateRequest extends Request {
                 this.assign = commandContext.options.create['for-user'];
                 this.requireApplication = commandContext.options.create['require-application'];
                 this.reward = commandContext.options.create['reward'];
+                this.repeatDays = commandContext.options.create['repeat-days'];
                 }
 
             

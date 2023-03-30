@@ -87,6 +87,8 @@ const create = async (request: CreateRequest): Promise<void> => {
 
     BountyUtils.validateRequireApplications(request);
 
+    BountyUtils.validateRepeatDays(request.repeatDays);
+
     if (request.gate && request.assign) {
         throw new ValidationError(
             `Thank you for giving bounties a try!\n` +

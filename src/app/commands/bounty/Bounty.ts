@@ -79,7 +79,14 @@ export default class Bounty extends SlashCommand {
                             type: CommandOptionType.BOOLEAN,
                             description: 'Require users to apply for a bounty. You choose who gets it.',
                             required: false,
-                        }
+                        },
+                        {
+                            name: 'repeat-days',
+                            type: CommandOptionType.INTEGER,
+                            description: 'Repeat this bounty every X days',
+                            required: false,
+                        },
+
                     ],
                 },
                 {
