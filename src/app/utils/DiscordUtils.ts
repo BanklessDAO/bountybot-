@@ -13,7 +13,7 @@ import { ListRequest } from '../requests/ListRequest';
 import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import MongoDbUtils from '../utils/MongoDbUtils';
 import BountyUtils from './BountyUtils';
-import Log, { LogUtils } from './Log';
+import { LogUtils } from './Log';
 
 
 
@@ -267,7 +267,7 @@ const DiscordUtils = {
                 buttonInteraction: request.buttonInteraction,
             }), true);
         } catch (e) {
-            Log.error("Could not refresh the bounty list", backToListLink, e);
+            console.log("Could not refresh the bounty list", backToListLink, e);
         }
 
         return;
