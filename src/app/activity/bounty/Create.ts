@@ -21,6 +21,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
     if (createRequest.isIOU) {
         await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null);
     } else if (createRequest.templateId) {
+        // If we have a templateId, this came from the background cron job creating repeating bounties. Load everything and go create
         const db: Db = await MongoDbUtils.connect('bountyboard');
         const dbBounty = db.collection('bounties');
         const template: BountyCollection = await dbBounty.findOne({'_id': new mongo.ObjectId(createRequest.templateId)});
@@ -245,6 +246,7 @@ const createDbHandler = async (
         throw new Error('Sorry something is not working, our devs are looking into it.');
     }
 
+    // If this is a new repeating bounty template, create the first occurrence
     if (createdBounty.isRepeatTemplate) {
         const firstBountyOccurrence: Bounty = Object.assign({}, createdBounty);
         firstBountyOccurrence.repeatTemplateId = createdBounty._id;

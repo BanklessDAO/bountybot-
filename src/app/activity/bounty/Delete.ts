@@ -49,7 +49,6 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
             // Check what we got in the modal, and if Yes, delete the template and respond
             const deleteRepeats = async (request: DeleteRequest, context: ModalInteractionContext | ModalSubmitInteraction, deleteResponse: string) => {
         
-                console.log(`In deleteRepeats`);
                 // We have a new context to use after the modal for the response
                 if (context instanceof ModalInteractionContext) {
                     request.commandContext = context as unknown as CommandContext;
@@ -70,7 +69,6 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
                     }
                     Log.info(`${bounty.repeatTemplateId} repeating template bounty deleted by ${deletedByUser.user.tag}`);
                 } else {
-                    console.log(`Said NO`);
                     const response = "Bounty will continue to repeat";
                     if (context instanceof ModalInteractionContext) {
                         await context.send(response);
@@ -129,7 +127,6 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
    
 export const finishDelete = async (request: DeleteRequest) => {
    
-    console.log(`In finishDelete`);
     const bounty: BountyCollection = await getDbHandler(request.bountyId);
 
     let creatorDeleteDM = "";

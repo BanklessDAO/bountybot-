@@ -700,6 +700,8 @@ const BountyUtils = {
         return bounty;
     },
 
+    // This is called by the cron job. It will go through all bounty templates, find their latest instances
+    // and if we are beyond the repeat-days for the latest instance, create another.
     async checkForBountyRepeats(): Promise<any> {
 
         Log.info('Checking for bounty repeats');
@@ -708,7 +710,7 @@ const BountyUtils = {
 
         const bountyTemplates: Cursor = bountyCollection.find({'isRepeatTemplate': true, status: { $ne : 'Deleted'}});
 
-        console.log(`${await bountyTemplates.hasNext() ? "Found templates" : "No templates found"}`);
+        Log.info(`${await bountyTemplates.hasNext() ? "Found templates" : "No templates found"}`);
 
         let customersAddedTo = new Map();
 
@@ -717,14 +719,13 @@ const BountyUtils = {
             const template: BountyCollection = await bountyTemplates.next();
             const lastChild = await bountyCollection.findOne({'repeatTemplateId': template._id}, { sort: { 'createdAt': -1 }});
             if (lastChild) {
-                console.log(`Found last child ${lastChild._id}`)
+                Log.info(`Found last child ${lastChild._id}`)
                 try {
                     const lastCreatedAt = new Date(lastChild.createdAt);  // UTC
                     const now = new Date();
                     const timeDiff = Math.abs(now.getTime() - lastCreatedAt.getTime());
                     //const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));   **DOING HOURS FOR TESTING. TODO REPLACE WITH DAYS
                     const daysDiff = Math.floor(timeDiff / (1000 * 360));
-                    console.log(`Last: ${lastCreatedAt.getTime()} Now: ${now.getTime()} Time diff: ${timeDiff} Days diff: ${daysDiff}, Repeat days: ${template.repeatDays}`);
                     if (daysDiff >= template.repeatDays) {
                         const createRequest: CreateRequest = new CreateRequest({commandContext: null, isTemplate: true, guildID: template.customerId, userID: template.createdBy.discordId});
                         createRequest.title = template.title;

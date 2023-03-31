@@ -1,5 +1,6 @@
 const MiscUtils = {
 
+	// For a string that is within parentheses, add another phrase to it after a comma
 	addToTitle(title?: string, titleAddition?: string): string {
 		if (title) {
 		  return `${title.slice(0, -1)}, ${titleAddition}${title.slice(-1)}`;
@@ -8,6 +9,7 @@ const MiscUtils = {
 		}
 	},
 
+	// Simple word wrap. Break at next word after N charcters
 	wordWrap(str: string, N: number): string {
 		if (str.length <= N) {
 		  return str;
