@@ -7,7 +7,7 @@ import { Applicant, Bounty } from '../types/bounty/Bounty';
 import { BountyStatus } from '../constants/bountyStatus';
 import { PaidStatus } from '../constants/paidStatus';
 import { CreateRequest } from '../requests/CreateRequest';
-import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
+import mongo, { Cursor, Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../utils/MongoDbUtils';
 import { Activities } from '../constants/activities';
 import { CustomerCollection } from '../types/bounty/CustomerCollection';
@@ -16,6 +16,7 @@ import { handler } from '../activity/bounty/Handler';
 import { UserCollection } from '../types/user/UserCollection';
 import { Message as scMessage } from 'slash-create';
 import MiscUtils from './MiscUtils';
+import { createBounty } from '../activity/bounty/Create';
 
 
 const BountyUtils = {
@@ -671,6 +672,60 @@ const BountyUtils = {
 
         return bounty;
     },
+
+    async checkForBountyRepeats(): Promise<any> {
+
+        Log.info('Checking for bounty repeats');
+        const db: Db = await MongoDbUtils.connect('bountyboard');
+        const bountyCollection = db.collection('bounties');
+
+        const bountyTemplates: Cursor = bountyCollection.find({'isRepeatTemplate': true, status: { $ne : 'Deleted'}});
+
+        console.log(`${await bountyTemplates.hasNext() ? "Found templates" : "No templates found"}`);
+
+        let customersAddedTo = new Map();
+
+        while (await bountyTemplates.hasNext()) {
+            // TODO need try-catch here
+            const template: BountyCollection = await bountyTemplates.next();
+            const lastChild = await bountyCollection.findOne({'repeatTemplateId': template._id}, { sort: { 'createdAt': -1 }});
+            if (lastChild) {
+                console.log(`Found last child ${lastChild._id}`)
+                try {
+                    const lastCreatedAt = new Date(lastChild.createdAt);  // UTC
+                    const now = new Date();
+                    const timeDiff = Math.abs(now.getTime() - lastCreatedAt.getTime());
+                    //const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));   **DOING HOURS FOR TESTING. TODO REPLACE WITH DAYS
+                    const daysDiff = Math.floor(timeDiff / (1000 * 3600));
+                    console.log(`Last: ${lastCreatedAt.getTime()} Now: ${now.getTime()} Time diff: ${timeDiff} Days diff: ${daysDiff}, Repeat days: ${template.repeatDays}`);
+                    if (daysDiff >= template.repeatDays) {
+                        const createRequest: CreateRequest = new CreateRequest({commandContext: null, isTemplate: true, guildID: template.customerId, userID: template.createdBy.discordId});
+                        createRequest.title = template.title;
+                        createRequest.reward = template.reward.amount + ' ' + template.reward.currency;
+                        createRequest.createdInChannel = template.createdInChannel;
+                        createRequest.evergreen = template.evergreen;
+                        createRequest.claimLimit = template.claimLimit;
+                        createRequest.requireApplication = template.requireApplication;
+                        createRequest.assign = template.assignTo?.discordId;
+                        if (template.gateTo) createRequest.gate = template.gateTo[0]?.discordId;
+                        createRequest.templateId = template._id;
+
+                        await createBounty(createRequest);
+                        if (!customersAddedTo.get(createRequest.guildId)) {
+                            customersAddedTo.set(createRequest.guildId, createRequest);
+                        };
+                    }
+                } catch (e) {
+                    LogUtils.logError(`Could not create bounty from template ${template._id}`, e);
+                }
+            }
+        }
+
+        // Refresh the lists for each customer
+        for (const [customerId, request] of customersAddedTo.entries()) {
+            DiscordUtils.refreshLastList(customerId, request);
+        }
+    }
 
 }
 

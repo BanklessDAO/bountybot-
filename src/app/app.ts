@@ -1,6 +1,6 @@
 // Require the necessary discord.js classes
 import { Client, Intents } from 'discord.js';
-import { SlashCreator, GatewayServer, SlashCommand, CommandContext } from 'slash-create';
+import { SlashCreator, GatewayServer } from 'slash-create';
 import path from 'path';
 import fs from 'fs';
 import Log from './utils/Log';
@@ -9,6 +9,8 @@ import MongoDbUtils from './utils/MongoDbUtils';
 import { ClientSync } from './clientSync/ClientSync';
 import { ChangeStreamEvent } from './types/mongo/ChangeStream';
 import { BountyCollection } from './types/bounty/BountyCollection';
+import cron from 'node-cron';
+import BountyUtils from './utils/BountyUtils';
 
 new Log();
 
@@ -71,6 +73,7 @@ creator
 creator.on('componentInteraction', () => true);
 // When the client is ready, run this code (only once)
 client.once('ready', () => {
+	cron.schedule('*/5 * * * * ', BountyUtils.checkForBountyRepeats)
 	console.log('Ready!');
 });
 

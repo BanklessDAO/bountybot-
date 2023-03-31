@@ -4,7 +4,7 @@ import { GuildMember, Role, MessageButton, MessageActionRow } from 'discord.js';
 import DiscordUtils from '../../utils/DiscordUtils';
 import BountyUtils from '../../utils/BountyUtils';
 import MongoDbUtils from '../../utils/MongoDbUtils';
-import { Db, Double, Int32 } from 'mongodb'
+import mongo, { Db, Double, Int32 } from 'mongodb'
 import ValidationError from '../../errors/ValidationError';
 import { CreateRequest } from '../../requests/CreateRequest';
 import { BountyStatus } from '../../constants/bountyStatus';
@@ -20,6 +20,18 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
 
     if (createRequest.isIOU) {
         await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null);
+    } else if (createRequest.templateId) {
+        const db: Db = await MongoDbUtils.connect('bountyboard');
+        const dbBounty = db.collection('bounties');
+        const template: BountyCollection = await dbBounty.findOne({'_id': new mongo.ObjectId(createRequest.templateId)});
+        // Calculate the new due date
+        const now = new Date();
+        const templateCreatedAt = new Date(template.createdAt);
+        const templateDueAt = new Date(template.dueAt);
+        const dueAtOffset = templateDueAt.getTime() - templateCreatedAt.getTime();
+        const dueAtTime = now.getTime() + dueAtOffset;
+        const dueAt = new Date(dueAtTime);
+        await finishCreate(createRequest, template.description, template.criteria, dueAt, template.tags?.keywords?.join(','));
     } else {
         let dueDateMessage = 'yyyy-mm-dd, or leave blank for 3 months from today';
         await createRequest.commandContext.sendModal(      {
@@ -187,6 +199,10 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
 
         await DiscordUtils.activityResponse(createRequest.commandContext, null, 'IOU created successfully.' + (walletNeeded ? "\n" +
         `${owedTo} has not registered a wallet. Remind them to check their DMs for a register wallet button, or to use the /register-wallet command.` : ""));
+    } else if (createRequest.templateId) {
+        const msgContent = `<@${guildMember.user.id}> An instance of your repeating bounty was created: ${cardMessage.url}`;
+        await guildMember.send({ content: msgContent }).catch(() => { throw new DMPermissionError(msgContent) });
+        
     } else {
         await modalContext?.send('Bounty created, see below...');
         return;
@@ -326,6 +342,10 @@ export const generateBountyRecord = async (
     if (createRequest.repeatDays > 0) {
         bountyRecord.isRepeatTemplate = true;
         bountyRecord.repeatDays = createRequest.repeatDays;
+    }
+
+    if (createRequest.templateId) {
+        bountyRecord.repeatTemplateId = createRequest.templateId;
     }
 
     if (createRequest.assign) {

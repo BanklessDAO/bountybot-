@@ -30,6 +30,16 @@ const ValidationModule = {
      * @returns empty Promise for error handling or async calls
      */
     async run(request: any): Promise<void> {
+
+        // Check if a bounty is passed in and if it is a template. If so, bail. No commands can be run on templates
+        if (request.bountyId) {
+            const db: Db = await MongoDbUtils.connect('bountyboard');
+            const dbBounty = db.collection('bounties');
+            const bounty: BountyCollection = await dbBounty.findOne({'_id': new mongo.ObjectId(request.bountyId)});
+            if (bounty && bounty.isRepeatTemplate) {
+                throw new ValidationError(`Cannot perform this action on a bounty template`);
+            }
+        }
         Log.debug(`Reached Validation Handler. Entering activity ${request.activity}`);
         switch (request.activity) {
             case Activities.create:

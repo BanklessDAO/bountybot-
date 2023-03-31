@@ -18,6 +18,7 @@ export class CreateRequest extends Request {
     isIOU: boolean;
     createdInChannel: string;
     repeatDays: number;
+    templateId: string;
 
     // TODO: remove
     commandContext: CommandContext;
@@ -25,6 +26,9 @@ export class CreateRequest extends Request {
 
     constructor(args: {
         commandContext: CommandContext, 
+        isTemplate?: boolean,
+        guildID?: string,
+        userID?: string
     }) {
         Log.debug(`In CreateRequest`);
         if (args.commandContext) {
@@ -62,6 +66,9 @@ export class CreateRequest extends Request {
 
             // TODO: remove
             this.commandContext = commandContext;
+        } else if (args.isTemplate) {
+            // Being called from the repeating bounty cron job
+            super(Activities.create, args.guildID, args.userID, false);
         } else {
             throw new Error('Command context is required to be not null for CreateRequest construction.');
         }
