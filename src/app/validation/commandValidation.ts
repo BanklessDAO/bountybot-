@@ -380,21 +380,16 @@ const deleteValidation = async (request: DeleteRequest): Promise<void> => {
         );
     }
 
-    const currentDate: string = (new Date()).toISOString();
-
-    const invalidBountyStatus = 
-        dbBountyResult.status && 
-        !(dbBountyResult.status === BountyStatus.draft ||
-        dbBountyResult.status === BountyStatus.open ||
-            (dbBountyResult.status === BountyStatus.in_progress && 
-                !BountyUtils.isWithin24Hours(currentDate, BountyUtils.getClaimedAt(dbBountyResult))));
-
-    if (invalidBountyStatus) {
-        throw new ValidationError(
-            `The bounty id you have selected is in status ${dbBountyResult.status}\n` +
-            `Currently, only bounties with status ${BountyStatus.draft} and ${BountyStatus.open} can be deleted.\n` +
-            `Please reach out to your favorite Bounty Board representative with any questions!`
-            );
+    // If bounty came from a repeat template, let it pass regardless of status. Otherwise check it
+    if (!dbBountyResult.repeatTemplateId) {
+        const validBountyStatus = BountyUtils.validateDeletableStatus(dbBountyResult);
+        if (!validBountyStatus) {
+            throw new ValidationError(
+                `The bounty id you have selected is in status ${dbBountyResult.status}\n` +
+                `Currently, only bounties with status ${BountyStatus.draft} and ${BountyStatus.open} can be deleted.\n` +
+                `Please reach out to your favorite Bounty Board representative with any questions!`
+                );
+        }
     }
 }
 

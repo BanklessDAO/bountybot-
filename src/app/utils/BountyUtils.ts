@@ -243,6 +243,15 @@ const BountyUtils = {
         return elapsedSeconds < BountyUtils.TWENTYFOUR_HOURS_IN_SECONDS;
     },
 
+    validateDeletableStatus(bounty: BountyCollection): boolean {
+        const currentDate: string = (new Date()).toISOString();
+        return bounty.status && 
+        (bounty.status === BountyStatus.draft ||
+            bounty.status === BountyStatus.open ||
+            (bounty.status === BountyStatus.in_progress && 
+                !BountyUtils.isWithin24Hours(currentDate, BountyUtils.getClaimedAt(bounty))));
+    },
+
     async createPublicTitle(bountyRecord: Bounty): Promise<string> {
         let title = bountyRecord.title;
         let secondaryTitle = '';
@@ -271,9 +280,9 @@ const BountyUtils = {
             let appTitle =  `requires application before claiming`;
             if (bountyRecord.applicants) {
                 if (bountyRecord.applicants.length == 1) {
-                    appTitle += `. 1 applicant so far.`;
+                    appTitle += `, 1 applicant so far`;
                 } else {
-                    appTitle += `. ${bountyRecord.applicants.length} applicants so far.`;
+                    appTitle += `, ${bountyRecord.applicants.length} applicants so far`;
                 }
             }
             secondaryTitle = MiscUtils.addToTitle(secondaryTitle,appTitle);
@@ -362,6 +371,11 @@ const BountyUtils = {
                     footer.text += '📮 - submit | ✅ - mark complete | 🆘 - help';
                 }
                 actions.push('🆘');
+                // Allow delete if there is a template involved
+                if (bounty.repeatTemplateId) {
+                    footer.text += '| ❌ - delete';
+                    actions.push('❌');
+                }
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
                 if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
                 break;
@@ -375,6 +389,11 @@ const BountyUtils = {
                     footer.text += '✅ - mark complete | 🆘 - help';
                 }
                 actions.push('🆘');
+                // Allow delete if there is a template involved
+                if (bounty.repeatTemplateId) {
+                    footer.text += '| ❌ - delete';
+                    actions.push('❌');
+                }
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
                 fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
                 if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
@@ -385,6 +404,11 @@ const BountyUtils = {
                 if (bounty.paidStatus !== PaidStatus.paid) {
                     footer.text += '💰 - mark paid';
                     actions.push('💰');
+                }
+                // Allow delete if there is a template involved
+                if (bounty.repeatTemplateId) {
+                    footer.text += '| ❌ - delete';
+                    actions.push('❌');
                 }
                 fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
                 // Bounty might jump directly to Complete status so these would be null...
@@ -397,14 +421,19 @@ const BountyUtils = {
         const isDraftBounty = (bounty.status == BountyStatus.draft)
         const createdAt = new Date(bounty.createdAt);
 
-        const actionComponent = actions.map(a =>
+        const actionComponents = [];
+
+        actionComponents[0] = actions.map(a =>
             new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
         );
 
         if (!isDraftBounty && !!customer.lastListMessage) {
-            actionComponent.push(
-                new MessageButton().setLabel('Back to List').setStyle('LINK').setURL(customer.lastListMessage)
-            );
+            const backToListButton: MessageButton = new MessageButton().setLabel('Back to List').setStyle('LINK').setURL(customer.lastListMessage);
+            if (actions.length < 5) {
+                actionComponents[0].push(backToListButton);
+            } else {
+                actionComponents[1] = [ backToListButton ];
+            };
         }
 
 
@@ -422,11 +451,9 @@ const BountyUtils = {
                 footer: footer,
                 color: color,
             }],
-            components: actionComponent.length ? [
-                new MessageActionRow().addComponents(actionComponent)
-            ]
-                :
-                [],
+            components: actionComponents.map(a => 
+                new MessageActionRow().addComponents(a)
+            ),
         };
 
 
@@ -696,7 +723,7 @@ const BountyUtils = {
                     const now = new Date();
                     const timeDiff = Math.abs(now.getTime() - lastCreatedAt.getTime());
                     //const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));   **DOING HOURS FOR TESTING. TODO REPLACE WITH DAYS
-                    const daysDiff = Math.floor(timeDiff / (1000 * 3600));
+                    const daysDiff = Math.floor(timeDiff / (1000 * 360));
                     console.log(`Last: ${lastCreatedAt.getTime()} Now: ${now.getTime()} Time diff: ${timeDiff} Days diff: ${daysDiff}, Repeat days: ${template.repeatDays}`);
                     if (daysDiff >= template.repeatDays) {
                         const createRequest: CreateRequest = new CreateRequest({commandContext: null, isTemplate: true, guildID: template.customerId, userID: template.createdBy.discordId});
