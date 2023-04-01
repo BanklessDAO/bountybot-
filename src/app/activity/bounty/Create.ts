@@ -18,13 +18,11 @@ import { BountyCollection } from '../../types/bounty/BountyCollection';
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
     Log.debug('In Create activity');
 
-    if (createRequest.isIOU) {
-        await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null);
-    } else if (createRequest.templateId) {
+    if (createRequest.templateId) {
         // If we have a templateId, this came from the background cron job creating repeating bounties. Load everything and go create
         const db: Db = await MongoDbUtils.connect('bountyboard');
         const dbBounty = db.collection('bounties');
-        const template: BountyCollection = await dbBounty.findOne({'_id': new mongo.ObjectId(createRequest.templateId)});
+        const template: BountyCollection = await dbBounty.findOne({ '_id': new mongo.ObjectId(createRequest.templateId) });
         // Calculate the new due date
         const now = new Date();
         const templateCreatedAt = new Date(template.createdAt);
@@ -34,66 +32,70 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
         const dueAt = new Date(dueAtTime);
         await finishCreate(createRequest, template.description, template.criteria, dueAt, template.tags?.keywords?.join(','));
     } else {
-        let dueDateMessage = 'yyyy-mm-dd, or leave blank for 3 months from today';
-        await createRequest.commandContext.sendModal(      {
-            title: 'New Bounty Detail',
-            //custom_id: dbInsertResult.insertedId,
-            components: [
-              {
-                type: ComponentType.ACTION_ROW,
+        if (createRequest.isIOU) {
+            await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null);
+        } else {
+            let dueDateMessage = 'yyyy-mm-dd, or leave blank for 3 months from today';
+            await createRequest.commandContext.sendModal({
+                title: 'New Bounty Detail',
+                //custom_id: dbInsertResult.insertedId,
                 components: [
-                  {
-                    type: ComponentType.TEXT_INPUT,
-                    label: 'Description',
-                    style: TextInputStyle.PARAGRAPH,
-                    max_length: 4000,
-                    custom_id: 'description',
-                    placeholder: 'Description of your bounty'
-                  }
+                    {
+                        type: ComponentType.ACTION_ROW,
+                        components: [
+                            {
+                                type: ComponentType.TEXT_INPUT,
+                                label: 'Description',
+                                style: TextInputStyle.PARAGRAPH,
+                                max_length: 4000,
+                                custom_id: 'description',
+                                placeholder: 'Description of your bounty'
+                            }
+                        ]
+                    },
+                    {
+                        type: ComponentType.ACTION_ROW,
+                        components: [
+                            {
+                                type: ComponentType.TEXT_INPUT,
+                                label: 'Criteria',
+                                style: TextInputStyle.PARAGRAPH,
+                                max_length: 1000,
+                                custom_id: 'criteria',
+                                placeholder: 'What needs to be done for this bounty to be completed'
+                            }
+                        ]
+                    },
+                    {
+                        type: ComponentType.ACTION_ROW,
+                        components: [
+                            {
+                                type: ComponentType.TEXT_INPUT,
+                                label: 'Tags',
+                                style: TextInputStyle.SHORT,
+                                max_length: 1000,
+                                custom_id: 'tags',
+                                placeholder: 'Comma separated list - e.g. L1, Marketing, Dev Guild',
+                                required: false
+                            }
+                        ]
+                    },
+                    {
+                        type: ComponentType.ACTION_ROW,
+                        components: [
+                            {
+                                type: ComponentType.TEXT_INPUT,
+                                label: 'Due Date',
+                                style: TextInputStyle.SHORT,
+                                custom_id: 'dueAt',
+                                placeholder: dueDateMessage,
+                                required: false
+                            }
+                        ]
+                    }
                 ]
-              },
-              {
-                type: ComponentType.ACTION_ROW,
-                components: [
-                  {
-                    type: ComponentType.TEXT_INPUT,
-                    label: 'Criteria',
-                    style: TextInputStyle.PARAGRAPH,
-                    max_length: 1000,
-                    custom_id: 'criteria',
-                    placeholder: 'What needs to be done for this bounty to be completed'
-                  }
-                ]
-              },
-              {
-                type: ComponentType.ACTION_ROW,
-                components: [
-                  {
-                    type: ComponentType.TEXT_INPUT,
-                    label: 'Tags',
-                    style: TextInputStyle.SHORT,
-                    max_length: 1000,
-                    custom_id: 'tags',
-                    placeholder: 'Comma separated list - e.g. L1, Marketing, Dev Guild',
-                    required: false
-                  }
-                ]
-              },
-              {
-                type: ComponentType.ACTION_ROW,
-                components: [
-                  {
-                    type: ComponentType.TEXT_INPUT,
-                    label: 'Due Date',
-                    style: TextInputStyle.SHORT,
-                    custom_id: 'dueAt',
-                    placeholder: dueDateMessage,
-                    required: false
-                  }
-                ]
-              }
-            ]
-          },async (mctx) => { await modalCallback(mctx, createRequest) })
+            }, async (mctx) => { await modalCallback(mctx, createRequest) })
+        }
     }
 }
 
@@ -198,12 +200,19 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
             await owedTo.send({ content: iouWalletMessage, components: [new MessageActionRow().addComponents(walletButton)] });
         }
 
-        await DiscordUtils.activityResponse(createRequest.commandContext, null, 'IOU created successfully.' + (walletNeeded ? "\n" +
-        `${owedTo} has not registered a wallet. Remind them to check their DMs for a register wallet button, or to use the /register-wallet command.` : ""));
+        const walletNeededMsg = walletNeeded ? "\n" +
+        `${owedTo} has not registered a wallet. Remind them to check their DMs for a register wallet button, or to use the /register-wallet command.` : "";
+        if (createRequest.templateId) {
+            const msgContent = `An instance of your repeating IOU was created: ${cardMessage.url}` + walletNeededMsg;
+            await guildMember.send({ content: msgContent }).catch(() => { throw new DMPermissionError(msgContent) });
+        } else {
+            const msgContent = "IOU created successfully" + walletNeededMsg;
+            await DiscordUtils.activityResponse(createRequest.commandContext, null, msgContent);
+        }
     } else if (createRequest.templateId) {
         const msgContent = `<@${guildMember.user.id}> An instance of your repeating bounty was created: ${cardMessage.url}`;
         await guildMember.send({ content: msgContent }).catch(() => { throw new DMPermissionError(msgContent) });
-        
+
     } else {
         await modalContext?.send('Bounty created, see below...');
         return;
@@ -284,7 +293,7 @@ export const generateBountyRecord = async (
     if (createRequest.isIOU) {
         status = BountyStatus.complete;
     }
-    
+
     const bountyCreationChannel = await DiscordUtils.getTextChannelfromChannelId(createdInChannel);
     const bountyCreationChannelCategory = await DiscordUtils.getTextChannelfromChannelId(bountyCreationChannel.parentId as string);
 
@@ -322,15 +331,15 @@ export const generateBountyRecord = async (
         paidStatus: PaidStatus.unpaid,
         dueAt: dueAt ? dueAt.toISOString() : null,
         tags: {
-            keywords:  tags ? tags.split(',')
-            .map((word) => word.trim().toLowerCase())
-            .filter((word) => word) : null,
+            keywords: tags ? tags.split(',')
+                .map((word) => word.trim().toLowerCase())
+                .filter((word) => word) : null,
             channelCategory: bountyCreationChannelCategory.name
         }
     };
 
     if (createRequest.gate) {
-        bountyRecord.gateTo = [{discordId: gatedTo.id, discordName: gatedTo.name, iconUrl: gatedTo.iconURL()}];
+        bountyRecord.gateTo = [{ discordId: gatedTo.id, discordName: gatedTo.name, iconUrl: gatedTo.iconURL() }];
     }
 
     if (createRequest.evergreen) {
@@ -341,13 +350,14 @@ export const generateBountyRecord = async (
         }
     }
 
+    // Repeating bounty. If templateId set, we are creating an occurrence. If not, we are creating the template itselfyarn
     if (createRequest.repeatDays > 0) {
-        bountyRecord.isRepeatTemplate = true;
+        if (createRequest.templateId) {
+            bountyRecord.repeatTemplateId = createRequest.templateId;
+        } else {
+            bountyRecord.isRepeatTemplate = true;
+        }
         bountyRecord.repeatDays = createRequest.repeatDays;
-    }
-
-    if (createRequest.templateId) {
-        bountyRecord.repeatTemplateId = createRequest.templateId;
     }
 
     if (createRequest.assign) {

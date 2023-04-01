@@ -45,7 +45,6 @@ export interface BountyCollection extends Collection {
 	activityHistory: ClientInteraction[],
 	isIOU: boolean,
 	resolutionNote: string,
-	owedTo: UserObject,
 	tags: TagObject,
 }
 

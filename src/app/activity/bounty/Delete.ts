@@ -15,6 +15,12 @@ import BountyUtils from '../../utils/BountyUtils';
 export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
     Log.debug('In Delete activity');
 
+    // Came in just to delete a bounty. No messages or interactions
+    if (request.silent) {
+        await finishDelete(request);
+        return;
+    }
+
     const bounty: BountyCollection = await getDbHandler(request.bountyId);
 
     if (bounty.repeatTemplateId) {
@@ -26,29 +32,29 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
 
             // Different modal data types and calls in slash commands vs. button interactions
             const fromSlash = !!request.commandContext;
-        
+
             const modal = {
                 title: 'Repeating Bounty',
                 components: [
-                {
-                    type: (fromSlash ? ComponentType.ACTION_ROW : "ACTION_ROW"),
-                    components: [
                     {
-                        type: (fromSlash ? ComponentType.TEXT_INPUT : "TEXT_INPUT"),
-                        label: "Bounty repeats. Stop all future repeats?",
-                        style: (fromSlash ? TextInputStyle.SHORT: "SHORT"),
-                        required: true,
-                        max_length: 20,
-                        custom_id: 'delete_response',
-                        placeholder: 'Enter YES to stop future repeats.',
-                        value: "NO"
+                        type: (fromSlash ? ComponentType.ACTION_ROW : "ACTION_ROW"),
+                        components: [
+                            {
+                                type: (fromSlash ? ComponentType.TEXT_INPUT : "TEXT_INPUT"),
+                                label: "Bounty repeats. Stop all future repeats?",
+                                style: (fromSlash ? TextInputStyle.SHORT : "SHORT"),
+                                required: true,
+                                max_length: 20,
+                                custom_id: 'delete_response',
+                                placeholder: 'Enter YES to stop future repeats.',
+                                value: "NO"
+                            }]
                     }]
-                }]
             };
-   
+
             // Check what we got in the modal, and if Yes, delete the template and respond
             const deleteRepeats = async (request: DeleteRequest, context: ModalInteractionContext | ModalSubmitInteraction, deleteResponse: string) => {
-        
+
                 // We have a new context to use after the modal for the response
                 if (context instanceof ModalInteractionContext) {
                     request.commandContext = context as unknown as CommandContext;
@@ -65,7 +71,7 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
                     if (context instanceof ModalInteractionContext) {
                         await context.send(response);
                     } else {
-                        await context.reply({content: response, ephemeral: true});
+                        await context.reply({ content: response, ephemeral: true });
                     }
                     Log.info(`${bounty.repeatTemplateId} repeating template bounty deleted by ${deletedByUser.user.tag}`);
                 } else {
@@ -73,27 +79,27 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
                     if (context instanceof ModalInteractionContext) {
                         await context.send(response);
                     } else {
-                        await context.reply({content: response, ephemeral: true});
+                        await context.reply({ content: response, ephemeral: true });
                     }
                 }
 
                 await finishDelete(request);
                 return;
-        
+
             }
-   
+
             // Callback for the slash modal version
             const modalCallback = async (modalContext: ModalInteractionContext, request: DeleteRequest) => {
                 await modalContext.defer(true);
                 await deleteRepeats(request, modalContext, modalContext.values.delete_response);
             };
-        
+
             // Call the modal. For slash command (slacsh-create), call the callback. For button interaction (discord.js), wait for submit and return. 
-        
+
             if (fromSlash) {
                 try {
-                    await request.commandContext.sendModal(modal as unknown as scModalOptions,async (mctx) => { await modalCallback(mctx, request) });
-                } catch(e) {
+                    await request.commandContext.sendModal(modal as unknown as scModalOptions, async (mctx) => { await modalCallback(mctx, request) });
+                } catch (e) {
                     Log.error(e.message);
                     throw new RuntimeError(e);
                 }
@@ -101,19 +107,19 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
             } else {
                 const uuid = crypto.randomUUID();
                 try {
-                    await request.buttonInteraction.showModal(Object.assign(modal, {customId: uuid}) as unknown as ModalOptions);
-                } catch(e) {
+                    await request.buttonInteraction.showModal(Object.assign(modal, { customId: uuid }) as unknown as ModalOptions);
+                } catch (e) {
                     Log.error(e.message);
                     throw new RuntimeError(e);
                 }
                 const submittedInteraction = await request.buttonInteraction.awaitModalSubmit({
                     time: 60000,
                     filter: i => (i.user.id === request.userId) && (i.customId === uuid),
-                    }).catch(e => {
-                        Log.info(`<@${request.userId}> had a modal error ${e.message}`);
-                        // Most likely a modal form timeout error
-                        throw new ModalTimeoutError(e);
-                    }) as ModalSubmitInteraction;
+                }).catch(e => {
+                    Log.info(`<@${request.userId}> had a modal error ${e.message}`);
+                    // Most likely a modal form timeout error
+                    throw new ModalTimeoutError(e);
+                }) as ModalSubmitInteraction;
                 const deleteResponse = submittedInteraction.components[0].components[0].value;
                 await deleteRepeats(request, submittedInteraction, deleteResponse);
             }
@@ -124,9 +130,9 @@ export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
         await finishDelete(request);
     }
 }
-   
+
 export const finishDelete = async (request: DeleteRequest) => {
-   
+
     const bounty: BountyCollection = await getDbHandler(request.bountyId);
 
     let creatorDeleteDM = "";
@@ -134,19 +140,19 @@ export const finishDelete = async (request: DeleteRequest) => {
     if (BountyUtils.validateDeletableStatus(bounty)) {
         const deletedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
         Log.info(`${request.bountyId} bounty deleted by ${deletedByUser.user.tag}`);
-        
+
         await writeDbHandler(request, deletedByUser);
 
         const bountyChannel: TextChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
         const bountyEmbedMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel).catch(e => {
-                    LogUtils.logError(`could not find bounty ${request.bountyId} in discord #bounty-board channel ${bountyChannel.id} in guild ${request.guildId}`, e);
-                    throw new RuntimeError(e);
-                });
-    
-        await bountyEmbedMessage.delete();
-        
+            LogUtils.logError(`could not find bounty ${request.bountyId} in discord #bounty-board channel ${bountyChannel.id} in guild ${request.guildId}`, e);
+            //throw new RuntimeError(e);
+        });
+
+        if (bountyEmbedMessage) await bountyEmbedMessage.delete();
+
         const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
-        creatorDeleteDM = 
+        creatorDeleteDM =
             `The following bounty has been deleted: <${bountyUrl}>\n`;
 
         if (bounty.evergreen && bounty.isParent &&
@@ -154,24 +160,24 @@ export const finishDelete = async (request: DeleteRequest) => {
             creatorDeleteDM += 'Children bounties created from this multi-claimant bounty will remain.\n';
         }
     } else {
-        creatorDeleteDM = 
+        creatorDeleteDM =
             `The bounty id you have selected is in status ${bounty.status}\n` +
             `Currently, only bounties with status ${BountyStatus.draft} and ${BountyStatus.open} can be deleted.\n` +
             `Please reach out to your favorite Bounty Board representative with any questions!`;
     }
 
-    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorDeleteDM);
+    if (!request.silent) await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorDeleteDM);
     return;
 }
 
 const getDbHandler = async (bountyId: string): Promise<BountyCollection> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
-	const bountyCollection = db.collection('bounties');
+    const bountyCollection = db.collection('bounties');
     const customerCollection = db.collection('customers');
 
-	const dbBountyResult: BountyCollection = await bountyCollection.findOne({
-		_id: new mongo.ObjectId(bountyId),
-	});
+    const dbBountyResult: BountyCollection = await bountyCollection.findOne({
+        _id: new mongo.ObjectId(bountyId),
+    });
 
     return dbBountyResult;
 
@@ -180,33 +186,33 @@ const getDbHandler = async (bountyId: string): Promise<BountyCollection> => {
 // TODO: consider adding the previous read result as a parameter to save a db read
 const writeDbHandler = async (request: DeleteRequest, deletedByUser: GuildMember, bountyId?: string): Promise<void> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
-	const bountyCollection = db.collection('bounties');
+    const bountyCollection = db.collection('bounties');
 
-	const dbBountyResult: BountyCollection = await bountyCollection.findOne({
-		_id: new mongo.ObjectId(request?.bountyId || bountyId),
-	});
+    const dbBountyResult: BountyCollection = await bountyCollection.findOne({
+        _id: new mongo.ObjectId(request?.bountyId || bountyId),
+    });
 
-	const currentDate = (new Date()).toISOString();
-	const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, {
-		$set: {
-			deletedBy: {
-				discordHandle: deletedByUser.user.tag,
-				discordId: deletedByUser.user.id,
-				iconUrl: deletedByUser.user.avatarURL(),
-			},
+    const currentDate = (new Date()).toISOString();
+    const writeResult: UpdateWriteOpResult = await bountyCollection.updateOne(dbBountyResult, {
+        $set: {
+            deletedBy: {
+                discordHandle: deletedByUser.user.tag,
+                discordId: deletedByUser.user.id,
+                iconUrl: deletedByUser.user.avatarURL(),
+            },
             // TO-DO: What is the point of status history if we publish createdAt, claimedAt... as first class fields?
             // note that createdAt, claimedAt are not part of the BountyCollection type
-			deletedAt: currentDate,
-			status: BountyStatus.deleted,
+            deletedAt: currentDate,
+            status: BountyStatus.deleted,
             resolutionNote: request?.resolutionNote,
-		},
-		$push: {
-			statusHistory: {
-				status: BountyStatus.deleted,
-				setAt: currentDate,
-			},
-		},
-	});
+        },
+        $push: {
+            statusHistory: {
+                status: BountyStatus.deleted,
+                setAt: currentDate,
+            },
+        },
+    });
 
     if (writeResult.result.ok !== 1) {
         Log.error(`Write result did not execute correctly`);

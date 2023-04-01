@@ -7,7 +7,7 @@ import { Applicant, Bounty } from '../types/bounty/Bounty';
 import { BountyStatus } from '../constants/bountyStatus';
 import { PaidStatus } from '../constants/paidStatus';
 import { CreateRequest } from '../requests/CreateRequest';
-import mongo, { Cursor, Db, UpdateWriteOpResult } from 'mongodb';
+import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import MongoDbUtils from '../utils/MongoDbUtils';
 import { Activities } from '../constants/activities';
 import { CustomerCollection } from '../types/bounty/CustomerCollection';
@@ -16,7 +16,6 @@ import { handler } from '../activity/bounty/Handler';
 import { UserCollection } from '../types/user/UserCollection';
 import { Message as scMessage } from 'slash-create';
 import MiscUtils from './MiscUtils';
-import { createBounty } from '../activity/bounty/Create';
 
 
 const BountyUtils = {
@@ -252,7 +251,7 @@ const BountyUtils = {
                 !BountyUtils.isWithin24Hours(currentDate, BountyUtils.getClaimedAt(bounty))));
     },
 
-    async createPublicTitle(bountyRecord: Bounty): Promise<string> {
+    async createPublicTitle(bountyRecord: Bounty, bountyTemplate?: BountyCollection): Promise<string> {
         let title = bountyRecord.title;
         let secondaryTitle = '';
         if (bountyRecord.evergreen && bountyRecord.isParent) {
@@ -288,7 +287,7 @@ const BountyUtils = {
             secondaryTitle = MiscUtils.addToTitle(secondaryTitle,appTitle);
         }
 
-        if (bountyRecord.repeatDays) {
+        if (bountyRecord.repeatDays && (bountyTemplate.status !== BountyStatus.deleted)) {
             secondaryTitle = MiscUtils.addToTitle(secondaryTitle, `bounty repeats every ${bountyRecord.repeatDays} day${bountyRecord.repeatDays !== 1 ? 's' : ''}`)
         }
 
@@ -309,6 +308,12 @@ const BountyUtils = {
         const customer: CustomerCollection = await customerCollection.findOne({
             customerId: bounty.customerId,
         });
+        let bountyTemplate: BountyCollection = null;
+        if (bounty.repeatTemplateId) {
+            bountyTemplate = await bountyCollection.findOne({
+                _id: new mongo.ObjectId(bounty.repeatTemplateId)
+            });
+        }
 
         // Build the fields, reactions, and footer based on status
         const fields = [
@@ -371,8 +376,8 @@ const BountyUtils = {
                     footer.text += '📮 - submit | ✅ - mark complete | 🆘 - help';
                 }
                 actions.push('🆘');
-                // Allow delete if there is a template involved
-                if (bounty.repeatTemplateId) {
+                // Allow delete if there is an active template involved
+                if (bountyTemplate && (bountyTemplate.status !== BountyStatus.deleted)) {
                     footer.text += '| ❌ - delete';
                     actions.push('❌');
                 }
@@ -390,7 +395,7 @@ const BountyUtils = {
                 }
                 actions.push('🆘');
                 // Allow delete if there is a template involved
-                if (bounty.repeatTemplateId) {
+                if (bountyTemplate && (bountyTemplate.status !== BountyStatus.deleted)) {
                     footer.text += '| ❌ - delete';
                     actions.push('❌');
                 }
@@ -406,7 +411,7 @@ const BountyUtils = {
                     actions.push('💰');
                 }
                 // Allow delete if there is a template involved
-                if (bounty.repeatTemplateId) {
+                if (bountyTemplate && (bountyTemplate.status !== BountyStatus.deleted)) {
                     footer.text += '| ❌ - delete';
                     actions.push('❌');
                 }
@@ -439,7 +444,7 @@ const BountyUtils = {
 
         let cardEmbeds: MessageOptions = {
             embeds: [{
-                title: await BountyUtils.createPublicTitle(bounty),
+                title: await BountyUtils.createPublicTitle(bounty, bountyTemplate),
                 url: (process.env.BOUNTY_BOARD_URL + bounty._id),
                 author: {
                     icon_url: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.avatarURL(),
@@ -698,63 +703,7 @@ const BountyUtils = {
         }
 
         return bounty;
-    },
-
-    // This is called by the cron job. It will go through all bounty templates, find their latest instances
-    // and if we are beyond the repeat-days for the latest instance, create another.
-    async checkForBountyRepeats(): Promise<any> {
-
-        Log.info('Checking for bounty repeats');
-        const db: Db = await MongoDbUtils.connect('bountyboard');
-        const bountyCollection = db.collection('bounties');
-
-        const bountyTemplates: Cursor = bountyCollection.find({'isRepeatTemplate': true, status: { $ne : 'Deleted'}});
-
-        Log.info(`${await bountyTemplates.hasNext() ? "Found templates" : "No templates found"}`);
-
-        let customersAddedTo = new Map();
-
-        while (await bountyTemplates.hasNext()) {
-            // TODO need try-catch here
-            const template: BountyCollection = await bountyTemplates.next();
-            const lastChild = await bountyCollection.findOne({'repeatTemplateId': template._id}, { sort: { 'createdAt': -1 }});
-            if (lastChild) {
-                Log.info(`Found last child ${lastChild._id}`)
-                try {
-                    const lastCreatedAt = new Date(lastChild.createdAt);  // UTC
-                    const now = new Date();
-                    const timeDiff = Math.abs(now.getTime() - lastCreatedAt.getTime());
-                    //const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));   **DOING HOURS FOR TESTING. TODO REPLACE WITH DAYS
-                    const daysDiff = Math.floor(timeDiff / (1000 * 360));
-                    if (daysDiff >= template.repeatDays) {
-                        const createRequest: CreateRequest = new CreateRequest({commandContext: null, isTemplate: true, guildID: template.customerId, userID: template.createdBy.discordId});
-                        createRequest.title = template.title;
-                        createRequest.reward = template.reward.amount + ' ' + template.reward.currency;
-                        createRequest.createdInChannel = template.createdInChannel;
-                        createRequest.evergreen = template.evergreen;
-                        createRequest.claimLimit = template.claimLimit;
-                        createRequest.requireApplication = template.requireApplication;
-                        createRequest.assign = template.assignTo?.discordId;
-                        if (template.gateTo) createRequest.gate = template.gateTo[0]?.discordId;
-                        createRequest.templateId = template._id;
-
-                        await createBounty(createRequest);
-                        if (!customersAddedTo.get(createRequest.guildId)) {
-                            customersAddedTo.set(createRequest.guildId, createRequest);
-                        };
-                    }
-                } catch (e) {
-                    LogUtils.logError(`Could not create bounty from template ${template._id}`, e);
-                }
-            }
-        }
-
-        // Refresh the lists for each customer
-        for (const [customerId, request] of customersAddedTo.entries()) {
-            DiscordUtils.refreshLastList(customerId, request);
-        }
     }
-
 }
 
 export default BountyUtils;

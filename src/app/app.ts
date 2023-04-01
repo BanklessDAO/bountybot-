@@ -10,7 +10,7 @@ import { ClientSync } from './clientSync/ClientSync';
 import { ChangeStreamEvent } from './types/mongo/ChangeStream';
 import { BountyCollection } from './types/bounty/BountyCollection';
 import cron from 'node-cron';
-import BountyUtils from './utils/BountyUtils';
+import { checkForBountyRepeats } from './cron/CheckForBountyRepeats';
 
 new Log();
 
@@ -20,6 +20,7 @@ const client = new Client({
 	// https://discord.com/developers/docs/topics/gateway#privileged-intents
 	intents: [
 		Intents.FLAGS.GUILDS,
+		Intents.FLAGS.GUILD_MEMBERS,
 		Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS,
 		Intents.FLAGS.GUILD_WEBHOOKS,
 		Intents.FLAGS.GUILD_PRESENCES,
@@ -73,7 +74,7 @@ creator
 creator.on('componentInteraction', () => true);
 // When the client is ready, run this code (only once)
 client.once('ready', () => {
-	cron.schedule('*/5 * * * * ', BountyUtils.checkForBountyRepeats)
+	cron.schedule('*/5 * * * * ', checkForBountyRepeats)
 	console.log('Ready!');
 });
 

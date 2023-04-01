@@ -26,7 +26,7 @@ export class CreateRequest extends Request {
 
     constructor(args: {
         commandContext: CommandContext, 
-        isTemplate?: boolean,
+        templateId?: string,
         guildID?: string,
         userID?: string
     }) {
@@ -45,6 +45,7 @@ export class CreateRequest extends Request {
                 this.owedTo = commandContext.options['owed-to'];
                 this.isIOU = isIOU;
                 this.reward = commandContext.options['reward'];
+                this.repeatDays = commandContext.options['repeat-days'];
             } else {
                 this.title = commandContext.options.create['title'];
                 if (commandContext.options.create['claimants'] !== undefined) {  // Backwards compatible with old evergreen and claim-limit options
@@ -66,9 +67,10 @@ export class CreateRequest extends Request {
 
             // TODO: remove
             this.commandContext = commandContext;
-        } else if (args.isTemplate) {
+        } else if (args.templateId) {
             // Being called from the repeating bounty cron job
             super(Activities.create, args.guildID, args.userID, false);
+            this.templateId = args.templateId;
         } else {
             throw new Error('Command context is required to be not null for CreateRequest construction.');
         }
