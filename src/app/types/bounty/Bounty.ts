@@ -37,6 +37,8 @@ export interface Bounty {
 	isRepeatTemplate?: boolean,
 	repeatTemplateId?: string,
 	repeatDays?: Int32,
+	numRepeats?: Int32,
+	endRepeatsDate?: string,
 	assign?: string,
 	assignedName?: string,
 	assignTo?: UserObject,

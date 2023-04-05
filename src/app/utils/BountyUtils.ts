@@ -53,6 +53,34 @@ const BountyUtils = {
         }
     },
 
+    validateNumRepeatsOrEndDate(numOrDate: string): {numRepeats: (Number | null), endRepeatsDate: (Date | null)} {
+        const MAX_REPEATS = 100;
+        if (numOrDate == '') {
+            return { numRepeats: null, endRepeatsDate: this.threeMonthsFromNow() };
+        }
+        if (numOrDate.match(/^[0-9 ]+$/) !== null) {
+            console.log("Matched integer");
+            const numRepeats = parseInt(numOrDate);
+            if (!(numRepeats > 0) || (numRepeats > MAX_REPEATS)) {
+                throw new ValidationError('Number of repeats must be between 1 and 100');
+            }
+            return {numRepeats: numRepeats, endRepeatsDate: null};
+        }
+        let endRepeatsDate: Date = null;
+        try {
+            console.log("Matched date");
+            endRepeatsDate = new Date(numOrDate + 'T00:00:00.000Z');
+            console.log(`End date: ${endRepeatsDate.toISOString()}`);
+        } catch (e) {
+            throw new ValidationError('Please try `UTC` end repeat date in format yyyy-mm-dd, i.e 2024-08-15');
+        };
+        const now = new Date();
+        if (now > endRepeatsDate) {
+            throw new ValidationError('Please enter an end date in the future');
+        }
+        return { numRepeats: null, endRepeatsDate: endRepeatsDate };
+    },
+
     validateTitle(title: string): void {
         const CREATE_TITLE_REGEX = /^[\w\s\W]{1,80}$/;
         if (title == null || !CREATE_TITLE_REGEX.test(title)) {
@@ -251,7 +279,7 @@ const BountyUtils = {
                 !BountyUtils.isWithin24Hours(currentDate, BountyUtils.getClaimedAt(bounty))));
     },
 
-    async createPublicTitle(bountyRecord: Bounty, bountyTemplate?: BountyCollection): Promise<string> {
+    async createPublicTitle(bountyRecord: Bounty): Promise<string> {
         let title = bountyRecord.title;
         let secondaryTitle = '';
         if (bountyRecord.evergreen && bountyRecord.isParent) {
@@ -287,10 +315,6 @@ const BountyUtils = {
             secondaryTitle = MiscUtils.addToTitle(secondaryTitle,appTitle);
         }
 
-        if (bountyRecord.repeatDays && (bountyTemplate.status !== BountyStatus.deleted)) {
-            secondaryTitle = MiscUtils.addToTitle(secondaryTitle, `bounty repeats every ${bountyRecord.repeatDays} day${bountyRecord.repeatDays !== 1 ? 's' : ''}`)
-        }
-
         return secondaryTitle ? title + '\n' + MiscUtils.wordWrap(secondaryTitle, 20) : title;
 
     },
@@ -309,10 +333,14 @@ const BountyUtils = {
             customerId: bounty.customerId,
         });
         let bountyTemplate: BountyCollection = null;
+        let bountyRepeats = 0;
         if (bounty.repeatTemplateId) {
             bountyTemplate = await bountyCollection.findOne({
                 _id: new mongo.ObjectId(bounty.repeatTemplateId)
             });
+            bountyRepeats = await bountyCollection.find({
+                repeatTemplateId: bounty.repeatTemplateId
+            }).count();
         }
 
         // Build the fields, reactions, and footer based on status
@@ -336,6 +364,21 @@ const BountyUtils = {
             const assignedUser = await DiscordUtils.getGuildMemberFromUserId(bounty.assign, bounty.customerId);
             fields.push({ name: 'For user', value: assignedUser.user.tag, inline: false })
         }
+        if (!!bounty.claimedBy) fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
+        if (!!bounty.submittedBy) fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
+        if (!!bounty.reviewedBy) fields.push({ name: 'Reviewed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, bounty.customerId)).user.tag, inline: true });
+        if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
+        if (bounty.repeatDays && (bountyTemplate.status !== BountyStatus.deleted)) {
+            fields.push({ name: 'Repeats every', value: bounty.repeatDays + ` day${bounty.repeatDays > 1 ? 's' : ''}`, inline: false });
+            if (bounty.endRepeatsDate) {
+                fields.push({ name: 'Ending', value: BountyUtils.formatDisplayDate(bounty.endRepeatsDate), inline: true});
+            } else {
+                fields.push({ name: 'Ending after', value: bounty.numRepeats + ' repeats', inline: true});
+            }
+            fields.push({ name: '# Repeated', value: bountyRepeats.toString(), inline: true });
+        }
+
+
 
         let footerArr = [];
         if (bounty.tags?.channelCategory) {
@@ -381,7 +424,6 @@ const BountyUtils = {
                     footer.text += '| ❌ - delete';
                     actions.push('❌');
                 }
-                fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
                 if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
                 break;
             case BountyStatus.in_review:
@@ -399,9 +441,6 @@ const BountyUtils = {
                     footer.text += '| ❌ - delete';
                     actions.push('❌');
                 }
-                fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
                 break;
             case BountyStatus.complete:
                 color = '#01d212';
@@ -415,11 +454,6 @@ const BountyUtils = {
                     footer.text += '| ❌ - delete';
                     actions.push('❌');
                 }
-                fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                // Bounty might jump directly to Complete status so these would be null...
-                if (!!bounty.submittedBy) fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                if (!!bounty.reviewedBy) fields.push({ name: 'Reviewed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
                 break;
         }
 
@@ -444,7 +478,7 @@ const BountyUtils = {
 
         let cardEmbeds: MessageOptions = {
             embeds: [{
-                title: await BountyUtils.createPublicTitle(bounty, bountyTemplate),
+                title: await BountyUtils.createPublicTitle(bounty),
                 url: (process.env.BOUNTY_BOARD_URL + bounty._id),
                 author: {
                     icon_url: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.avatarURL(),

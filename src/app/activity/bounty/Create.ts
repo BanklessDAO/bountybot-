@@ -1,6 +1,6 @@
 import { Bounty } from '../../types/bounty/Bounty';
 import Log from '../../utils/Log';
-import { GuildMember, Role, MessageButton, MessageActionRow } from 'discord.js';
+import { GuildMember, Role, MessageButton, MessageActionRow, ModalOptions } from 'discord.js';
 import DiscordUtils from '../../utils/DiscordUtils';
 import BountyUtils from '../../utils/BountyUtils';
 import MongoDbUtils from '../../utils/MongoDbUtils';
@@ -12,7 +12,7 @@ import { Clients } from '../../constants/clients';
 import { PaidStatus } from '../../constants/paidStatus';
 import { Activities } from '../../constants/activities';
 import DMPermissionError from '../../errors/DMPermissionError';
-import { ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
+import { ComponentType, ModalOptions as scModalOptions, ModalInteractionContext, TextInputStyle, ComponentActionRow } from 'slash-create';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
@@ -30,15 +30,38 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
         const dueAtOffset = templateDueAt.getTime() - templateCreatedAt.getTime();
         const dueAtTime = now.getTime() + dueAtOffset;
         const dueAt = new Date(dueAtTime);
-        await finishCreate(createRequest, template.description, template.criteria, dueAt, template.tags?.keywords?.join(','));
+
+        const endRepeatsDate = template.endRepeatsDate ? new Date(template.endRepeatsDate) : null;
+        await finishCreate(createRequest, template.description, template.criteria, dueAt, template.tags?.keywords?.join(','), template.numRepeats, endRepeatsDate);
     } else {
+        const repeatEndModal: ComponentActionRow = createRequest.repeatDays ? {
+            type: ComponentType.ACTION_ROW,
+            components: [
+                {
+                    type: ComponentType.TEXT_INPUT,
+                    label: '# of Repeats or End Date',
+                    style: TextInputStyle.SHORT,
+                    custom_id: 'endNumOrDate',
+                    placeholder: `Enter an integer, or YYYY-MM-DD. Leave blank for 3 months`,
+                    required: false
+                }
+            ]
+        } : null;
+
         if (createRequest.isIOU) {
-            await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null);
+            if (createRequest.repeatDays) {
+                const modalData: scModalOptions = {
+                    title: 'Repeating IOU',
+                    components: [repeatEndModal]
+                }
+                await createRequest.commandContext.sendModal(modalData, async (mctx) => { await modalCallback(mctx, createRequest) });
+            } else {
+                await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null);
+            }
         } else {
             let dueDateMessage = 'yyyy-mm-dd, or leave blank for 3 months from today';
-            await createRequest.commandContext.sendModal({
+            const modalData: scModalOptions = {
                 title: 'New Bounty Detail',
-                //custom_id: dbInsertResult.insertedId,
                 components: [
                     {
                         type: ComponentType.ACTION_ROW,
@@ -94,7 +117,13 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
                         ]
                     }
                 ]
-            }, async (mctx) => { await modalCallback(mctx, createRequest) })
+            };
+
+            if (createRequest.repeatDays) {
+                modalData.components.push(repeatEndModal);
+            }
+
+            await createRequest.commandContext.sendModal(modalData, async (mctx) => { await modalCallback(mctx, createRequest) })
         }
     }
 }
@@ -103,67 +132,76 @@ export const modalCallback = async (modalContext: ModalInteractionContext, creat
 
     await modalContext.defer(true);
 
-    const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
-    const guildMember: GuildMember = guildAndMember.guildMember;
-
-    const description = modalContext.values.description;
+    let numRepeats = null;
+    let endRepeatsDate = null;
     try {
-        BountyUtils.validateDescription(description);
+        const retVal = BountyUtils.validateNumRepeatsOrEndDate(modalContext.values.endNumOrDate);
+        numRepeats = retVal.numRepeats;
+        endRepeatsDate = retVal.endRepeatsDate;
     } catch (e) {
         if (e instanceof ValidationError) {
-            await modalContext.send({ content: `<@${guildMember.user.id}>\n` + e.message })
+            await modalContext.send({ content: e.message });
             return;
         }
     }
 
-    const criteria = modalContext.values.criteria;
-    try {
-        BountyUtils.validateCriteria(criteria);
-    } catch (e) {
-        if (e instanceof ValidationError) {
-            await modalContext.send({ content: `<@${guildMember.user.id}>\n` + e.message });
-            return;
-        }
-    }
-
-    const tags = modalContext.values.tags;
-    if (tags) {
+    if (createRequest.isIOU) {
+        await finishCreate(createRequest, null, 'IOU for work already done', new Date(), null, numRepeats, endRepeatsDate, modalContext);
+    } else {
+        const description = modalContext.values.description;
         try {
-            BountyUtils.validateTag(tags);
+            BountyUtils.validateDescription(description);
         } catch (e) {
             if (e instanceof ValidationError) {
-                await modalContext.send({ content: `<@${guildMember.user.id}>\n` + e.message });
+                await modalContext.send({ content: e.message });
                 return;
             }
         }
-    }
 
-
-    const dueAt = modalContext.values.dueAt;
-    let convertedDueDateFromMessage: Date;
-    if (!dueAt || (dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip')) {
-        convertedDueDateFromMessage = BountyUtils.threeMonthsFromNow();
-    } else {
+        const criteria = modalContext.values.criteria;
         try {
-            convertedDueDateFromMessage = BountyUtils.validateDate(dueAt);
+            BountyUtils.validateCriteria(criteria);
         } catch (e) {
-            Log.warn('user entered invalid date for bounty');
+            if (e instanceof ValidationError) {
+                await modalContext.send({ content: e.message });
+                return;
+            }
+        }
+
+        const tags = modalContext.values.tags;
+        if (tags) {
+            try {
+                BountyUtils.validateTag(tags);
+            } catch (e) {
+                if (e instanceof ValidationError) {
+                    await modalContext.send({ content: e.message });
+                    return;
+                }
+            }
+        }
+
+        const dueAt = modalContext.values.dueAt;
+        let convertedDueDateFromMessage: Date;
+        if (!dueAt || (dueAt.toLowerCase() === 'no' || dueAt.toLowerCase() === 'skip')) {
+            convertedDueDateFromMessage = BountyUtils.threeMonthsFromNow();
+        } else {
+            try {
+                convertedDueDateFromMessage = BountyUtils.validateDate(dueAt);
+            } catch (e) {
+                await modalContext.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
+                return;
+            }
+        }
+
+        if (convertedDueDateFromMessage.toString() === 'Invalid Date') {
             await modalContext.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
             return;
         }
+        await finishCreate(createRequest, description, criteria, convertedDueDateFromMessage, tags, numRepeats, endRepeatsDate, modalContext);
     }
-
-    if (convertedDueDateFromMessage.toString() === 'Invalid Date') {
-        Log.warn('user entered invalid date for bounty');
-        await modalContext.send({ content: 'Please try `UTC` date in format `yyyy-mm-dd`, i.e 2021-08-15' });
-        return;
-    }
-
-    await finishCreate(createRequest, description, criteria, convertedDueDateFromMessage, tags, modalContext);
-
 }
 
-export const finishCreate = async (createRequest: CreateRequest, description: string, criteria: string, dueAt: Date, tags: string, modalContext?: ModalInteractionContext) => {
+export const finishCreate = async (createRequest: CreateRequest, description: string, criteria: string, dueAt: Date, tags: string, numRepeats?: Number, endRepeatsDate?: Date, modalContext?: ModalInteractionContext) => {
 
     const guildAndMember = await DiscordUtils.getGuildAndMember(createRequest.guildId, createRequest.userId);
     const guildMember: GuildMember = guildAndMember.guildMember;
@@ -177,7 +215,9 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
         guildMember,
         owedTo,
         createRequest.createdInChannel,
-        tags);
+        tags,
+        numRepeats,
+        endRepeatsDate);
 
     Log.info(`user ${guildMember.user.tag} inserted bounty into db`);
 
@@ -201,7 +241,7 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
         }
 
         const walletNeededMsg = walletNeeded ? "\n" +
-        `${owedTo} has not registered a wallet. Remind them to check their DMs for a register wallet button, or to use the /register-wallet command.` : "";
+            `${owedTo} has not registered a wallet. Remind them to check their DMs for a register wallet button, or to use the /register-wallet command.` : "";
         if (createRequest.templateId) {
             const msgContent = `An instance of your repeating IOU was created: ${cardMessage.url}` + walletNeededMsg;
             await guildMember.send({ content: msgContent }).catch(() => { throw new DMPermissionError(msgContent) });
@@ -227,7 +267,9 @@ const createDbHandler = async (
     guildMember: GuildMember,
     owedTo: GuildMember,
     createdInChannel: string,
-    tags: string
+    tags: string,
+    numRepeats?: Number,
+    endRepeatsDate?: Date
 ): Promise<Bounty> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const dbBounty = db.collection('bounties');
@@ -246,7 +288,10 @@ const createDbHandler = async (
         assignedTo,
         gatedTo,
         createdInChannel,
-        tags);
+        tags,
+        numRepeats,
+        endRepeatsDate
+    );
 
 
     let dbInsertResult = await dbBounty.insertOne(createdBounty);
@@ -281,7 +326,9 @@ export const generateBountyRecord = async (
     assignedTo: GuildMember,
     gatedTo: Role,
     createdInChannel: string,
-    tags: string
+    tags: string,
+    numRepeats?: Number,
+    endRepeatsDate?: Date
 ): Promise<Bounty> => {
 
     Log.debug('generating bounty record');
@@ -350,14 +397,17 @@ export const generateBountyRecord = async (
         }
     }
 
-    // Repeating bounty. If templateId set, we are creating an occurrence. If not, we are creating the template itselfyarn
+    // Repeating bounty. If templateId set, we are creating an occurrence. If not, we are creating the template itself
     if (createRequest.repeatDays > 0) {
         if (createRequest.templateId) {
             bountyRecord.repeatTemplateId = createRequest.templateId;
         } else {
             bountyRecord.isRepeatTemplate = true;
+            bountyRecord.numRepeats = numRepeats;
+            bountyRecord.endRepeatsDate = endRepeatsDate ? endRepeatsDate.toISOString() : null;
         }
         bountyRecord.repeatDays = createRequest.repeatDays;
+
     }
 
     if (createRequest.assign) {
