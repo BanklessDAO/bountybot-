@@ -156,6 +156,7 @@ const writeDbHandler = async (request: ClaimRequest, dbBountyResult: BountyColle
         delete childBounty.childrenIds;
         delete childBounty.claimLimit;
         delete childBounty.canonicalCard;
+        delete childBounty.repeatTemplateId;   // Only evergreen parent points to template when repeating
         const claimedInsertResult = await bountyCollection.insertOne(childBounty);
         if (claimedInsertResult == null) {
             Log.error('failed to create claimed bounty from evergreen');

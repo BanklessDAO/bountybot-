@@ -69,7 +69,7 @@ const BountyUtils = {
         let endRepeatsDate: Date = null;
         try {
             console.log("Matched date");
-            endRepeatsDate = new Date((new Date(numOrDate)).setHours(0, 0, 0, 0));
+            endRepeatsDate = new Date(numOrDate);
             console.log(`End date: ${endRepeatsDate.toISOString()}`);
         } catch (e) {
             throw new ValidationError('Please try `UTC` end repeat date in format yyyy-mm-dd, i.e 2024-08-15');
@@ -303,7 +303,7 @@ const BountyUtils = {
             secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`IOU owed to ${bountyRecord.claimedBy.discordHandle}`);
         } 
 
-        if (bountyRecord.requireApplication) {
+        if (bountyRecord.requireApplication && (bountyRecord.status == BountyStatus.open)) {
             let appTitle =  `requires application before claiming`;
             if (bountyRecord.applicants) {
                 if (bountyRecord.applicants.length == 1) {

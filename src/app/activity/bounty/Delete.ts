@@ -1,7 +1,7 @@
 import { DeleteRequest } from '../../requests/DeleteRequest';
 import DiscordUtils from '../../utils/DiscordUtils';
 import Log, { LogUtils } from '../../utils/Log';
-import { ButtonInteraction, GuildMember, ModalOptions, ModalSubmitInteraction, TextChannel } from 'discord.js';
+import { ButtonInteraction, GuildMember, MessageEmbedOptions, ModalOptions, ModalSubmitInteraction, TextChannel } from 'discord.js';
 import MongoDbUtils from '../../utils/MongoDbUtils';
 import mongo, { Db, UpdateWriteOpResult } from 'mongodb';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
@@ -159,17 +159,17 @@ export const finishDelete = async (request: DeleteRequest) => {
             if (request.silent && bounty.repeatTemplateId && (bounty.status == BountyStatus.open)) {
                 creatorDeleteDM = `The following repeated bounty was unclaimed, and was therefore deleted: <${bountyUrl}>\n`;
             } else {
-                const bountyChannel: TextChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
-                const bountyEmbedMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel).catch(e => {
-                    LogUtils.logError(`could not find bounty ${request.bountyId} in discord #bounty-board channel ${bountyChannel.id} in guild ${request.guildId}`, e);
-                    //throw new RuntimeError(e);
-                });
-
-                if (bountyEmbedMessage) await bountyEmbedMessage.delete();
-
                 creatorDeleteDM =
                     `The following bounty has been deleted: <${bountyUrl}>\n`;
             }
+            const bountyChannel: TextChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
+            const bountyEmbedMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel).catch(e => {
+                LogUtils.logError(`could not find bounty ${request.bountyId} in discord #bounty-board channel ${bountyChannel.id} in guild ${request.guildId}`, e);
+                //throw new RuntimeError(e);
+            });
+
+            if (bountyEmbedMessage) await bountyEmbedMessage.delete();
+
             if (bounty.evergreen && bounty.isParent &&
                 bounty.childrenIds !== undefined && bounty.childrenIds.length > 0) {
                 creatorDeleteDM += 'Children bounties created from this multi-claimant bounty will remain.\n';
@@ -183,9 +183,12 @@ export const finishDelete = async (request: DeleteRequest) => {
     }
 
     if (request.silent) {
+        const bountySummaryEmbed = await deletedBountySummaryEmbed(bounty);
         const guildAndMember = await DiscordUtils.getGuildAndMember(request.guildId, bounty.createdBy.discordId);
         const guildMember: GuildMember = guildAndMember.guildMember;
-        await guildMember.send({ content: creatorDeleteDM }).catch(() => { throw new DMPermissionError(creatorDeleteDM) });
+        await guildMember.send({ content: creatorDeleteDM, embeds: [bountySummaryEmbed] }).catch((e) => { 
+            LogUtils.logError("Embeds error: ", e);
+            throw new DMPermissionError(creatorDeleteDM) });
     } else {    
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorDeleteDM);
     }
@@ -195,7 +198,6 @@ export const finishDelete = async (request: DeleteRequest) => {
 const getDbHandler = async (bountyId: string): Promise<BountyCollection> => {
     const db: Db = await MongoDbUtils.connect('bountyboard');
     const bountyCollection = db.collection('bounties');
-    const customerCollection = db.collection('customers');
 
     const dbBountyResult: BountyCollection = await bountyCollection.findOne({
         _id: new mongo.ObjectId(bountyId),
@@ -240,4 +242,48 @@ const writeDbHandler = async (request: DeleteRequest, deletedByUser: GuildMember
         Log.error(`Write result did not execute correctly`);
         throw new Error(`Write to database for bounty ${request?.bountyId || bountyId} failed for Delete `);
     }
+}
+
+const deletedBountySummaryEmbed = async (bounty: BountyCollection): Promise<any> => {
+
+    const fields = [
+        { name: 'Bounty Id', value: bounty._id.toString(), inline: false },
+        { name: 'Criteria', value: bounty.criteria.toString() },
+        { name: 'Reward', value: bounty.reward.amount + ' ' + bounty.reward.currency, inline: true },
+        { name: 'Created by', value: bounty.createdBy.discordHandle.toString(), inline: true }
+    ];
+    if (bounty.gateTo) {
+        fields.push({ name: 'For role', value: bounty.gateTo[0].discordName, inline: false })
+    } 
+    if (bounty.assignTo) {
+        fields.push({ name: 'For user', value: bounty.assignTo.discordHandle, inline: false })
+    }
+    let templateBounty = null;
+    if (bounty.isRepeatTemplate) {
+        templateBounty = bounty;
+    } else if (bounty.repeatTemplateId) {
+        templateBounty = await getDbHandler(bounty.repeatTemplateId);
+    }
+    if (templateBounty) {
+        fields.push({ name: 'Repeats every', value: templateBounty.repeatDays + ` day${templateBounty.repeatDays > 1 ? 's' : ''}`, inline: false });
+        if (templateBounty.endRepeatsDate) {
+            fields.push({ name: 'Ending', value: BountyUtils.formatDisplayDate(templateBounty.endRepeatsDate), inline: true});
+        } else {
+            fields.push({ name: 'Ending after', value: templateBounty.numRepeats + ' repeats', inline: true});
+        }
+    }
+
+    
+    const cardEmbeds: MessageEmbedOptions = {
+        title: bounty.title,
+        author: {
+            iconURL: bounty.createdBy.iconUrl,
+            name: `${bounty.createdBy.discordHandle}`
+        },
+        description: bounty.description,
+        fields: fields,
+    };
+
+    
+    return cardEmbeds;
 }
