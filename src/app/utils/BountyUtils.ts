@@ -61,20 +61,20 @@ const BountyUtils = {
         if (numOrDate.match(/^[0-9 ]+$/) !== null) {
             console.log("Matched integer");
             const numRepeats = parseInt(numOrDate);
-            if (!(numRepeats > 0) || (numRepeats > MAX_REPEATS)) {
-                throw new ValidationError('Number of repeats must be between 1 and 100');
+            if (!(numRepeats > 1) || (numRepeats > MAX_REPEATS)) {
+                throw new ValidationError('Number of repeats must be between 2 and 100');
             }
             return {numRepeats: numRepeats, endRepeatsDate: null};
         }
         let endRepeatsDate: Date = null;
         try {
             console.log("Matched date");
-            endRepeatsDate = new Date(numOrDate + 'T00:00:00.000Z');
+            endRepeatsDate = new Date((new Date(numOrDate)).setHours(0, 0, 0, 0));
             console.log(`End date: ${endRepeatsDate.toISOString()}`);
         } catch (e) {
             throw new ValidationError('Please try `UTC` end repeat date in format yyyy-mm-dd, i.e 2024-08-15');
         };
-        const now = new Date();
+        const now = new Date(new Date().setHours(0, 0, 0, 0));
         if (now > endRepeatsDate) {
             throw new ValidationError('Please enter an end date in the future');
         }
@@ -368,12 +368,12 @@ const BountyUtils = {
         if (!!bounty.submittedBy) fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
         if (!!bounty.reviewedBy) fields.push({ name: 'Reviewed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, bounty.customerId)).user.tag, inline: true });
         if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
-        if (bounty.repeatDays && (bountyTemplate.status !== BountyStatus.deleted)) {
-            fields.push({ name: 'Repeats every', value: bounty.repeatDays + ` day${bounty.repeatDays > 1 ? 's' : ''}`, inline: false });
-            if (bounty.endRepeatsDate) {
-                fields.push({ name: 'Ending', value: BountyUtils.formatDisplayDate(bounty.endRepeatsDate), inline: true});
+        if (bountyTemplate && (bountyTemplate.status !== BountyStatus.deleted)) {
+            fields.push({ name: 'Repeats every', value: bountyTemplate.repeatDays + ` day${bountyTemplate.repeatDays > 1 ? 's' : ''}`, inline: false });
+            if (bountyTemplate.endRepeatsDate) {
+                fields.push({ name: 'Ending', value: BountyUtils.formatDisplayDate(bountyTemplate.endRepeatsDate), inline: true});
             } else {
-                fields.push({ name: 'Ending after', value: bounty.numRepeats + ' repeats', inline: true});
+                fields.push({ name: 'Ending after', value: bountyTemplate.numRepeats + ' repeats', inline: true});
             }
             fields.push({ name: '# Repeated', value: bountyRepeats.toString(), inline: true });
         }

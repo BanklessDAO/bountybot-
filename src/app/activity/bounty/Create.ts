@@ -30,9 +30,7 @@ export const createBounty = async (createRequest: CreateRequest): Promise<any> =
         const dueAtOffset = templateDueAt.getTime() - templateCreatedAt.getTime();
         const dueAtTime = now.getTime() + dueAtOffset;
         const dueAt = new Date(dueAtTime);
-
-        const endRepeatsDate = template.endRepeatsDate ? new Date(template.endRepeatsDate) : null;
-        await finishCreate(createRequest, template.description, template.criteria, dueAt, template.tags?.keywords?.join(','), template.numRepeats, endRepeatsDate);
+        await finishCreate(createRequest, template.description, template.criteria, dueAt, template.tags?.keywords?.join(','));
     } else {
         const repeatEndModal: ComponentActionRow = createRequest.repeatDays ? {
             type: ComponentType.ACTION_ROW,
@@ -397,18 +395,17 @@ export const generateBountyRecord = async (
         }
     }
 
-    // Repeating bounty. If templateId set, we are creating an occurrence. If not, we are creating the template itself
-    if (createRequest.repeatDays > 0) {
-        if (createRequest.templateId) {
-            bountyRecord.repeatTemplateId = createRequest.templateId;
-        } else {
-            bountyRecord.isRepeatTemplate = true;
-            bountyRecord.numRepeats = numRepeats;
-            bountyRecord.endRepeatsDate = endRepeatsDate ? endRepeatsDate.toISOString() : null;
-        }
+    // Repeating bounty. If templateId set, we are creating an occurrence. If repeatDays set, we are creating the template itself
+    if (createRequest.templateId) {
+        bountyRecord.repeatTemplateId = createRequest.templateId;
+    } 
+    if (createRequest.repeatDays) {
+        bountyRecord.isRepeatTemplate = true;
+        bountyRecord.numRepeats = numRepeats;
+        bountyRecord.endRepeatsDate = endRepeatsDate ? endRepeatsDate.toISOString() : null;
         bountyRecord.repeatDays = createRequest.repeatDays;
-
     }
+
 
     if (createRequest.assign) {
         bountyRecord.assignTo = {

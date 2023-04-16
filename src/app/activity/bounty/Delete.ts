@@ -11,11 +11,12 @@ import { CommandContext, ComponentType, ModalOptions as scModalOptions, ModalInt
 import crypto from 'crypto';
 import ModalTimeoutError from '../../errors/ModalTimeoutError';
 import BountyUtils from '../../utils/BountyUtils';
+import DMPermissionError from '../../errors/DMPermissionError';
 
 export const deleteBounty = async (request: DeleteRequest): Promise<void> => {
     Log.debug('In Delete activity');
 
-    // Came in just to delete a bounty. No messages or interactions
+    // Came in just to delete a bounty. Don't ask questions or resolve interactions. Send DM instead
     if (request.silent) {
         await finishDelete(request);
         return;
@@ -137,27 +138,42 @@ export const finishDelete = async (request: DeleteRequest) => {
 
     let creatorDeleteDM = "";
 
-    if (BountyUtils.validateDeletableStatus(bounty)) {
+    if (request.silent || BountyUtils.validateDeletableStatus(bounty)) {
         const deletedByUser = await DiscordUtils.getGuildMemberFromUserId(request.userId, request.guildId);
         Log.info(`${request.bountyId} bounty deleted by ${deletedByUser.user.tag}`);
 
         await writeDbHandler(request, deletedByUser);
 
-        const bountyChannel: TextChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
-        const bountyEmbedMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel).catch(e => {
-            LogUtils.logError(`could not find bounty ${request.bountyId} in discord #bounty-board channel ${bountyChannel.id} in guild ${request.guildId}`, e);
-            //throw new RuntimeError(e);
-        });
+        // The cron job is deleting an expired repeating bounty
+        if (bounty.isRepeatTemplate) {
+            creatorDeleteDM += `Repeating bounty \"${bounty.title}\", ID: ${bounty._id}, has reached its `;
+            if (bounty.numRepeats) {
+                creatorDeleteDM += `limit of ${bounty.numRepeats} repeats `;
+            } else {
+                creatorDeleteDM += `end date of ${(new Date(bounty.endRepeatsDate)).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} `;
+            }
+            creatorDeleteDM += 'and has been deleted.';
+        } else {
+            const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
+            // The cron job is deleting an unclaimed repeat
+            if (request.silent && bounty.repeatTemplateId && (bounty.status == BountyStatus.open)) {
+                creatorDeleteDM = `The following repeated bounty was unclaimed, and was therefore deleted: <${bountyUrl}>\n`;
+            } else {
+                const bountyChannel: TextChannel = await DiscordUtils.getTextChannelfromChannelId(bounty.canonicalCard.channelId);
+                const bountyEmbedMessage = await DiscordUtils.getMessagefromMessageId(bounty.canonicalCard.messageId, bountyChannel).catch(e => {
+                    LogUtils.logError(`could not find bounty ${request.bountyId} in discord #bounty-board channel ${bountyChannel.id} in guild ${request.guildId}`, e);
+                    //throw new RuntimeError(e);
+                });
 
-        if (bountyEmbedMessage) await bountyEmbedMessage.delete();
+                if (bountyEmbedMessage) await bountyEmbedMessage.delete();
 
-        const bountyUrl = process.env.BOUNTY_BOARD_URL + request.bountyId;
-        creatorDeleteDM =
-            `The following bounty has been deleted: <${bountyUrl}>\n`;
-
-        if (bounty.evergreen && bounty.isParent &&
-            bounty.childrenIds !== undefined && bounty.childrenIds.length > 0) {
-            creatorDeleteDM += 'Children bounties created from this multi-claimant bounty will remain.\n';
+                creatorDeleteDM =
+                    `The following bounty has been deleted: <${bountyUrl}>\n`;
+            }
+            if (bounty.evergreen && bounty.isParent &&
+                bounty.childrenIds !== undefined && bounty.childrenIds.length > 0) {
+                creatorDeleteDM += 'Children bounties created from this multi-claimant bounty will remain.\n';
+            }
         }
     } else {
         creatorDeleteDM =
@@ -166,7 +182,13 @@ export const finishDelete = async (request: DeleteRequest) => {
             `Please reach out to your favorite Bounty Board representative with any questions!`;
     }
 
-    if (!request.silent) await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorDeleteDM);
+    if (request.silent) {
+        const guildAndMember = await DiscordUtils.getGuildAndMember(request.guildId, bounty.createdBy.discordId);
+        const guildMember: GuildMember = guildAndMember.guildMember;
+        await guildMember.send({ content: creatorDeleteDM }).catch(() => { throw new DMPermissionError(creatorDeleteDM) });
+    } else {    
+        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorDeleteDM);
+    }
     return;
 }
 

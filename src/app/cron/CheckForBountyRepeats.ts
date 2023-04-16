@@ -27,76 +27,108 @@ export const checkForBountyRepeats = async (): Promise<void> => {
 	let customersAddedTo = new Map();
 
 	while (await bountyTemplates.hasNext()) {
-		// TODO need try-catch here
 		const template: BountyCollection = await bountyTemplates.next();
-		const lastChild: BountyCollection = await bountyCollection.findOne({ 'repeatTemplateId': template._id }, { sort: { 'createdAt': -1 } });
-		if (lastChild) {
-			Log.info(`Found last child ${lastChild._id}`)
+		const children: Cursor = bountyCollection.find({ 'repeatTemplateId': template._id }, { sort: { 'createdAt': -1 } });
+
+		// If hit end of repeats, delete the template
+		if (await areRepeatsDone(template, children)) {
+			const deleteRequest = new DeleteRequest({
+				commandContext: null,
+				messageReactionRequest: null,
+				directRequest: {
+					bountyId: template._id,
+					guildId: template.customerId,
+					userId: client.user.id,
+					activity: Activities.delete,
+					resolutionNote: 'Repeats exhausted',
+					silent: true,
+					bot: client.user.bot
+				},
+				buttonInteraction: null
+			});
 			try {
-				const lastCreatedAt = new Date(lastChild.createdAt);  // UTC
-				const now = new Date();
-				const timeDiff = Math.abs(now.getTime() - lastCreatedAt.getTime());
-				//const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));   **DOING HOURS FOR TESTING. TODO REPLACE WITH DAYS
-				const daysDiff = Math.floor(timeDiff / (1000 * 360));
-				console.log(`daysDiff: ${daysDiff} repeatDays: ${template.repeatDays}`);
-				if (daysDiff >= template.repeatDays) {
-					const createRequest: CreateRequest = new CreateRequest({ commandContext: null, templateId: template._id, guildID: template.customerId, userID: template.createdBy.discordId });
-					createRequest.title = template.title;
-					createRequest.reward = template.reward.amount + ' ' + template.reward.currency;
-					createRequest.createdInChannel = template.createdInChannel;
-					createRequest.evergreen = template.evergreen;
-					createRequest.claimLimit = template.claimLimit;
-					createRequest.requireApplication = template.requireApplication;
-					createRequest.assign = template.assignTo?.discordId;
-					if (template.gateTo) createRequest.gate = template.gateTo[0]?.discordId;
-					createRequest.isIOU = template.isIOU;
-					createRequest.owedTo = template.claimedBy?.discordId;
-					createRequest.repeatDays = template.repeatDays;
+				await deleteBounty(deleteRequest);
+			} catch (e) {
+				if (e instanceof DMPermissionError) {
+					LogUtils.logError(`Could not send DM after deleting repeating bounty ${template._id}`, e);
+				} else {
 
-					try {
-						await createBounty(createRequest);
-						if (!customersAddedTo.get(createRequest.guildId)) {
-							customersAddedTo.set(createRequest.guildId, createRequest);
-						}
-					} catch (e) {
-						if (e instanceof DMPermissionError) {
-							LogUtils.logError(`Could not send DM after creating bounty from template ${template._id}`, e);
-						} else {
-							LogUtils.logError(`Could not create bounty from template ${template._id}`, e);
-							continue;
-						}
-					}
+					LogUtils.logError(`Could not delete repeating bounty ${template._id}`, e);
+				}
+				continue;
+			}
+		} else {
+			// See if we are repeat-days past the last child, and if so, create another.
+			const lastChild = await children.next();
+			if (lastChild) {
+				Log.info(`Found last child ${lastChild._id}`)
+				try {
+					const lastCreatedAt = new Date(lastChild.createdAt);  // UTC
+					const now = new Date();
+					const timeDiff = Math.abs(now.getTime() - lastCreatedAt.getTime());
+					//const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));   **DOING HOURS FOR TESTING. TODO REPLACE WITH DAYS
+					const daysDiff = Math.floor(timeDiff / (1000 * 360));
+					console.log(`daysDiff: ${daysDiff} repeatDays: ${template.repeatDays}`);
+					if (daysDiff >= template.repeatDays) {
+						const createRequest: CreateRequest = new CreateRequest({ commandContext: null, templateId: template._id, guildID: template.customerId, userID: template.createdBy.discordId });
+						createRequest.title = template.title;
+						createRequest.reward = template.reward.amount + ' ' + template.reward.currency;
+						createRequest.createdInChannel = template.createdInChannel;
+						createRequest.evergreen = template.evergreen;
+						createRequest.claimLimit = template.claimLimit;
+						createRequest.requireApplication = template.requireApplication;
+						createRequest.assign = template.assignTo?.discordId;
+						if (template.gateTo) createRequest.gate = template.gateTo[0]?.discordId;
+						createRequest.isIOU = template.isIOU;
+						createRequest.owedTo = template.claimedBy?.discordId;
 
-					// Delete the most recent repeat if not claimed
-					if (lastChild.status == BountyStatus.open) {
-						const deleteRequest = new DeleteRequest({
-							commandContext: null,
-							messageReactionRequest: null,
-							directRequest: {
-								bountyId: lastChild._id,
-								guildId: lastChild.customerId,
-								userId: client.user.id,
-								activity: Activities.delete,
-								resolutionNote: 'Unclaimed repeat bounty',
-								silent: true,
-								bot: client.user.bot
-							},
-							buttonInteraction: null
-						});
 						try {
-							await deleteBounty(deleteRequest);
+							await createBounty(createRequest);
+							if (!customersAddedTo.get(createRequest.guildId)) {
+								customersAddedTo.set(createRequest.guildId, createRequest);
+							}
 						} catch (e) {
 							if (e instanceof DMPermissionError) {
-								LogUtils.logError(`Could not send DM after deleting unclaimed bounty ${lastChild._id}`, e);
+								LogUtils.logError(`Could not send DM after creating bounty from template ${template._id}`, e);
 							} else {
+								LogUtils.logError(`Could not create bounty from template ${template._id}`, e);
+							}
+							continue;
+						}
 
-								LogUtils.logError(`Could not delete unclaimed bounty ${lastChild._id}`, e);
+						// Delete the most recent repeat if not claimed
+						if (lastChild.status == BountyStatus.open) {
+							const deleteRequest = new DeleteRequest({
+								commandContext: null,
+								messageReactionRequest: null,
+								directRequest: {
+									bountyId: lastChild._id,
+									guildId: lastChild.customerId,
+									userId: client.user.id,
+									activity: Activities.delete,
+									resolutionNote: 'Unclaimed repeat bounty',
+									silent: true,
+									bot: client.user.bot
+								},
+								buttonInteraction: null
+							});
+							try {
+								await deleteBounty(deleteRequest);
+							} catch (e) {
+								if (e instanceof DMPermissionError) {
+									LogUtils.logError(`Could not send DM after deleting unclaimed bounty ${lastChild._id}`, e);
+								} else {
+
+									LogUtils.logError(`Could not delete unclaimed bounty ${lastChild._id}`, e);
+								}
+								continue;
 							}
 						}
 					}
+				} catch (e) {
+					LogUtils.logError(`Could not create bounty from template ${template._id}`, e);
+					continue;
 				}
-			} catch (e) {
-				LogUtils.logError(`Could not create bounty from template ${template._id}`, e);
 			}
 		}
 	}
@@ -105,4 +137,28 @@ export const checkForBountyRepeats = async (): Promise<void> => {
 	for (const [customerId, request] of customersAddedTo.entries()) {
 		DiscordUtils.refreshLastList(customerId, request);
 	}
+}
+
+export const areRepeatsDone = async (template: BountyCollection, children: Cursor): Promise<boolean> => {
+	// Max repeats reached?
+	if (template.numRepeats && (await children.count() >= template.numRepeats)) {
+		return true;
+	}
+
+	// End date reached?
+	if (template.endRepeatsDate) {
+		try {
+			console.log(`Checking date ${template.endRepeatsDate}`);
+			const endDate = (new Date(template.endRepeatsDate)).setHours(0, 0, 0, 0);
+			const now = (new Date()).setHours(0, 0, 0, 0);
+			console.log(`against ${new Date(now).toISOString()}`);
+
+			return now > endDate;
+		} catch (e) {
+			LogUtils.logError(`Could not evaluate template end date ${template._id}`, e);
+		}
+	}
+
+	return false;
+
 }
