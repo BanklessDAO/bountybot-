@@ -69,7 +69,7 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
                     status: { $ne: 'Deleted' },
 					'isRepeatTemplate': { $ne: true }
                 }).sort({ status: -1, createdAt: -1 });
-		listTitle = `${channelCategory.name} Bounties`
+				listTitle = `${channelCategory.name} Bounties`;
             } else {
                 // Make sure "in_review" bounties don't exhaust the list limit before "in_progress" are fetched
                 const statusOrder = [ BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review ];
@@ -144,13 +144,27 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
 	const currentDateString = currentDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
 	const currentTimeString = currentDate.toLocaleTimeString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short'});
 	let footerText = `As of ${currentDateString + ', ' + currentTimeString}. \nClick on the bounty name for more detail or to take action.\n`;
-	if (!listType && !channelCategory && !tag) footerText += `👷 DM my claimed or applied for bounties | 📝 DM my created bounties | 🔄 Refresh list`;
+	if (!listType) {
+		if (!channelCategory && !tag) footerText += `👷 DM my claimed or applied for bounties | 📝 DM my created bounties | 🔄 Refresh list`;
+		else {
+			footerText += tag ? `Tag: ${tag}\n` : '';
+			footerText += channelCategory ? `Channel Category: ${channelCategory.id}\n` : '';
+			footerText += '🔄 Refresh list';
+		}
+	}
 	listCard.footer = { text: footerText };
 	let listMessage: Message;
-	if (!listType && !channelCategory && !tag) {
-	    const componentActions = new MessageActionRow().addComponents(['👷', '📝', '🔄']
-	        .map(a => new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
-		))
+	if (!listType) {
+		let componentActions: MessageActionRow;
+		if (!channelCategory && !tag) {
+			componentActions = new MessageActionRow().addComponents(['👷', '📝', '🔄']
+				.map(a => new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
+			));
+		} else {
+			componentActions = new MessageActionRow().addComponents([
+				new MessageButton().setEmoji('🔄').setStyle('SECONDARY').setCustomId('🔄')
+			]);
+		}
 		if (!!request.message) {  // List from a refresh reaction
 		    listMessage = request.message;
 		    await listMessage.edit({ embeds: [listCard], components: [componentActions] });
