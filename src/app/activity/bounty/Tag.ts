@@ -26,7 +26,9 @@ export const tagBounty = async (request: TagRequest): Promise<void> => {
     await DiscordUtils.activityResponse(
         request.commandContext,
         request.buttonInteraction,
-        tagResponse,
+        tagResponse, 
+        request.userId, 
+        request.guildId,
         bountyCard.url
     );
     return;
