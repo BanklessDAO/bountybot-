@@ -50,9 +50,7 @@ export class ListRequest extends Request {
                 if (footer) {
                     const tagRegex = /^Tag:\s(.*)/m;
                     const foundTag = tagRegex.exec(footer);
-                    console.log(`foundTag ${JSON.stringify(foundTag)}`);
                     if (foundTag) this.tag = foundTag[1];
-                    console.log(`Tag: ${this.tag}`);
 
                     const categoryRegex = /^Channel Category:\s(.*)/m;
                     const foundCategory = categoryRegex.exec(footer);

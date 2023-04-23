@@ -147,6 +147,7 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
 	if (!listType) {
 		if (!channelCategory && !tag) footerText += `👷 DM my claimed or applied for bounties | 📝 DM my created bounties | 🔄 Refresh list`;
 		else {
+			// This footer format is important! Used to parse tag and category on refresh
 			footerText += tag ? `Tag: ${tag}\n` : '';
 			footerText += channelCategory ? `Channel Category: ${channelCategory.id}\n` : '';
 			footerText += '🔄 Refresh list';
