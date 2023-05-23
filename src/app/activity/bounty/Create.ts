@@ -327,14 +327,6 @@ export const generateBountyRecord = async (
         }
     }
 
-    // if (createRequest.assign) {
-    //     bountyRecord.assignTo = {
-    //         discordId: assignedTo.user.id,
-    //         discordHandle: assignedTo.user.tag,
-    //         iconUrl: assignedTo.user.avatarURL(),
-    //     }
-    // }
-
     if (createRequest.requireApplication) {
         bountyRecord.requireApplication = true;
     }
