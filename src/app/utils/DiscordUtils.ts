@@ -13,7 +13,7 @@ import { ListRequest } from '../requests/ListRequest';
 import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import MongoDbUtils from '../utils/MongoDbUtils';
 import BountyUtils from './BountyUtils';
-import { LogUtils } from './Log';
+import Log, { LogUtils } from './Log';
 
 
 
@@ -151,17 +151,8 @@ const DiscordUtils = {
         return messages.first();
     },
 
-    async interactionResponse(buttonInteraction: ButtonInteraction, content: string, link?: string, linkTitle?: string) {
-        let replyOptions: MessageOptions = { content: content };
-        if (link) {
-            const componentActions = new MessageActionRow().addComponents(
-                new MessageButton()
-                    .setLabel(linkTitle ? linkTitle : 'View Bounty')
-                    .setStyle('LINK')
-                    .setURL(link || '')
-            );
-            replyOptions.components = [componentActions];
-        } 
+    async interactionResponse(buttonInteraction: ButtonInteraction, replyOptions: MessageOptions) {
+    
         try {
             if ((buttonInteraction.deferred || buttonInteraction.replied)) await buttonInteraction.followUp(Object.assign(replyOptions, { ephemeral: true }) as InteractionReplyOptions);
             else await buttonInteraction.reply(Object.assign(replyOptions, { ephemeral: true }) as InteractionReplyOptions);
@@ -172,8 +163,24 @@ const DiscordUtils = {
     },
 
     // Send a response to a command (use ephemeral) or a reaction (use the context) or if neither, treat it as an activityNotification instead
-    async activityResponse(commandContext: CommandContext, buttonInteraction: ButtonInteraction, content: string, link?: string, linkTitle?: string): Promise<void> {
-        if (!!commandContext) { // This was a slash command
+    async activityResponse(commandContext: CommandContext, buttonInteraction: ButtonInteraction, content: string, userId: string, customerId: string, link?: string, linkTitle?: string): Promise<void> {
+        if (!commandContext) { // Either a button interaction or a direct message
+            let replyOptions: MessageOptions = { content: content };
+            if (link) {
+                const componentActions = new MessageActionRow().addComponents(
+                    new MessageButton()
+                        .setLabel(linkTitle ? linkTitle : 'View Bounty')
+                        .setStyle('LINK')
+                        .setURL(link || '')
+                );
+                replyOptions.components = [componentActions];
+            }
+            if (buttonInteraction){
+                await this.interactionResponse(buttonInteraction, replyOptions);
+            } else {
+                await this.attemptDM(replyOptions, userId, customerId);
+            } 
+        } else { // This was a slash command
             const btnComponent =  (link ? [{
 				type: ComponentType.ACTION_ROW,
 				components: [{
@@ -184,38 +191,59 @@ const DiscordUtils = {
 				}]
              }] : []) as ComponentActionRow[];
             await commandContext.send({ content: content, ephemeral: true, components: btnComponent });
-        } else { // This was a button interaction
-            await this.interactionResponse(buttonInteraction, content, link, linkTitle);
-        }
+        } 
     },
 
     // Send a notification to an interested party (use a DM)
     async activityNotification(
         content: string,
         toUser: GuildMember,
+        customerId: string,
         link: string,
         bountyCard?: {
             embeds: MessageEmbedOptions,
             buttons: MessageButton[]
         }
     ): Promise<void> {
-        try {
-            const linkButton = new MessageButton()
-                .setLabel('View Bounty')
-                .setStyle('LINK')
-                .setURL(link || '');
+        const linkButton = new MessageButton()
+            .setLabel('View Bounty')
+            .setStyle('LINK')
+            .setURL(link || '');
 
-            await toUser.send({
-                content,
-                embeds: bountyCard ? [bountyCard.embeds] : [],
-                components: bountyCard
-                    ? [new MessageActionRow().addComponents(
-                        bountyCard.buttons.concat(linkButton)
-                        )]
-                    : link && [new MessageActionRow().addComponents(linkButton)]
-            });
+        await this.attemptDM({
+            content,
+            embeds: bountyCard ? [bountyCard.embeds] : [],
+            components: bountyCard
+                ? [new MessageActionRow().addComponents(
+                    bountyCard.buttons.concat(linkButton)
+                    )]
+                : link && [new MessageActionRow().addComponents(linkButton)]
+        }, toUser, customerId);
+    },
+
+    async attemptDM(content: string | MessageOptions, user: string | GuildMember, customerId: string): Promise<void> {
+        let guildMember: GuildMember;
+        if (typeof user === "string") {
+            guildMember = await this.getGuildMemberFromUserId(user, customerId);
+        } else {
+            guildMember = user;
+        }
+        try {
+            await guildMember.send(content);
         } catch (e) {
-            throw new NotificationPermissionError(content);
+            if (!user || !customerId) {
+                Log.error(`Cannot send DM, no user or customer given.\nContent: ${JSON.stringify(content)}\ne.message`);
+            } else {
+                Log.info(`Attempt to send DM to ${guildMember.displayName} failed with ${e.message}. Attempting channel message instead.`);
+                const bountyChannel = await DiscordUtils.getBountyChannelfromCustomerId(customerId);
+                const kick = `<@${guildMember.id}>, allow DMs from the Bounty Bot, I'm trying to send you a message ;). Here it is:\n`
+                if (typeof content === "string") {
+                    content = kick + content;
+                } else {
+                    content.content = kick + content.content;
+                }
+                await bountyChannel.send(content);
+            }
         }
     },
 

@@ -11,8 +11,9 @@ import { BountyStatus } from '../../constants/bountyStatus';
 import { Clients } from '../../constants/clients';
 import { PaidStatus } from '../../constants/paidStatus';
 import { Activities } from '../../constants/activities';
-import DMPermissionError from '../../errors/DMPermissionError';
 import { ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
+import { AssignRequest } from '../../requests/AssignRequest';
+import { assignBounty } from './Assign';
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
     Log.debug('In Create activity');
@@ -168,8 +169,8 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
 
     if (createRequest.isIOU) {
         // await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created." } , { ephemeral: true });
-        const IOUContent = `<@${owedTo.id}> An IOU was created for you by <@${guildMember.user.id}>: ${cardMessage.url}`;
-        await owedTo.send({ content: IOUContent }).catch(() => { throw new DMPermissionError(IOUContent) });
+        const IOUContent = `<@${owedTo.id}> An IOU was created for you by <@${guildMember.user.id}>:`;
+        await DiscordUtils.activityNotification(IOUContent, owedTo, createRequest.guildId, cardMessage.url);
 
         const walletNeeded = !(await BountyUtils.userWalletRegistered(owedTo.id));
 
@@ -180,13 +181,29 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
             const iouWalletMessage = `Please click the button below to enter your ethereum wallet address (non-ENS) to receive the reward amount for this bounty`;
             const walletButton = new MessageButton().setStyle('SECONDARY').setCustomId('👛').setLabel('Register Wallet');
 
-            await owedTo.send({ content: iouWalletMessage, components: [new MessageActionRow().addComponents(walletButton)] });
+            await DiscordUtils.attemptDM({ content: iouWalletMessage, components: [new MessageActionRow().addComponents(walletButton)] }, owedTo, createRequest.guildId);
         }
 
         await DiscordUtils.activityResponse(createRequest.commandContext, null, 'IOU created successfully.' + (walletNeeded ? "\n" +
-        `${owedTo} has not registered a wallet. Remind them to check their DMs for a register wallet button, or to use the /register-wallet command.` : ""));
+        `${owedTo} has not registered a wallet. Remind them to check their DMs for a register wallet button, or to use the /register-wallet command.` : ""), createRequest.userId, createRequest.guildId);
     } else {
         await modalContext?.send('Bounty created, see below...');
+        if (createRequest.assign) {
+            const assignRequest = new AssignRequest({
+                commandContext: null,
+                messageReactionRequest: null,
+                buttonInteraction: null,
+                directRequest: {
+                    guildId: createRequest.guildId,
+                    bountyId: newBounty._id,
+                    userId: createRequest.userId,
+                    assign: createRequest.assign,
+                    activity: Activities.assign,
+                    bot: false,
+                }
+            });
+            await assignBounty(assignRequest);
+        }
         return;
     }
 }
@@ -307,14 +324,6 @@ export const generateBountyRecord = async (
         bountyRecord.isParent = true;
         if (createRequest.claimLimit !== undefined) {
             bountyRecord.claimLimit = createRequest.claimLimit;
-        }
-    }
-
-    if (createRequest.assign) {
-        bountyRecord.assignTo = {
-            discordId: assignedTo.user.id,
-            discordHandle: assignedTo.user.tag,
-            iconUrl: assignedTo.user.avatarURL(),
         }
     }
 

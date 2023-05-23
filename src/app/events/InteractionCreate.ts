@@ -272,7 +272,7 @@ export default class implements DiscordEvent {
                 errorContent = 'Sorry something is not working and our devs are looking into it.';
             }
 
-            return await DiscordUtils.interactionResponse(interaction, errorContent);
+            return await DiscordUtils.interactionResponse(interaction, {content: errorContent});
         }
     }
 }

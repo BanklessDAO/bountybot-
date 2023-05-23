@@ -35,11 +35,11 @@ export const claimBounty = async (request: ClaimRequest): Promise<any> => {
         } catch (e) {
             if (e instanceof ValidationError) {
                 await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation.\n` +
-                'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
+                'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n', request.userId, request.guildId);
                 return;
             }
             if (e instanceof ModalTimeoutError) {
-                await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation - form timeout.`);
+                await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `Unable to complete this operation - form timeout.`, request.userId, request.guildId);
                 return;
             }
             throw new RuntimeError(e);               
@@ -57,7 +57,7 @@ export const finishClaim = async (request: any) => {
     // Check to make sure they didn't enter DELETE when putting in the wallet address
     if ( !request.clientSyncRequest && walletStillNeeded ) {
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, `You must enter a wallet address to claim a bounty.\n` +
-        'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n');
+        'Please try entering your wallet address with the command `/register-wallet` and then try claiming the bounty again.\n', request.userId, request.guildId);
         return;
     }
 
@@ -94,13 +94,13 @@ export const finishClaim = async (request: any) => {
     }
 
     const createdByUser = await DiscordUtils.getGuildMemberFromUserId(getDbResult.dbBountyResult.createdBy.discordId, request.guildId);
-    await DiscordUtils.activityNotification(creatorNotification, createdByUser, claimedBountyCard.url);
+    await DiscordUtils.activityNotification(creatorNotification, createdByUser, request.guildId, claimedBountyCard.url);
 
     const claimaintResponse = `<@${claimedByUser.user.id}>, you have claimed this bounty! Reach out to <@${createdByUser.user.id}> with any questions.`;
     if (!request.clientSyncRequest) {
-        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, claimaintResponse, claimedBountyCard.url);
+        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, claimaintResponse, request.userId, request.guildId, claimedBountyCard.url);
     } else {
-        await DiscordUtils.activityNotification(claimaintResponse, claimedByUser, claimedBountyCard.url)
+        await DiscordUtils.activityNotification(claimaintResponse, claimedByUser, request.guildId, claimedBountyCard.url)
         if (walletStillNeeded) {
             const walletMessage = `Please click the button below to enter your ethereum wallet address (non-ENS) to receive the reward amount for this bounty`;
             const walletButton = new MessageButton().setStyle('SECONDARY').setCustomId('👛').setLabel('Register Wallet');

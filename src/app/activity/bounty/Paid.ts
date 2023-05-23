@@ -36,8 +36,8 @@ export const paidBounty = async (request: PaidRequest): Promise<void> => {
         `Your bounty has been marked as paid: ${getDbResult.dbBountyResult.title}.\n` +
         `If you don't see a payment post, contact the bounty creator <@${paidByUser.user.id}>`;
     
-    await DiscordUtils.activityNotification(payeeDMContent, payee, cardMessage.url);
-    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorPaidDM, cardMessage.url);
+    await DiscordUtils.activityNotification(payeeDMContent, payee, request.guildId, cardMessage.url);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorPaidDM, request.userId, request.guildId, cardMessage.url);
     return;
 }
 
