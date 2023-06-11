@@ -30,6 +30,16 @@ const ValidationModule = {
      * @returns empty Promise for error handling or async calls
      */
     async run(request: any): Promise<void> {
+
+        // Check if a bounty is passed in and if it is a template. If so, bail. No commands can be run on templates
+        if (request.bountyId) {
+            const db: Db = await MongoDbUtils.connect('bountyboard');
+            const dbBounty = db.collection('bounties');
+            const bounty: BountyCollection = await dbBounty.findOne({'_id': new mongo.ObjectId(request.bountyId)});
+            if (bounty && bounty.isRepeatTemplate) {
+                throw new ValidationError(`Cannot perform this action on a bounty template`);
+            }
+        }
         Log.debug(`Reached Validation Handler. Entering activity ${request.activity}`);
         switch (request.activity) {
             case Activities.create:
@@ -86,6 +96,8 @@ const create = async (request: CreateRequest): Promise<void> => {
     BountyUtils.validateEvergreen(request.evergreen, request.claimLimit, !!request.assign);
 
     BountyUtils.validateRequireApplications(request);
+
+    BountyUtils.validateRepeatDays(request.repeatDays);
 
     if (request.gate && request.assign) {
         throw new ValidationError(
@@ -368,21 +380,16 @@ const deleteValidation = async (request: DeleteRequest): Promise<void> => {
         );
     }
 
-    const currentDate: string = (new Date()).toISOString();
-
-    const invalidBountyStatus = 
-        dbBountyResult.status && 
-        !(dbBountyResult.status === BountyStatus.draft ||
-        dbBountyResult.status === BountyStatus.open ||
-            (dbBountyResult.status === BountyStatus.in_progress && 
-                !BountyUtils.isWithin24Hours(currentDate, BountyUtils.getClaimedAt(dbBountyResult))));
-
-    if (invalidBountyStatus) {
-        throw new ValidationError(
-            `The bounty id you have selected is in status ${dbBountyResult.status}\n` +
-            `Currently, only bounties with status ${BountyStatus.draft} and ${BountyStatus.open} can be deleted.\n` +
-            `Please reach out to your favorite Bounty Board representative with any questions!`
-            );
+    // If bounty came from a repeat template, let it pass regardless of status. Otherwise check it
+    if (!dbBountyResult.repeatTemplateId) {
+        const validBountyStatus = BountyUtils.validateDeletableStatus(dbBountyResult);
+        if (!validBountyStatus) {
+            throw new ValidationError(
+                `The bounty id you have selected is in status ${dbBountyResult.status}\n` +
+                `Currently, only bounties with status ${BountyStatus.draft} and ${BountyStatus.open} can be deleted.\n` +
+                `Please reach out to your favorite Bounty Board representative with any questions!`
+                );
+        }
     }
 }
 

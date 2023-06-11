@@ -19,18 +19,19 @@ export class ListRequest extends Request {
         buttonInteraction: ButtonInteraction,
     }) {
         if (args.commandContext) {
-            if (args.commandContext.subcommands[0] !== Activities.list) {
-                throw new Error('ListRequest created for non List activity.');
-            }
             super(
-                args.commandContext.subcommands[0],
+                Activities.list,
                 args.commandContext.guildID,
                 args.commandContext.user.id,
                 args.commandContext.user.bot
             );
-            this.listType = args.commandContext.options.list['list-type'];
-            this.channelCategory = args.commandContext.options.list['channel-category'];
-            this.tag = args.commandContext.options.list['tag'];
+
+            // If we are calling List from another activity, assume generic list command
+            if (args.commandContext.options.list) {
+                this.listType = args.commandContext.options.list['list-type'];
+                this.channelCategory = args.commandContext.options.list['channel-category'];
+                this.tag = args.commandContext.options.list['tag'];
+            }
             this.commandContext = args.commandContext;
         } else if (args.messageReactionRequest) {
             const messageReactionRequest: MessageReactionRequest = args.messageReactionRequest;
@@ -43,6 +44,19 @@ export class ListRequest extends Request {
                 messageReactionRequest.user?.bot
             );
             this.message = messageReactionRequest.message;
+            // See if this list included tag and channel category filters (stored in footer)
+            if (this.message.embeds && this.message.embeds[0]) {
+                const footer = this.message.embeds[0].footer?.text;
+                if (footer) {
+                    const tagRegex = /^Tag:\s(.*)/m;
+                    const foundTag = tagRegex.exec(footer);
+                    if (foundTag) this.tag = foundTag[1];
+
+                    const categoryRegex = /^Channel Category:\s(.*)/m;
+                    const foundCategory = categoryRegex.exec(footer);
+                    if (foundCategory) this.channelCategory = foundCategory[1];
+                }
+            };
             this.buttonInteraction = args.buttonInteraction;
             this.listType = args.listType;
         } else {

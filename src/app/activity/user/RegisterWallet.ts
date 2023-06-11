@@ -11,6 +11,7 @@ import RuntimeError from "../../errors/RuntimeError";
 import ValidationError from "../../errors/ValidationError";
 import WalletUtils, { ADDRESS_DELETE_REGEX } from "../../utils/WalletUtils";
 import ModalTimeoutError from "../../errors/ModalTimeoutError";
+import crypto from 'crypto';
 
 export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promise<any> => {
 
@@ -102,7 +103,6 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
         }
         return;
     } else {
-        const crypto = require('crypto');
         const uuid = crypto.randomUUID();
         try {
             await request.buttonInteraction.showModal(Object.assign(modal, {customId: uuid}) as unknown as ModalOptions);

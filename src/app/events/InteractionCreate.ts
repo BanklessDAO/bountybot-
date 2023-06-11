@@ -144,6 +144,7 @@ export default class implements DiscordEvent {
                         userId: user.id,
                         resolutionNote: null,
                         activity: Activities.delete,
+                        silent: false,
                         bot: user.bot
                     },
                     buttonInteraction: interaction,

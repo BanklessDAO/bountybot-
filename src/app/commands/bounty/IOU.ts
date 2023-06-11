@@ -43,6 +43,12 @@ export default class IOU extends SlashCommand {
                     description: 'What is the reward for?',
                     required: true,
                 },
+                {
+                    name: 'repeat-days',
+                    type: CommandOptionType.INTEGER,
+                    description: 'Repeat this IOU every X days',
+                    required: false,
+                }
             ],
             throttling: {
                 usages: 2,
