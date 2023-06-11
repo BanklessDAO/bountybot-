@@ -186,9 +186,7 @@ export const finishDelete = async (request: DeleteRequest) => {
         const bountySummaryEmbed = await deletedBountySummaryEmbed(bounty);
         const guildAndMember = await DiscordUtils.getGuildAndMember(request.guildId, bounty.createdBy.discordId);
         const guildMember: GuildMember = guildAndMember.guildMember;
-        await guildMember.send({ content: creatorDeleteDM, embeds: [bountySummaryEmbed] }).catch((e) => { 
-            LogUtils.logError("Embeds error: ", e);
-            throw new DMPermissionError(creatorDeleteDM) });
+        await DiscordUtils.activityNotification(creatorDeleteDM, guildMember, request.guildId, '', {embeds: bountySummaryEmbed, buttons: []});
     } else {    
         await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorDeleteDM, request.userId, request.guildId);
     }

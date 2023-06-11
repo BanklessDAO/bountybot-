@@ -205,20 +205,23 @@ const DiscordUtils = {
             buttons: MessageButton[]
         }
     ): Promise<void> {
-        const linkButton = new MessageButton()
+        const linkButton = link ? new MessageButton()
             .setLabel('View Bounty')
             .setStyle('LINK')
-            .setURL(link || '');
-
-        await this.attemptDM({
+            .setURL(link) : null;
+        const contentForDM = {
             content,
-            embeds: bountyCard ? [bountyCard.embeds] : [],
-            components: bountyCard
-                ? [new MessageActionRow().addComponents(
-                    bountyCard.buttons.concat(linkButton)
-                    )]
-                : link && [new MessageActionRow().addComponents(linkButton)]
-        }, toUser, customerId);
+            embeds: bountyCard ? [bountyCard.embeds] : []
+        };
+        if (linkButton) {
+            contentForDM["components"] = bountyCard 
+            ? [new MessageActionRow().addComponents(
+                bountyCard.buttons.concat(linkButton)
+                )]
+            : [new MessageActionRow().addComponents(linkButton)];
+        }
+        console.log(`contentForDM: ${JSON.stringify(contentForDM)}`);
+        await this.attemptDM(contentForDM, toUser, customerId);
     },
 
     async attemptDM(content: string | MessageOptions, user: string | GuildMember, customerId: string): Promise<void> {

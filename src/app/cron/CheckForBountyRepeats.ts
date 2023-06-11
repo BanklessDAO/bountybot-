@@ -66,8 +66,8 @@ export const checkForBountyRepeats = async (): Promise<void> => {
 					const lastCreatedAt = new Date(lastChild.createdAt);  // UTC
 					const now = new Date();
 					const timeDiff = Math.abs(now.getTime() - lastCreatedAt.getTime());
-					//const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));   **DOING HOURS FOR TESTING. TODO REPLACE WITH DAYS
-					const daysDiff = Math.floor(timeDiff / (1000 * 360));
+					const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));   
+					// const daysDiff = Math.floor(timeDiff / (1000 * 360));  // ** 6 minute "days" for testing
 					console.log(`daysDiff: ${daysDiff} repeatDays: ${template.repeatDays}`);
 					if (daysDiff >= template.repeatDays) {
 						const createRequest: CreateRequest = new CreateRequest({ commandContext: null, templateId: template._id, guildID: template.customerId, userID: template.createdBy.discordId });
@@ -150,8 +150,8 @@ export const areRepeatsDone = async (template: BountyCollection, children: Curso
 		try {
 			console.log(`Checking date ${template.endRepeatsDate}`);
 			const endDate = (new Date(template.endRepeatsDate)).setHours(0, 0, 0, 0);
-			const now = (new Date()).setHours(0, 0, 0, 0);
-			console.log(`against ${new Date(now).toISOString()}`);
+			const now = new Date().setHours(0,0,0,0);
+			console.log(`against ${new Date(new Date().setHours(0,0,0,0)).toISOString()}`);
 
 			return now > endDate;
 		} catch (e) {

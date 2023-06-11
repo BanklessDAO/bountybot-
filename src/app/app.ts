@@ -72,9 +72,9 @@ creator
 	.syncCommands();
 
 creator.on('componentInteraction', () => true);
-// When the client is ready, run this code (only once)
+// When the client is ready, run this code (only once). Check bounty repeats hourly (could probably be daily)
 client.once('ready', () => {
-	cron.schedule('*/5 * * * * ', checkForBountyRepeats)
+	cron.schedule('0 * * * * ', checkForBountyRepeats)
 	console.log('Ready!');
 });
 

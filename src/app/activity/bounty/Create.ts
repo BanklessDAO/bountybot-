@@ -320,6 +320,9 @@ const createDbHandler = async (
         firstBountyOccurrence.repeatTemplateId = createdBounty._id;
         delete firstBountyOccurrence._id;
         delete firstBountyOccurrence.isRepeatTemplate;
+        delete firstBountyOccurrence.repeatDays;
+        delete firstBountyOccurrence.numRepeats;
+        delete firstBountyOccurrence.endRepeatsDate;
         dbInsertResult = await dbBounty.insertOne(firstBountyOccurrence);
         if (dbInsertResult == null) {
             Log.error('failed to insert bounty into DB');
