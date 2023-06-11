@@ -12,10 +12,20 @@ export class AssignRequest extends Request {
     message: Message;
     buttonInteraction: ButtonInteraction;
 
+
     constructor(args: {
         commandContext: CommandContext, 
         messageReactionRequest: MessageReactionRequest,
         buttonInteraction: ButtonInteraction,
+        directRequest: {
+            guildId: string,
+            bountyId: string,
+            userId: string,
+            assign: string,
+            activity: string
+            bot: boolean,
+        }
+
     }) {
         if (args.commandContext) {
 
@@ -27,7 +37,12 @@ export class AssignRequest extends Request {
             this.bountyId = args.commandContext.options.assign['bounty-id'];
             this.assign = args.commandContext.options.assign['for-user'];
 
-        } else {
+        } else if (args.directRequest) {
+            const { guildId, bountyId, userId, assign, activity, bot } = args.directRequest;
+            super (activity, guildId, userId, bot);
+            this.bountyId = bountyId;
+            this.assign = assign;
+        } else {    
             // TODO add flow to assign though message reaction
             throw new Error('Assign context is required to be not null for AssignRequest construction.');
         }

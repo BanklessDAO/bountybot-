@@ -125,14 +125,15 @@ export const upsertUserWallet = async (request: UpsertUserWalletRequest): Promis
 }
 
 export const finishRegister = async (request: UpsertUserWalletRequest) => {
+    // Not passing user to activityResponse - don't want this on the public channel even if the DM fails
     if (ADDRESS_DELETE_REGEX.test(request.address)) {
-        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, "Your wallet address has been deleted.");
+        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, "Your wallet address has been deleted.", null, null);
       
     } else {
         const activityMessage = `<@${request.userDiscordId}>, your wallet address has been registered as ${request.address}.\n`+
                                 `You can change it by using the /register-wallet command.`;
         const etherscanUrl = `https://etherscan.io/address/${request.address}`;
-        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage, etherscanUrl, "View on Etherscan");
+        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage, null, null, etherscanUrl, "View on Etherscan");
     }
 }
 

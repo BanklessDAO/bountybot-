@@ -11,9 +11,10 @@ import { BountyStatus } from '../../constants/bountyStatus';
 import { Clients } from '../../constants/clients';
 import { PaidStatus } from '../../constants/paidStatus';
 import { Activities } from '../../constants/activities';
-import DMPermissionError from '../../errors/DMPermissionError';
 import { ComponentType, ModalOptions as scModalOptions, ModalInteractionContext, TextInputStyle, ComponentActionRow } from 'slash-create';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
+import { AssignRequest } from '../../requests/AssignRequest';
+import { assignBounty } from './Assign';
 
 export const createBounty = async (createRequest: CreateRequest): Promise<any> => {
     Log.debug('In Create activity');
@@ -223,8 +224,8 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
 
     if (createRequest.isIOU) {
         // await createRequest.commandContext.sendFollowUp({ content: "Your IOU was created." } , { ephemeral: true });
-        const IOUContent = `<@${owedTo.id}> An IOU was created for you by <@${guildMember.user.id}>: ${cardMessage.url}`;
-        await owedTo.send({ content: IOUContent }).catch(() => { throw new DMPermissionError(IOUContent) });
+        const IOUContent = `<@${owedTo.id}> An IOU was created for you by <@${guildMember.user.id}>:`;
+        await DiscordUtils.activityNotification(IOUContent, owedTo, createRequest.guildId, cardMessage.url);
 
         const walletNeeded = !(await BountyUtils.userWalletRegistered(owedTo.id));
 
@@ -235,24 +236,39 @@ export const finishCreate = async (createRequest: CreateRequest, description: st
             const iouWalletMessage = `Please click the button below to enter your ethereum wallet address (non-ENS) to receive the reward amount for this bounty`;
             const walletButton = new MessageButton().setStyle('SECONDARY').setCustomId('👛').setLabel('Register Wallet');
 
-            await owedTo.send({ content: iouWalletMessage, components: [new MessageActionRow().addComponents(walletButton)] });
+            await DiscordUtils.attemptDM({ content: iouWalletMessage, components: [new MessageActionRow().addComponents(walletButton)] }, owedTo, createRequest.guildId);
         }
 
         const walletNeededMsg = walletNeeded ? "\n" +
             `${owedTo} has not registered a wallet. Remind them to check their DMs for a register wallet button, or to use the /register-wallet command.` : "";
         if (createRequest.templateId) {
             const msgContent = `An instance of your repeating IOU was created: ${cardMessage.url}` + walletNeededMsg;
-            await guildMember.send({ content: msgContent }).catch(() => { throw new DMPermissionError(msgContent) });
+            await DiscordUtils.activityNotification(msgContent, guildMember, createRequest.guildId, cardMessage.url);
         } else {
             const msgContent = "IOU created successfully" + walletNeededMsg;
-            await DiscordUtils.activityResponse(createRequest.commandContext, null, msgContent);
+            await DiscordUtils.activityResponse(createRequest.commandContext, null, msgContent, createRequest.userId, createRequest.guildId);
         }
     } else if (createRequest.templateId) {
         const msgContent = `<@${guildMember.user.id}> An instance of your repeating bounty was created: ${cardMessage.url}`;
-        await guildMember.send({ content: msgContent }).catch(() => { throw new DMPermissionError(msgContent) });
-
+        await DiscordUtils.activityNotification(msgContent, guildMember, createRequest.guildId, cardMessage.url);
     } else {
         await modalContext?.send('Bounty created, see below...');
+        if (createRequest.assign) {
+            const assignRequest = new AssignRequest({
+                commandContext: null,
+                messageReactionRequest: null,
+                buttonInteraction: null,
+                directRequest: {
+                    guildId: createRequest.guildId,
+                    bountyId: newBounty._id,
+                    userId: createRequest.userId,
+                    assign: createRequest.assign,
+                    activity: Activities.assign,
+                    bot: false,
+                }
+            });
+            await assignBounty(assignRequest);
+        }
         return;
     }
 }
@@ -404,15 +420,6 @@ export const generateBountyRecord = async (
         bountyRecord.numRepeats = numRepeats;
         bountyRecord.endRepeatsDate = endRepeatsDate ? endRepeatsDate.toISOString() : null;
         bountyRecord.repeatDays = createRequest.repeatDays;
-    }
-
-
-    if (createRequest.assign) {
-        bountyRecord.assignTo = {
-            discordId: assignedTo.user.id,
-            discordHandle: assignedTo.user.tag,
-            iconUrl: assignedTo.user.avatarURL(),
-        }
     }
 
     if (createRequest.requireApplication) {

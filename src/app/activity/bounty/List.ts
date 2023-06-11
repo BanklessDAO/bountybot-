@@ -169,7 +169,7 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
 		if (!!request.message) {  // List from a refresh reaction
 		    listMessage = request.message;
 		    await listMessage.edit({ embeds: [listCard], components: [componentActions] });
-		    !preventResponse && await DiscordUtils.activityResponse(null, request.buttonInteraction, 'Bounty list refreshed successfully');
+		    !preventResponse && await DiscordUtils.activityResponse(null, request.buttonInteraction, 'Bounty list refreshed successfully', request.userId, request.guildId);
 		} else {  // List from a slash command
 		    const channel = await DiscordUtils.getTextChannelfromChannelId(request.commandContext.channelID);
 		    listMessage = await channel.send({ embeds: [listCard], components: [componentActions] });
@@ -194,7 +194,7 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
 		} catch (e) {
 			throw new DMPermissionError(e);
 		}
-		await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, 'Please check your DM for bounty list');
+		await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, 'Please check your DM for bounty list', request.userId, request.guildId);
 
 	}
 };

@@ -313,14 +313,6 @@ export default class Bounty extends SlashCommand {
                     buttonInteraction: null,
                 });
                 break;
-            case Activities.assign:
-                request = new AssignRequest({
-                    commandContext: commandContext,
-                    messageReactionRequest: null,
-                    buttonInteraction: null,
-
-                });
-                break;
             case Activities.apply:
                 request = new ApplyRequest({
                     commandContext: commandContext,
@@ -333,6 +325,7 @@ export default class Bounty extends SlashCommand {
                     commandContext: commandContext,
                     messageReactionRequest: null,
                     buttonInteraction: null,
+                    directRequest: null,
                 });
                 break;
             case Activities.submit:

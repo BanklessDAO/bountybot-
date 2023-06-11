@@ -109,9 +109,9 @@ export const finishApply = async (request: ApplyRequest, pitch: string) => {
                         `Their pitch: ${pitch ? pitch : '<none given>'} \n` +
                         'Use the "/bounty assign" command to select an applicant who can claim.';
 
-    await DiscordUtils.activityNotification(creatorDM, createdByUser, cardMessage.url);
+    await DiscordUtils.activityNotification(creatorDM, createdByUser, request.guildId, cardMessage.url);
     const activityMessage = `<@${applyingUser.user.id}>, You have applied for this bounty! Reach out to <@${createdByUser.id}> with any questions.`;
-    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage, cardMessage.url);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage, applyingUser.id, request.guildId, cardMessage.url);
     return;
 };
 

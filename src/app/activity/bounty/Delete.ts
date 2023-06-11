@@ -190,7 +190,7 @@ export const finishDelete = async (request: DeleteRequest) => {
             LogUtils.logError("Embeds error: ", e);
             throw new DMPermissionError(creatorDeleteDM) });
     } else {    
-        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorDeleteDM);
+        await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, creatorDeleteDM, request.userId, request.guildId);
     }
     return;
 }
