@@ -33,7 +33,12 @@ export interface Bounty {
 	claimLimit?: Int32,
 	isParent?: boolean,
 	parentId?: string,
-	childrenIds?: ObjectId[]
+	childrenIds?: ObjectId[],
+	isRepeatTemplate?: boolean,
+	repeatTemplateId?: string,
+	repeatDays?: Int32,
+	numRepeats?: Int32,
+	endRepeatsDate?: string,
 	assign?: string,
 	assignedName?: string,
 	assignTo?: UserObject,
@@ -42,7 +47,6 @@ export interface Bounty {
 	activityHistory: ClientInteraction[],
 	isIOU?: boolean,
 	resolutionNote?: string,
-	owedTo?: UserObject,
 	tags: TagObject,
 }
 

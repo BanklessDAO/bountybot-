@@ -38,7 +38,7 @@ export const publishBounty = async (publishRequest: PublishRequest): Promise<any
 	}
 	const bountyMessage: Message = await BountyUtils.canonicalCard(dbBountyResult._id, publishRequest.activity, bountyChannel, guildMember);
 	if (dbBountyResult.status == BountyStatus.draft || publishRequest.commandContext) {
-		await DiscordUtils.activityResponse(publishRequest.commandContext, publishRequest.buttonInteraction,  `Bounty published to \`${(bountyMessage.channel as any).name || bountyChannel.name}\` and the website! <${process.env.BOUNTY_BOARD_URL}${bountyId}>`, bountyMessage.url);
+		await DiscordUtils.activityResponse(publishRequest.commandContext, publishRequest.buttonInteraction,  `Bounty published to \`${(bountyMessage.channel as any).name || bountyChannel.name}\` and the website! <${process.env.BOUNTY_BOARD_URL}${bountyId}>`, publishRequest.userId, publishRequest.guildId, bountyMessage.url);
 	}
 
 	Log.info(`bounty published to ${(bountyMessage.channel as any).name || bountyChannel.name}`);

@@ -1,8 +1,7 @@
 import ValidationError from '../errors/ValidationError';
 import Log, { LogUtils } from './Log';
-import { Role, Message, MessageOptions, TextChannel, AwaitMessagesOptions, DMChannel, GuildMember, MessageActionRow, MessageButton, MessageActionRowComponent, Modal, ModalSubmitInteraction } from 'discord.js';
+import { Role, Message, MessageOptions, TextChannel, AwaitMessagesOptions, DMChannel, GuildMember, MessageActionRow, MessageButton } from 'discord.js';
 import DiscordUtils from '../utils/DiscordUtils';
-import { URL } from 'url';
 import { BountyCollection } from '../types/bounty/BountyCollection';
 import { Applicant, Bounty } from '../types/bounty/Bounty';
 import { BountyStatus } from '../constants/bountyStatus';
@@ -15,9 +14,8 @@ import { CustomerCollection } from '../types/bounty/CustomerCollection';
 import { UpsertUserWalletRequest } from '../requests/UpsertUserWalletRequest';
 import { handler } from '../activity/bounty/Handler';
 import { UserCollection } from '../types/user/UserCollection';
-import { ModalInteractionContext, MessageOptions as scMessageOptions, Message as scMessage, ComponentType, TextInputStyle, CommandContext } from 'slash-create';
-import WalletUtils from './WalletUtils';
-import RuntimeError from '../errors/RuntimeError';
+import { Message as scMessage } from 'slash-create';
+import MiscUtils from './MiscUtils';
 
 
 const BountyUtils = {
@@ -53,6 +51,34 @@ const BountyUtils = {
             LogUtils.logError('failed to validate date', e);
             throw new ValidationError('Please try `UTC` date in format yyyy-mm-dd, i.e 2021-08-15');
         }
+    },
+
+    validateNumRepeatsOrEndDate(numOrDate: string): {numRepeats: (Number | null), endRepeatsDate: (Date | null)} {
+        const MAX_REPEATS = 100;
+        if (numOrDate == '') {
+            return { numRepeats: null, endRepeatsDate: this.threeMonthsFromNow() };
+        }
+        if (numOrDate.match(/^[0-9 ]+$/) !== null) {
+            console.log("Matched integer");
+            const numRepeats = parseInt(numOrDate);
+            if (!(numRepeats > 1) || (numRepeats > MAX_REPEATS)) {
+                throw new ValidationError('Number of repeats must be between 2 and 100');
+            }
+            return {numRepeats: numRepeats, endRepeatsDate: null};
+        }
+        let endRepeatsDate: Date = null;
+        try {
+            console.log("Matched date");
+            endRepeatsDate = new Date(numOrDate);
+            console.log(`End date: ${endRepeatsDate.toISOString()}`);
+        } catch (e) {
+            throw new ValidationError('Please try `UTC` end repeat date in format yyyy-mm-dd, i.e 2024-08-15');
+        };
+        const now = new Date(new Date().setHours(0, 0, 0, 0));
+        if (now > endRepeatsDate) {
+            throw new ValidationError('Please enter an end date in the future');
+        }
+        return { numRepeats: null, endRepeatsDate: endRepeatsDate };
     },
 
     validateTitle(title: string): void {
@@ -113,6 +139,13 @@ const BountyUtils = {
             throw new ValidationError('claimants should be from 0 (meaning infinite) to 100');
         }
     },
+
+    validateRepeatDays(repeatDays: number) {
+        if (repeatDays !== undefined && (repeatDays < 1 )) {
+            throw new ValidationError('repeatDays should be greater than 0');
+        }
+    },
+
 
     validateRequireApplications(request: CreateRequest) {
         if (request.evergreen && request.requireApplication) {
@@ -237,42 +270,52 @@ const BountyUtils = {
         return elapsedSeconds < BountyUtils.TWENTYFOUR_HOURS_IN_SECONDS;
     },
 
+    validateDeletableStatus(bounty: BountyCollection): boolean {
+        const currentDate: string = (new Date()).toISOString();
+        return bounty.status && 
+        (bounty.status === BountyStatus.draft ||
+            bounty.status === BountyStatus.open ||
+            (bounty.status === BountyStatus.in_progress && 
+                !BountyUtils.isWithin24Hours(currentDate, BountyUtils.getClaimedAt(bounty))));
+    },
+
     async createPublicTitle(bountyRecord: Bounty): Promise<string> {
         let title = bountyRecord.title;
+        let secondaryTitle = '';
         if (bountyRecord.evergreen && bountyRecord.isParent) {
             if (bountyRecord.claimLimit > 1) {
                 const claimsAvailable = bountyRecord.claimLimit - (bountyRecord.childrenIds !== undefined ? bountyRecord.childrenIds.length : 0);
-                title += `\n(${claimsAvailable} claim${claimsAvailable !== 1 ? "s" : ""} available)`;
+                secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`${claimsAvailable} claim${claimsAvailable !== 1 ? "s" : ""} available`);
             } else {
-                title += '\n(Infinite claims available)';
+                secondaryTitle = MiscUtils.addToTitle(secondaryTitle,'infinite claims available');
             }
         }
         if (bountyRecord.assignTo) {
-            title += `\n(For user ${bountyRecord.assignTo.discordHandle})`
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`for user ${bountyRecord.assignTo.discordHandle}`);
         } else if (bountyRecord.assign) {  //assign is deprecated, replaced by assignTo
-            title += `\n(For user ${bountyRecord.assignedName})`
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`for user ${bountyRecord.assignedName}`);
         } else if (bountyRecord.gateTo) {
-            title += `\n(For role ${bountyRecord.gateTo[0].discordName})`;
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`for role ${bountyRecord.gateTo[0].discordName}`);
         } else if (bountyRecord.gate) {  // deprecated, repalced by gateTo
             const role: Role = await DiscordUtils.getRoleFromRoleId(bountyRecord.gate[0], bountyRecord.customerId);
-            title += `\n(For role ${role.name})`;
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`for role ${role.name}`);
         } else if (bountyRecord.isIOU) {
-            title += `\n(IOU owed to ${bountyRecord.claimedBy.discordHandle})`;
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,`IOU owed to ${bountyRecord.claimedBy.discordHandle}`);
         } 
 
-        if (bountyRecord.requireApplication) {
-            title += `\n(Requires application before claiming`;
+        if (bountyRecord.requireApplication && (bountyRecord.status == BountyStatus.open)) {
+            let appTitle =  `requires application before claiming`;
             if (bountyRecord.applicants) {
                 if (bountyRecord.applicants.length == 1) {
-                    title += `. 1 applicant so far.`;
+                    appTitle += `, 1 applicant so far`;
                 } else {
-                    title += `. ${bountyRecord.applicants.length} applicants so far.`;
+                    appTitle += `, ${bountyRecord.applicants.length} applicants so far`;
                 }
             }
-            title += ')'
+            secondaryTitle = MiscUtils.addToTitle(secondaryTitle,appTitle);
         }
-        
-        return title;
+
+        return secondaryTitle ? title + '\n' + MiscUtils.wordWrap(secondaryTitle, 20) : title;
 
     },
 
@@ -289,6 +332,16 @@ const BountyUtils = {
         const customer: CustomerCollection = await customerCollection.findOne({
             customerId: bounty.customerId,
         });
+        let bountyTemplate: BountyCollection = null;
+        let bountyRepeats = 0;
+        if (bounty.repeatTemplateId) {
+            bountyTemplate = await bountyCollection.findOne({
+                _id: new mongo.ObjectId(bounty.repeatTemplateId)
+            });
+            bountyRepeats = await bountyCollection.find({
+                repeatTemplateId: bounty.repeatTemplateId
+            }).count();
+        }
 
         // Build the fields, reactions, and footer based on status
         const fields = [
@@ -311,6 +364,21 @@ const BountyUtils = {
             const assignedUser = await DiscordUtils.getGuildMemberFromUserId(bounty.assign, bounty.customerId);
             fields.push({ name: 'For user', value: assignedUser.user.tag, inline: false })
         }
+        if (!!bounty.claimedBy) fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
+        if (!!bounty.submittedBy) fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
+        if (!!bounty.reviewedBy) fields.push({ name: 'Reviewed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, bounty.customerId)).user.tag, inline: true });
+        if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
+        if (bountyTemplate && (bountyTemplate.status !== BountyStatus.deleted)) {
+            fields.push({ name: 'Repeats every', value: bountyTemplate.repeatDays + ` day${bountyTemplate.repeatDays > 1 ? 's' : ''}`, inline: false });
+            if (bountyTemplate.endRepeatsDate) {
+                fields.push({ name: 'Ending', value: BountyUtils.formatDisplayDate(bountyTemplate.endRepeatsDate), inline: true});
+            } else {
+                fields.push({ name: 'Ending after', value: bountyTemplate.numRepeats + ' repeats', inline: true});
+            }
+            fields.push({ name: '# Repeated', value: bountyRepeats.toString(), inline: true });
+        }
+
+
 
         let footerArr = [];
         if (bounty.tags?.channelCategory) {
@@ -351,7 +419,11 @@ const BountyUtils = {
                     footer.text += '📮 - submit | ✅ - mark complete | 🆘 - help';
                 }
                 actions.push('🆘');
-                fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
+                // Allow delete if there is an active template involved
+                if (bountyTemplate && (bountyTemplate.status !== BountyStatus.deleted)) {
+                    footer.text += '| ❌ - delete';
+                    actions.push('❌');
+                }
                 if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
                 break;
             case BountyStatus.in_review:
@@ -364,9 +436,11 @@ const BountyUtils = {
                     footer.text += '✅ - mark complete | 🆘 - help';
                 }
                 actions.push('🆘');
-                fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
+                // Allow delete if there is a template involved
+                if (bountyTemplate && (bountyTemplate.status !== BountyStatus.deleted)) {
+                    footer.text += '| ❌ - delete';
+                    actions.push('❌');
+                }
                 break;
             case BountyStatus.complete:
                 color = '#01d212';
@@ -375,25 +449,30 @@ const BountyUtils = {
                     footer.text += '💰 - mark paid';
                     actions.push('💰');
                 }
-                fields.push({ name: 'Claimed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.claimedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                // Bounty might jump directly to Complete status so these would be null...
-                if (!!bounty.submittedBy) fields.push({ name: 'Submitted by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.submittedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                if (!!bounty.reviewedBy) fields.push({ name: 'Reviewed by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.reviewedBy.discordId, bounty.customerId)).user.tag, inline: true });
-                if (bounty.paidStatus === PaidStatus.paid) fields.push({ name: 'Paid by', value: (await DiscordUtils.getGuildMemberFromUserId(bounty.createdBy.discordId, bounty.customerId)).user.tag, inline: true });
+                // Allow delete if there is a template involved
+                if (bountyTemplate && (bountyTemplate.status !== BountyStatus.deleted)) {
+                    footer.text += '| ❌ - delete';
+                    actions.push('❌');
+                }
                 break;
         }
 
         const isDraftBounty = (bounty.status == BountyStatus.draft)
         const createdAt = new Date(bounty.createdAt);
 
-        const actionComponent = actions.map(a =>
+        const actionComponents = [];
+
+        actionComponents[0] = actions.map(a =>
             new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
         );
 
         if (!isDraftBounty && !!customer.lastListMessage) {
-            actionComponent.push(
-                new MessageButton().setLabel('Back to List').setStyle('LINK').setURL(customer.lastListMessage)
-            );
+            const backToListButton: MessageButton = new MessageButton().setLabel('Back to List').setStyle('LINK').setURL(customer.lastListMessage);
+            if (actions.length < 5) {
+                actionComponents[0].push(backToListButton);
+            } else {
+                actionComponents[1] = [ backToListButton ];
+            };
         }
 
 
@@ -411,11 +490,9 @@ const BountyUtils = {
                 footer: footer,
                 color: color,
             }],
-            components: actionComponent.length ? [
-                new MessageActionRow().addComponents(actionComponent)
-            ]
-                :
-                [],
+            components: actionComponents.map(a => 
+                new MessageActionRow().addComponents(a)
+            ),
         };
 
 
@@ -660,8 +737,7 @@ const BountyUtils = {
         }
 
         return bounty;
-    },
-
+    }
 }
 
 export default BountyUtils;

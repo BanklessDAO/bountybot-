@@ -43,6 +43,12 @@ export default class IOU extends SlashCommand {
                     description: 'What is the reward for?',
                     required: true,
                 },
+                {
+                    name: 'repeat-days',
+                    type: CommandOptionType.INTEGER,
+                    description: 'Repeat this IOU every X days',
+                    required: false,
+                }
             ],
             throttling: {
                 usages: 2,
@@ -81,9 +87,9 @@ export default class IOU extends SlashCommand {
         }
         catch (e) {
             if (e instanceof ValidationError) {
-                await DiscordUtils.activityResponse(commandContext, null, `<@${commandContext.user.id}>\n` + e.message);
+                await DiscordUtils.activityResponse(commandContext, null, `<@${commandContext.user.id}>\n` + e.message, request.userId, request.guildId);
             } else if (e instanceof AuthorizationError) {
-                await DiscordUtils.activityResponse(commandContext, null, `<@${commandContext.user.id}>\n` + e.message);
+                await DiscordUtils.activityResponse(commandContext, null, `<@${commandContext.user.id}>\n` + e.message, request.userId, request.guildId);
             } else if (e instanceof NotificationPermissionError) {
                 await ErrorUtils.sendToDefaultChannel(e.message, request);
             } else if (e instanceof DMPermissionError) {

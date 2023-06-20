@@ -11,6 +11,7 @@ import BountyUtils from '../../utils/BountyUtils';
 import { ModalOptions as scModalOptions, ComponentType, ModalInteractionContext, TextInputStyle } from 'slash-create';
 import RuntimeError from '../../errors/RuntimeError';
 import ModalTimeoutError from '../../errors/ModalTimeoutError';
+import crypto from 'crypto';
 
 export const applyBounty = async (request: ApplyRequest): Promise<any> => {
     Log.debug('In Apply activity');
@@ -62,7 +63,6 @@ export const applyBounty = async (request: ApplyRequest): Promise<any> => {
         await request.commandContext.sendModal(modal as scModalOptions ,async (mctx) => { await modalCallback(mctx, request) });
         return;
     } else {
-        const crypto = require('crypto');
         const uuid = crypto.randomUUID();
         try {
             await request.buttonInteraction.showModal(Object.assign(modal as unknown as ModalOptions, {customId: uuid}));
@@ -109,9 +109,9 @@ export const finishApply = async (request: ApplyRequest, pitch: string) => {
                         `Their pitch: ${pitch ? pitch : '<none given>'} \n` +
                         'Use the "/bounty assign" command to select an applicant who can claim.';
 
-    await DiscordUtils.activityNotification(creatorDM, createdByUser, cardMessage.url);
+    await DiscordUtils.activityNotification(creatorDM, createdByUser, request.guildId, cardMessage.url);
     const activityMessage = `<@${applyingUser.user.id}>, You have applied for this bounty! Reach out to <@${createdByUser.id}> with any questions.`;
-    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage, cardMessage.url);
+    await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, activityMessage, applyingUser.id, request.guildId, cardMessage.url);
     return;
 };
 

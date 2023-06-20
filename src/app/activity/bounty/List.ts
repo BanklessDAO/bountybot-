@@ -1,5 +1,5 @@
 import MongoDbUtils  from '../../utils/MongoDbUtils';
-import mongo, { Cursor, Db, UpdateWriteOpResult } from 'mongodb';
+import { Cursor, Db, UpdateWriteOpResult } from 'mongodb';
 import { Message, MessageActionRow, MessageButton, MessageEmbedOptions, TextChannel } from 'discord.js';
 import Log from '../../utils/Log';
 import { BountyCollection } from '../../types/bounty/BountyCollection';
@@ -37,11 +37,11 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
 
     switch (listType) {
         case 'CREATED_BY_ME':
-            dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
+            dbRecords = bountyCollection.find({ 'createdBy.discordId': listUser.user.id, 'isRepeatTemplate': { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
             listTitle = "📝 Bounties Created by Me";
             break;
         case 'CLAIMED_BY_ME':
-            dbRecords = bountyCollection.find({ $or: [ { 'claimedBy.discordId': listUser.user.id }, { applicants: { $elemMatch: { discordId: listUser.user.id }}} ] , status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
+            dbRecords = bountyCollection.find({ $or: [ { 'claimedBy.discordId': listUser.user.id }, { applicants: { $elemMatch: { discordId: listUser.user.id }}} ] , 'isRepeatTemplate': { $ne: true }, status: { $ne: 'Deleted' }, 'customerId': request.guildId }).sort({ status: -1, createdAt: -1 });
             listTitle = "👷 Bounties Claimed or Applied For by Me";
             openTitle = "Applied For"
             break;
@@ -52,25 +52,28 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
                         { 'tags.channelCategory': channelCategory.name },
                         { 'tags.keywords': { $regex: tag, $options: 'i' } }
                         ],
-                    status: { $ne: 'Deleted' }
+                    status: { $ne: 'Deleted' },
+					'isRepeatTemplate': { $ne: true }
                 }).sort({ status: -1, createdAt: -1 });
                 listTitle = `${channelCategory.name} Bounties & Bounties tagged with ${tag}`;
             } else if (tag) {
                 dbRecords = bountyCollection.find({
                     'tags.keywords': { '$regex': tag, '$options': 'i' },
-                    status: { $ne: 'Deleted' }
+                    status: { $ne: 'Deleted' },
+					'isRepeatTemplate': { $ne: true }
                 }).sort({ status: -1, createdAt: -1 });
                 listTitle = `Bounties tagged with ${tag}`;
             } else if (!!channelCategory) {
                 dbRecords = bountyCollection.find({
                     'tags.channelCategory': channelCategory.name,
-                    status: { $ne: 'Deleted' }
+                    status: { $ne: 'Deleted' },
+					'isRepeatTemplate': { $ne: true }
                 }).sort({ status: -1, createdAt: -1 });
-		listTitle = `${channelCategory.name} Bounties`
+				listTitle = `${channelCategory.name} Bounties`;
             } else {
                 // Make sure "in_review" bounties don't exhaust the list limit before "in_progress" are fetched
                 const statusOrder = [ BountyStatus.open, BountyStatus.in_progress, BountyStatus.in_review ];
-                const m = { "$match" : { "$and" : [{ "status" : { "$in" : statusOrder } }, { isIOU: { $ne: true } }, { 'customerId': request.guildId }] } };
+                const m = { "$match" : { "$and" : [{ "status" : { "$in" : statusOrder } }, { isIOU: { $ne: true } }, {'isRepeatTemplate': { $ne: true } }, { 'customerId': request.guildId }] } };
                 const a = { "$addFields" : { "__order" : { "$indexOfArray" : [ statusOrder, "$status" ] } } };
                 const s = { "$sort" : { "__order" : 1, "createdAt" : -1 } };
                 dbRecords = bountyCollection.aggregate( [ m, a, s ] );
@@ -141,17 +144,32 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
 	const currentDateString = currentDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
 	const currentTimeString = currentDate.toLocaleTimeString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short'});
 	let footerText = `As of ${currentDateString + ', ' + currentTimeString}. \nClick on the bounty name for more detail or to take action.\n`;
-	if (!listType && !channelCategory && !tag) footerText += `👷 DM my claimed or applied for bounties | 📝 DM my created bounties | 🔄 Refresh list`;
+	if (!listType) {
+		if (!channelCategory && !tag) footerText += `👷 DM my claimed or applied for bounties | 📝 DM my created bounties | 🔄 Refresh list`;
+		else {
+			// This footer format is important! Used to parse tag and category on refresh
+			footerText += tag ? `Tag: ${tag}\n` : '';
+			footerText += channelCategory ? `Channel Category: ${channelCategory.id}\n` : '';
+			footerText += '🔄 Refresh list';
+		}
+	}
 	listCard.footer = { text: footerText };
 	let listMessage: Message;
-	if (!listType && !channelCategory && !tag) {
-	    const componentActions = new MessageActionRow().addComponents(['👷', '📝', '🔄']
-	        .map(a => new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
-		))
+	if (!listType) {
+		let componentActions: MessageActionRow;
+		if (!channelCategory && !tag) {
+			componentActions = new MessageActionRow().addComponents(['👷', '📝', '🔄']
+				.map(a => new MessageButton().setEmoji(a).setStyle('SECONDARY').setCustomId(a)
+			));
+		} else {
+			componentActions = new MessageActionRow().addComponents([
+				new MessageButton().setEmoji('🔄').setStyle('SECONDARY').setCustomId('🔄')
+			]);
+		}
 		if (!!request.message) {  // List from a refresh reaction
 		    listMessage = request.message;
 		    await listMessage.edit({ embeds: [listCard], components: [componentActions] });
-		    !preventResponse && await DiscordUtils.activityResponse(null, request.buttonInteraction, 'Bounty list refreshed successfully');
+		    !preventResponse && await DiscordUtils.activityResponse(null, request.buttonInteraction, 'Bounty list refreshed successfully', request.userId, request.guildId);
 		} else {  // List from a slash command
 		    const channel = await DiscordUtils.getTextChannelfromChannelId(request.commandContext.channelID);
 		    listMessage = await channel.send({ embeds: [listCard], components: [componentActions] });
@@ -176,7 +194,7 @@ export const listBounty = async (request: ListRequest, preventResponse ?: boolea
 		} catch (e) {
 			throw new DMPermissionError(e);
 		}
-		await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, 'Please check your DM for bounty list');
+		await DiscordUtils.activityResponse(request.commandContext, request.buttonInteraction, 'Please check your DM for bounty list', request.userId, request.guildId);
 
 	}
 };

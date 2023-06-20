@@ -79,7 +79,14 @@ export default class Bounty extends SlashCommand {
                             type: CommandOptionType.BOOLEAN,
                             description: 'Require users to apply for a bounty. You choose who gets it.',
                             required: false,
-                        }
+                        },
+                        {
+                            name: 'repeat-days',
+                            type: CommandOptionType.INTEGER,
+                            description: 'Repeat this bounty every X days',
+                            required: false,
+                        },
+
                     ],
                 },
                 {
@@ -306,14 +313,6 @@ export default class Bounty extends SlashCommand {
                     buttonInteraction: null,
                 });
                 break;
-            case Activities.assign:
-                request = new AssignRequest({
-                    commandContext: commandContext,
-                    messageReactionRequest: null,
-                    buttonInteraction: null,
-
-                });
-                break;
             case Activities.apply:
                 request = new ApplyRequest({
                     commandContext: commandContext,
@@ -326,6 +325,7 @@ export default class Bounty extends SlashCommand {
                     commandContext: commandContext,
                     messageReactionRequest: null,
                     buttonInteraction: null,
+                    directRequest: null,
                 });
                 break;
             case Activities.submit:

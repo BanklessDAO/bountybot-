@@ -9,9 +9,9 @@ export class DeleteRequest extends Request {
     bountyId: string;
     resolutionNote: string;
     commandContext: CommandContext;
-
     message: Message;
     buttonInteraction: ButtonInteraction;
+    silent: boolean;
     
     constructor(args: {
         commandContext: CommandContext, 
@@ -22,6 +22,7 @@ export class DeleteRequest extends Request {
             userId: string,
             activity: string,
             resolutionNote: string,
+            silent: boolean,
             bot: boolean 
         },
         buttonInteraction: ButtonInteraction,
@@ -52,6 +53,7 @@ export class DeleteRequest extends Request {
             this.bountyId = args.directRequest.bountyId;
             this.buttonInteraction = args.buttonInteraction;
             this.resolutionNote = args.directRequest.resolutionNote;
+            this.silent = args.directRequest.silent;
 
         }
     }

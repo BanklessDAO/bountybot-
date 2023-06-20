@@ -1,6 +1,6 @@
 // Require the necessary discord.js classes
 import { Client, Intents } from 'discord.js';
-import { SlashCreator, GatewayServer, SlashCommand, CommandContext } from 'slash-create';
+import { SlashCreator, GatewayServer } from 'slash-create';
 import path from 'path';
 import fs from 'fs';
 import Log from './utils/Log';
@@ -9,6 +9,8 @@ import MongoDbUtils from './utils/MongoDbUtils';
 import { ClientSync } from './clientSync/ClientSync';
 import { ChangeStreamEvent } from './types/mongo/ChangeStream';
 import { BountyCollection } from './types/bounty/BountyCollection';
+import cron from 'node-cron';
+import { checkForBountyRepeats } from './cron/CheckForBountyRepeats';
 
 new Log();
 
@@ -18,6 +20,7 @@ const client = new Client({
 	// https://discord.com/developers/docs/topics/gateway#privileged-intents
 	intents: [
 		Intents.FLAGS.GUILDS,
+		Intents.FLAGS.GUILD_MEMBERS,
 		Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS,
 		Intents.FLAGS.GUILD_WEBHOOKS,
 		Intents.FLAGS.GUILD_PRESENCES,
@@ -69,8 +72,9 @@ creator
 	.syncCommands();
 
 creator.on('componentInteraction', () => true);
-// When the client is ready, run this code (only once)
+// When the client is ready, run this code (only once). Check bounty repeats hourly (could probably be daily)
 client.once('ready', () => {
+	cron.schedule('0 * * * * ', checkForBountyRepeats)
 	console.log('Ready!');
 });
 
